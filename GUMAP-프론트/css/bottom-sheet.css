@@ -1,0 +1,323 @@
+/* ============================================================
+ * 📁 파일명: css/bottom-sheet.css
+ * 📌 역할: 모바일 반응형 레이아웃 (바텀시트 UI 변환)
+ * ============================================================
+ *
+ * [파일 설명]
+ *   화면 폭이 768px 이하(모바일)일 때 데스크톱 사이드바를
+ *   화면 하단의 바텀시트(Bottom Sheet) 형태로 자동 변환합니다.
+ *   - 사이드바 패널 → 하단 고정 슬라이드업 시트
+ *   - 검색바, 탭 네비게이션 등 모바일 최적화 배치
+ *   - 터치 제스처 기반 드래그 핸들 스타일
+ *   - AI 비서 패널, 길찾기 패널 등 각 섹션별 반응형 조정
+ *
+ * [적용 조건]
+ *   - @media (max-width: 768px) 미디어 쿼리 내부에 정의
+ * ============================================================ */
+
+/* [신규] 모바일 반응형 완전 대응 UI (서로 겹치지 않도록 배치) */
+@media (max-width: 768px) {
+    /* 메인 패널 (바텀 시트 형태로 화면 하단에 고정) */
+    #routing-panel {
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        max-height: 45vh !important;
+        border-radius: 20px 20px 0 0 !important;
+        box-sizing: border-box;
+        padding: 15px !important;
+        padding-bottom: 25px !important;
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.4) !important;
+        border: none !important;
+        border-top: 1px solid var(--border-panel) !important;
+    }
+    #bottom-sheet-handle {
+        display: flex !important;
+        width: 100%;
+        height: 20px;
+        justify-content: center;
+        align-items: flex-start;
+        cursor: pointer;
+        margin-top: -5px;
+        margin-bottom: 5px;
+    }
+    #bottom-sheet-handle::after {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 5px;
+        background: rgba(150, 150, 150, 0.4);
+        border-radius: 3px;
+    }
+    
+    /* 모바일 3단 바텀시트 공통 스타일 (iOS 스타일 스프링 효과 애니메이션 구현) */
+    #routing-panel, 
+    #transit-detail-panel, 
+    #route-detail-panel, 
+    #bus-route-panel {
+        transition: height 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease !important;
+        will-change: transform, height, opacity;
+        transform: translate3d(0, 0, 0);
+        -webkit-overflow-scrolling: touch !important;
+        overflow-y: auto !important;
+    }
+    
+    /* 모바일 리스트 관성 스크롤 및 가속 추가 */
+    #favorites-list,
+    #search-results,
+    #ai-chat-history,
+    #ai-suggested-replies {
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    /* 1단계: 완전 숨기기 */
+    #routing-panel.panel-hidden, 
+    #transit-detail-panel.panel-hidden, 
+    #route-detail-panel.panel-hidden, 
+    #bus-route-panel.panel-hidden {
+        height: 0vh !important;
+        max-height: 0vh !important;
+        transform: translateY(110%); /* 10% extra buffer to ensure shadow is hidden */
+        pointer-events: none !important;
+        opacity: 0 !important;
+    }
+    
+    /* 2단계: 기본 접힘 */
+    #routing-panel.panel-collapsed, 
+    #transit-detail-panel.panel-collapsed, 
+    #route-detail-panel.panel-collapsed, 
+    #bus-route-panel.panel-collapsed {
+        height: 15vh !important;
+        max-height: 15vh !important;
+        transform: translateY(0);
+        overflow: hidden !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+    
+    /* 3단계: 끝까지 올리기 (천장에서 2cm 내린 상태, 약 90vh, 라운드 코너 복원) */
+    #routing-panel.panel-expanded {
+        height: 90vh !important;
+        max-height: 90vh !important;
+        border-radius: 20px 20px 0 0 !important; /* 라운드 코너 복원 */
+        transform: translateY(0);
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+    #transit-detail-panel.panel-expanded, 
+    #route-detail-panel.panel-expanded, 
+    #bus-route-panel.panel-expanded {
+        height: 90vh !important;
+        max-height: 90vh !important;
+        border-radius: 20px 20px 0 0 !important;
+        transform: translateY(0);
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+    
+    /* 검색창 열기 플로팅 버튼 제어 (모바일에서 0.5cm 추가 상향 조정) */
+    #show-routing-panel-btn {
+        display: none !important;
+    }
+    #routing-panel.panel-hidden ~ #show-routing-panel-btn {
+        display: flex !important;
+        bottom: 60px !important; /* 0.5cm (20px) 추가 상향 조정, 총 60px */
+    }
+    
+    /* 안내 메시지바 모바일에서 숨김 요청 적용 */
+    #clicked-info {
+        display: none !important;
+    }
+    
+    /* Leaflet 저작권 문구 모바일 최상단 고정 */
+    .leaflet-control-attribution {
+        position: fixed !important;
+        top: 0 !important;
+        bottom: auto !important;
+        left: 0 !important;
+        right: 0 !important;
+        text-align: center !important;
+        font-size: 9px !important;
+        z-index: 9999 !important;
+        background: rgba(255, 255, 255, 0.5) !important;
+        backdrop-filter: blur(4px) !important;
+        border-top: none !important;
+    }
+    
+    /* 날씨 패널 (모바일에서 0.5cm 추가 하향 조정, 총 75px) */
+    #weather-panel {
+        top: 75px !important;
+        left: 15px !important;
+        bottom: auto !important;
+        right: auto !important;
+        padding: 6px 12px !important;
+        font-size: 11px !important;
+        gap: 8px !important;
+    }
+    
+    /* 다크모드 토글 버튼 (모바일에서 top:20px로 상향) */
+    #dark-mode-toggle {
+        top: 20px !important;
+        right: 15px !important;
+        bottom: auto !important;
+        width: 38px !important;
+        height: 38px !important;
+        font-size: 18px !important;
+    }
+    
+    /* 지도 컨트롤러 위치 조정 (다크모드 스위치 위치인 top:75px로 변경) 및 z-index 상향 */
+    .leaflet-top.leaflet-right {
+        top: 75px !important;
+        right: 15px !important;
+        z-index: 1002 !important;
+        pointer-events: auto !important;
+    }
+    .leaflet-top.leaflet-right .leaflet-control-layers {
+        z-index: 1002 !important;
+        pointer-events: auto !important;
+    }
+    .leaflet-top.leaflet-left {
+        top: 65px !important;
+    }
+    .leaflet-bottom.leaflet-right, .leaflet-bottom.leaflet-left {
+        bottom: calc(14vh + 15px) !important;
+        transition: bottom 0.3s ease, opacity 0.3s ease;
+    }
+    
+    /* 편의시설 검색 버튼 그리드 간격 축소 */
+    .glass-btn {
+        font-size: 11px !important;
+        padding: 6px 8px !important;
+    }
+    
+    #search-results {
+        max-height: 120px !important;
+    }
+    
+    /* 모바일 바텀시트에서 공간 확보를 위해 앱 로고 헤더 숨김 */
+    #app-header {
+        display: none !important;
+    }
+
+    /* 상세 정보 팝업 패널 모바일 최적화 (하단 슬라이드 시트 오버레이) */
+    #transit-detail-panel, #route-detail-panel, #bus-route-panel {
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100vw !important;
+        max-width: none !important;
+        max-height: 75vh !important;
+        border-radius: 24px 24px 0 0 !important;
+        z-index: 10002 !important;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35) !important;
+        transform: translateY(0);
+        transition: height 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease !important;
+    }
+
+    .detail-sheet-handle {
+        display: flex !important;
+        width: 100%;
+        height: 20px;
+        justify-content: center;
+        align-items: flex-start;
+        cursor: pointer;
+        margin-top: -10px;
+        margin-bottom: 10px;
+    }
+
+    .detail-sheet-bar {
+        width: 40px;
+        height: 5px;
+        background: rgba(150, 150, 150, 0.4);
+        border-radius: 3px;
+    }
+
+    /* 날씨 패널 모바일 최적화 및 텍스트 겹침 방지 */
+    .weather-label, .weather-sep {
+        display: none !important;
+    }
+    .hide-mobile {
+        display: none !important;
+    }
+    #weather-panel {
+        max-width: calc(100vw - 80px) !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    /* 모바일 모달 창 찌그러짐 및 화면 초과 방지 */
+    #review-modal > div,
+    #dev-mode-modal > div,
+    #server-connect-modal > div {
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+}
+
+/* ── 모바일 하단 바텀시트 확장 시 지도 컨트롤 투명도/조작 제한 ── */
+@media (max-width: 768px) {
+    #routing-panel.panel-expanded ~ #map .leaflet-bottom,
+    #routing-panel.panel-expanded ~ #map .leaflet-top,
+    #transit-detail-panel.panel-expanded ~ #map .leaflet-bottom,
+    #transit-detail-panel.panel-expanded ~ #map .leaflet-top,
+    #route-detail-panel.panel-expanded ~ #map .leaflet-bottom,
+    #route-detail-panel.panel-expanded ~ #map .leaflet-top,
+    #bus-route-panel.panel-expanded ~ #map .leaflet-bottom,
+    #bus-route-panel.panel-expanded ~ #map .leaflet-top {
+        opacity: 0.1;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+    #routing-panel.panel-collapsed ~ #map .leaflet-bottom,
+    #routing-panel.panel-collapsed ~ #map .leaflet-top,
+    #transit-detail-panel.panel-collapsed ~ #map .leaflet-bottom,
+    #transit-detail-panel.panel-collapsed ~ #map .leaflet-top,
+    #route-detail-panel.panel-collapsed ~ #map .leaflet-bottom,
+    #route-detail-panel.panel-collapsed ~ #map .leaflet-top,
+    #bus-route-panel.panel-collapsed ~ #map .leaflet-bottom,
+    #bus-route-panel.panel-collapsed ~ #map .leaflet-top {
+        opacity: 1;
+        pointer-events: auto;
+        transition: opacity 0.3s ease;
+    }
+    
+    /* Leaflet 기본 지도 컨트롤이 모바일 바텀시트 접힘 상태에서 가려지지 않도록 패딩 기본 확보 */
+    .leaflet-bottom.leaflet-right, .leaflet-bottom.leaflet-left {
+        bottom: calc(14vh + 15px) !important;
+        transition: bottom 0.3s ease, opacity 0.3s ease;
+    }
+}
+
+/* ── 초소형 모바일 기기 대응 (360px 이하) ── */
+@media (max-width: 360px) {
+    #routing-panel {
+        padding: 10px 14px !important;
+        padding-bottom: 20px !important;
+    }
+    .glass-btn {
+        font-size: 10px !important;
+        padding: 5px 6px !important;
+    }
+    .glass-input {
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+    }
+    #search-results {
+        max-height: 90px !important;
+    }
+    #transit-detail-panel, #route-detail-panel, #bus-route-panel {
+        font-size: 11px !important;
+    }
+    #app-header h1 {
+        font-size: 15px !important;
+    }
+    #app-header p {
+        font-size: 8px !important;
+    }
+}

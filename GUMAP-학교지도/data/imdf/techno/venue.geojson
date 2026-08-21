@@ -1,0 +1,48 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "id": "749d0866-d61f-4d19-8b95-bb16f405e713",
+      "type": "Feature",
+      "feature_type": "venue",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              128.3939064921673,
+              36.14691072355445
+            ],
+            [
+              128.39465351761936,
+              36.14721448418413
+            ],
+            [
+              128.39487259520047,
+              36.1463185452312
+            ],
+            [
+              128.3941255697484,
+              36.14601478460151
+            ],
+            [
+              128.3939064921673,
+              36.14691072355445
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "category": "education",
+        "name": {
+          "ko-KR": "금오공과대학교 테크노관"
+        },
+        "alt_name": {
+          "ko-KR": "Kumoh National Institute of Technology Techno Hall"
+        },
+        "phone_number": "+82-54-478-7114",
+        "website": "https://www.kumoh.ac.kr"
+      }
+    }
+  ]
+}

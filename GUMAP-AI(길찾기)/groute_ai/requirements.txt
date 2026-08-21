@@ -1,0 +1,12 @@
+osmnx
+networkx
+pandas
+geopandas
+gymnasium
+stable-baselines3
+onnx
+onnxruntime
+numpy
+scipy
+matplotlib
+folium
