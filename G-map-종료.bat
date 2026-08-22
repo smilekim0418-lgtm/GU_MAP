@@ -9,7 +9,7 @@ echo.
 FOR %%p IN (3000 8765 8766 8767) DO (
     FOR /F "tokens=5" %%a IN ('netstat -ano ^| findstr :%%p ^| findstr LISTENING') DO (
         if "%%a" NEQ "0" (
-            echo 포트 %%p (PID: %%a) 종료 중...
+            echo 포트 %%p ^(PID: %%a^) 종료 중...
             taskkill /F /PID %%a /T >nul 2>&1
         )
     )
