@@ -27,7 +27,7 @@ _candidates = [
 SERVER_SCRIPT = next((p for p in _candidates if os.path.isfile(p)), None)
 SERVER_DIR = os.path.dirname(SERVER_SCRIPT) if SERVER_SCRIPT else os.path.dirname(SCRIPT_DIR)
 
-BASE = r"C:\Users\dryou\OneDrive\바탕 화면\학교지도\GUMI-KUMHO\USB 드라이브 3\금오공대_최종산출물"
+BASE = os.path.join(os.path.dirname(SCRIPT_DIR), "GIS_DATA", "금오공대_최종산출물")
 
 TILE_SERVERS = [
     (8765, "정사영상",  os.path.join(BASE, "2. 정사영상")),

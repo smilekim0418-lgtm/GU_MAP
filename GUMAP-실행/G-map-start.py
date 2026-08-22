@@ -29,7 +29,7 @@ _cors_candidates = [
 ]
 CORS_SCRIPT   = next((p for p in _cors_candidates if os.path.isfile(p)), os.path.join(SCRIPT_DIR, "cors_server.py"))
 
-BASE = r"C:\Users\dryou\OneDrive\바탕 화면\학교지도\GUMI-KUMHO\USB 드라이브 3\금오공대_최종산출물"
+BASE = os.path.join(os.path.dirname(SCRIPT_DIR), "GIS_DATA", "금오공대_최종산출물")
 LOG_DIR = os.path.join(SCRIPT_DIR, "G-map-logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
