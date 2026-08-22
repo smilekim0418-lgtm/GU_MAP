@@ -1,5 +1,4 @@
 @echo off
-chcp 65001 >nul
-cd /d "%~dp0GUMAP-ì‹¤í–‰"
+cd /d "%~dp0GUMAP-½ÇÇà"
 python "G-map-start.py"
 pause
