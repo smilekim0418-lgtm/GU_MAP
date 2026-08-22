@@ -355,9 +355,24 @@ def test_category_library():
     assert excel.guess_category("독서실") == "library"
 
 
+def test_category_breakroom_handles_the_spelling_used_in_the_spreadsheet():
+    # 실제 엑셀은 "휴게실" 이 아니라 "휴계실" 로 적혀 있다 (1F 108/110/160)
+    assert excel.guess_category("학생휴계실") == "breakroom"
+    assert excel.guess_category("교수휴계실 및 보관함실") == "breakroom"
+    assert excel.guess_category("휴게실") == "breakroom"
+
+
 def test_category_falls_back_to_office():
     assert excel.guess_category("관리실") == "office"
     assert excel.guess_category("") == "office"
+
+
+def test_real_breakrooms_in_the_spreadsheet_are_classified():
+    """죽은 규칙 방지: 실제 데이터에 대해 규칙이 실제로 걸리는지 확인한다."""
+    rooms = excel.load_rooms()
+    by_id = {r.room_id: r for r in rooms["1F"]}
+    assert by_id["160"].category == "breakroom"
+    assert by_id["108"].category == "breakroom"
 
 
 def test_every_guessed_category_is_valid():
@@ -442,13 +457,20 @@ from . import config
 FLAG_COLUMNS = ["CK-1", "지방대학특성화사업", "산학융합연구실", "BK21", "LAB30"]
 
 # 이름 → category 규칙. 위에서부터 먼저 걸리는 것을 쓴다.
+#
+# 주의: 엑솔 이름은 361개 중 292개만 채워져 있다. 화장실·샤워실·계단 같은
+# 서비스 공간은 엑셀에서 전부 이름이 비어 있고 도면에만 적혀 있다. 그래서
+# restroom/utility/breakroom 규칙은 엑셀만 보면 거의 걸리지 않고, 주로
+# Task 6 에서 도면 OCR 로 얻은 이름에 대해 동작한다.
+# 표기 변형에 주의: 실제 엑셀은 "휴게실" 이 아니라 "휴계실" 로 적혀 있고,
+# OCR 은 "샤워실" 을 "사워실" 로 읽는다. 두 표기를 모두 넣는다.
 CATEGORY_RULES = [
     (("화장실", "샤워실", "사워실"), "restroom"),
     (("강의실", "세미나실", "시청각실", "강의룸"), "classroom"),
     (("실험실", "연구실", "실습실"), "laboratory"),
     (("전기실", "기계실", "발전실", "배기실", "펌프실", "기관실"), "utility"),
     (("독서실", "자료실", "도서실"), "library"),
-    (("휴게실",), "breakroom"),
+    (("휴게실", "휴계실"), "breakroom"),
 ]
 
 
@@ -1166,11 +1188,19 @@ git commit -m "feat(floorplan): read text via built-in Windows OCR, no install n
 **Interfaces:**
 - Consumes: `fp.rooms.RoomPolygon`, `fp.ocr.OcrWord`, `fp.ocr.center`
 - Produces:
-  - `fp.labels.LabeledPolygon` — dataclass: `polygon: RoomPolygon`, `room_id: str | None`, `candidates: list[str]`
+  - `fp.labels.LabeledPolygon` — dataclass: `polygon: RoomPolygon`, `room_id: str | None`, `candidates: list[str]`, `drawing_name: str | None`
   - `fp.labels.MatchReport` — dataclass: `matched: list[str]`, `unlabeled: int`, `missing: list[str]`, `ambiguous: list[list[str]]`, `unexpected: list[str]`
   - `fp.labels.looks_like_room_number(text: str) -> bool`
+  - `fp.labels.match_service_name(text: str) -> str | None`
   - `fp.labels.point_in_polygon(point, points) -> bool`
   - `fp.labels.assign_labels(polygons, words, expected_ids) -> tuple[list[LabeledPolygon], MatchReport]`
+
+**엑셀에 이름이 없는 방 처리 (설계 변경, 사용자 승인):**
+엑셀 361개 방 중 69개는 이름 칸이 비어 있고, 그 대부분이 화장실·샤워실·계단
+같은 서비스 공간이다 (`화장실` 0건, `샤워실` 0건). 도면에는 이름이 적혀 있으므로,
+번호와 함께 **닫힌 어휘 목록에 대해서만** 한글 이름을 읽어 채운다. OCR 이 한글을
+정확히 읽지 못해도(검증에서 `샤워실`→`사워실`, `대학원연구실`→`학원연구닐`)
+목록 밖으로는 떨어지지 않으므로 안전하다. 목록에 없는 한글은 전부 버린다.
 
 - [ ] **Step 1: 실패하는 테스트 작성**
 
@@ -1218,6 +1248,30 @@ def test_rejects_dimension_numbers():
 
 def test_rejects_two_digit_numbers():
     assert not labels.looks_like_room_number("12")
+
+
+def test_service_name_matches_an_exact_vocabulary_entry():
+    assert labels.match_service_name("화장실") == "화장실"
+    assert labels.match_service_name("계단") == "계단"
+
+
+def test_service_name_tolerates_the_ocr_misreading_of_shower_room():
+    # 검증에서 Windows OCR 이 샤워실을 사워실로 읽었다
+    assert labels.match_service_name("사워실") == "샤워실"
+
+
+def test_service_name_matches_a_prefixed_variant():
+    assert labels.match_service_name("장애인화장실") == "장애인화장실"
+
+
+def test_service_name_rejects_words_outside_the_vocabulary():
+    assert labels.match_service_name("탄소재료연구실") is None
+    assert labels.match_service_name("최적실계실험실") is None
+    assert labels.match_service_name("") is None
+
+
+def test_service_name_rejects_a_room_number():
+    assert labels.match_service_name("201") is None
 
 
 def test_point_inside_square():
@@ -1284,6 +1338,35 @@ def test_the_smallest_containing_polygon_wins():
     by_area = {p.polygon.area_px: p.room_id for p in labeled}
     assert by_area[40 * 40] == "201"
     assert by_area[200 * 200] is None
+
+
+def test_captures_a_service_room_name_from_the_drawing():
+    polygons = [square(0, 0, 100)]
+    words = [word_at("155", 50, 40), word_at("화장실", 50, 60)]
+    labeled, _ = labels.assign_labels(polygons, words, {"155"})
+    assert labeled[0].room_id == "155"
+    assert labeled[0].drawing_name == "화장실"
+
+
+def test_ignores_drawing_words_outside_the_vocabulary():
+    polygons = [square(0, 0, 100)]
+    words = [word_at("201", 50, 40), word_at("탄소재료연구실", 50, 60)]
+    labeled, _ = labels.assign_labels(polygons, words, {"201"})
+    assert labeled[0].drawing_name is None
+
+
+def test_drawing_name_is_none_when_no_korean_word_is_present():
+    polygons = [square(0, 0, 100)]
+    labeled, _ = labels.assign_labels(polygons, [word_at("201", 50, 50)], {"201"})
+    assert labeled[0].drawing_name is None
+
+
+def test_drawing_name_is_captured_even_when_the_number_is_unreadable():
+    # 번호를 못 읽어도 이름은 보정 화면에서 쓸 수 있으므로 버리지 않는다
+    polygons = [square(0, 0, 100)]
+    labeled, _ = labels.assign_labels(polygons, [word_at("화장실", 50, 50)], {"155"})
+    assert labeled[0].room_id is None
+    assert labeled[0].drawing_name == "화장실"
 ```
 
 - [ ] **Step 2: 테스트 실패 확인**
@@ -1303,6 +1386,7 @@ Expected: FAIL — `ImportError: cannot import name 'labels'`
   missing   : 엑셀에는 있는데 폴리곤이 없음
   ambiguous : 한 폴리곤 안에 번호가 둘 이상 (벽 틈으로 방이 붙음)
 """
+import difflib
 import re
 from dataclasses import dataclass, field
 
@@ -1313,12 +1397,28 @@ from .rooms import RoomPolygon
 # 치수선 숫자(7,200 / 90200)를 걸러내기 위해 쉼표와 네 자리 이상을 배제한다.
 ROOM_NUMBER_RE = re.compile(r"^[Bb]?\d{3}(?:-\d{1,2})?$")
 
+# 엑셀에 이름이 없는 서비스 공간만 도면에서 읽는다. 닫힌 목록이라
+# OCR 이 한글을 틀리게 읽어도 목록 밖으로 떨어지지 않는다.
+# 긴 이름을 먼저 두어 "장애인화장실" 이 "화장실" 로 뭉개지지 않게 한다.
+SERVICE_VOCABULARY = [
+    "장애인화장실", "여자화장실", "남자화장실", "화장실", "샤워실",
+    "계단실", "계단", "엘리베이터", "승강기",
+    "준비실", "배기실", "기계실", "전기실", "발전실", "창고",
+    "휴게실", "휴계실", "탕비실", "청소용구실",
+]
+# 근사매칭 조건. 길이가 비슷할 때만 비교한다.
+# "사워실"(OCR 오인식) vs "샤워실" 의 SequenceMatcher 비율이 0.667 이므로
+# 임계값은 그보다 낮아야 하고, 길이 제한이 오탐을 막는다.
+SERVICE_MATCH_THRESHOLD = 0.6
+SERVICE_LENGTH_SLACK = 1
+
 
 @dataclass
 class LabeledPolygon:
     polygon: RoomPolygon
     room_id: str | None = None
     candidates: list[str] = field(default_factory=list)
+    drawing_name: str | None = None
 
 
 @dataclass
@@ -1333,6 +1433,32 @@ class MatchReport:
 def looks_like_room_number(text: str) -> bool:
     """OCR 단어가 방번호 형태인지."""
     return bool(ROOM_NUMBER_RE.match((text or "").strip()))
+
+
+def match_service_name(text: str) -> str | None:
+    """OCR 단어를 서비스 공간 어휘에 근사매칭한다. 목록 밖이면 None.
+
+    엑셀에 이름이 없는 방(화장실·샤워실·계단 등)만 도면에서 이름을 얻기 위한
+    것이다. 닫힌 목록이라 오인식이 엉뚱한 이름을 만들어내지 못한다.
+    """
+    candidate = (text or "").strip()
+    if not candidate or looks_like_room_number(candidate):
+        return None
+
+    # 1순위: 정확히 포함. 목록이 긴 이름부터라 "장애인화장실" 이 "화장실" 로 뭉개지지 않는다.
+    for entry in SERVICE_VOCABULARY:
+        if entry in candidate:
+            return entry
+
+    # 2순위: 길이가 비슷한 항목에만 근사매칭. 길이 제한이 오탐을 막는다.
+    best, best_score = None, 0.0
+    for entry in SERVICE_VOCABULARY:
+        if abs(len(candidate) - len(entry)) > SERVICE_LENGTH_SLACK:
+            continue
+        score = difflib.SequenceMatcher(None, candidate, entry).ratio()
+        if score > best_score:
+            best, best_score = entry, score
+    return best if best_score >= SERVICE_MATCH_THRESHOLD else None
 
 
 def point_in_polygon(point: tuple[float, float], points: list[tuple[int, int]]) -> bool:
@@ -1359,17 +1485,25 @@ def assign_labels(
     labeled = [LabeledPolygon(polygon=p) for p in polygons]
     report = MatchReport()
 
-    numbers = [w for w in words if looks_like_room_number(w.text)]
-
-    for word in numbers:
-        text = word.text.strip()
+    def smallest_containing(word: OcrWord) -> LabeledPolygon | None:
+        """단어를 품는 폴리곤 중 가장 작은 것. 큰 복도가 방을 삼키는 것을 막는다."""
         point = center(word)
-        # 점을 포함하는 폴리곤 중 가장 작은 것에 붙인다. 큰 복도가 방을 삼키는 것을 막는다.
         containing = [item for item in labeled if point_in_polygon(point, item.polygon.points)]
-        if not containing:
+        return min(containing, key=lambda item: item.polygon.area_px) if containing else None
+
+    for word in words:
+        text = word.text.strip()
+        if looks_like_room_number(text):
+            target = smallest_containing(word)
+            if target is not None:
+                target.candidates.append(text)
             continue
-        smallest = min(containing, key=lambda item: item.polygon.area_px)
-        smallest.candidates.append(text)
+        # 엑셀에 이름이 없는 서비스 공간만 도면에서 이름을 얻는다
+        service = match_service_name(text)
+        if service is not None:
+            target = smallest_containing(word)
+            if target is not None and target.drawing_name is None:
+                target.drawing_name = service
 
     for item in labeled:
         unique = sorted(set(item.candidates))
@@ -1990,6 +2124,7 @@ def label_floor(floor: str, all_rooms: dict) -> dict:
                 "centroid": list(item.polygon.centroid),
                 "room_id": item.room_id,
                 "candidates": item.candidates,
+                "drawing_name": item.drawing_name,
             }
             for item in labeled
         ],
@@ -3032,6 +3167,37 @@ def test_unit_name_comes_from_the_spreadsheet(labeled_by_floor, rooms_by_floor, 
     assert by_label["201"]["properties"]["category"] == "classroom"
 
 
+def test_drawing_name_fills_in_when_the_spreadsheet_name_is_blank(transform):
+    """엑셀 361개 중 69개는 이름이 비어 있고 도면에만 적혀 있다."""
+    labeled = {"2F": [{"points_m": [(0.0, 0.0), (4.0, 0.0), (4.0, 4.0), (0.0, 4.0)],
+                       "room_id": "228", "drawing_name": "화장실"}]}
+    rooms = {"2F": [excel.Room(room_id="228", floor="2F", name="", category="office")]}
+    bundle = imdf.build_bundle(labeled, rooms, transform)
+    props = bundle["units"]["features"][0]["properties"]
+    assert props["name"]["ko-KR"] == "화장실"
+    assert props["category"] == "restroom"
+
+
+def test_spreadsheet_name_wins_over_the_drawing_name(transform):
+    labeled = {"2F": [{"points_m": [(0.0, 0.0), (4.0, 0.0), (4.0, 4.0), (0.0, 4.0)],
+                       "room_id": "202", "drawing_name": "준비실"}]}
+    rooms = {"2F": [excel.Room(room_id="202", floor="2F", name="탄소재료연구실",
+                               category="laboratory")]}
+    bundle = imdf.build_bundle(labeled, rooms, transform)
+    props = bundle["units"]["features"][0]["properties"]
+    assert props["name"]["ko-KR"] == "탄소재료연구실"
+    assert props["category"] == "laboratory"
+
+
+def test_room_number_is_the_last_resort_name(transform):
+    labeled = {"2F": [{"points_m": [(0.0, 0.0), (4.0, 0.0), (4.0, 4.0), (0.0, 4.0)],
+                       "room_id": "211", "drawing_name": None}]}
+    rooms = {"2F": [excel.Room(room_id="211", floor="2F", name="", category="office")]}
+    bundle = imdf.build_bundle(labeled, rooms, transform)
+    assert bundle["units"]["features"][0]["properties"]["name"]["ko-KR"] == "211"
+    assert bundle["occupants"]["features"] == []
+
+
 def test_unit_geometry_is_a_closed_polygon(labeled_by_floor, rooms_by_floor, transform):
     bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
     ring = bundle["units"]["features"][0]["geometry"]["coordinates"][0]
@@ -3215,7 +3381,9 @@ department / research_tags 를 반드시 가진다.
 """
 import uuid
 
-from . import config, georef
+from . import config
+from . import excel as excel_module
+from . import georef
 
 VENUE_ID = "749d0866-d61f-4d19-8b95-bb16f405e713"
 BUILDING_ID = "5cab240c-dc21-4546-aec7-4d3516404094"
@@ -3248,8 +3416,13 @@ def _feature(feature_id, feature_type, geometry, properties):
 def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") -> dict:
     """층별 폴리곤(로컬 미터) + 엑셀 속성 → IMDF 번들.
 
-    labeled_by_floor: {floor: [{"points_m": [(x,y)...], "room_id": str|None}]}
+    labeled_by_floor: {floor: [{"points_m": [(x,y)...], "room_id": str|None,
+                                "drawing_name": str|None}]}
     rooms_by_floor:   {floor: [excel.Room]}
+
+    이름은 엑셀이 우선이다. 엑셀 이름이 비어 있으면(361개 중 69개, 대부분
+    화장실·샤워실·계단) 도면에서 읽은 drawing_name 을 쓰고, category 도
+    그 이름으로 다시 판정한다. 둘 다 없으면 방 번호를 이름으로 쓴다.
     """
     levels, units, occupants, footprints = [], [], [], []
     all_rings = []
@@ -3272,6 +3445,17 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
             floor_rings.append(ring)
             all_rings.append(ring)
 
+            # 이름: 엑셀 우선 → 도면 OCR → 방 번호
+            excel_name = room.name if room and room.name else ""
+            drawing_name = item.get("drawing_name") or ""
+            display_name = excel_name or drawing_name or room_id
+            if excel_name:
+                category = room.category
+            elif drawing_name:
+                category = excel_module.guess_category(drawing_name)
+            else:
+                category = room.category if room else "office"
+
             unit_id = _stable_id("unit", f"{floor}:{room_id}")
             units.append(
                 _feature(
@@ -3280,24 +3464,24 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
                     {"type": "Polygon", "coordinates": [ring]},
                     {
                         "level_id": level_id,
-                        "category": room.category if room else "office",
+                        "category": category,
                         "label": {language: room_id},
-                        "name": {language: (room.name if room and room.name else room_id)},
+                        "name": {language: display_name},
                         "department": (room.dept if room and room.dept else None),
                         "research_tags": list(room.tags) if room else [],
                     },
                 )
             )
-            if room and room.name:
+            if excel_name or drawing_name:
                 occupants.append(
                     _feature(
                         _stable_id("occupant", f"{floor}:{room_id}"),
                         "occupant",
                         None,
                         {
-                            "name": {language: room.name},
+                            "name": {language: display_name},
                             "unit_ids": [unit_id],
-                            "research_tags": list(room.tags),
+                            "research_tags": list(room.tags) if room else [],
                         },
                     )
                 )
@@ -3594,6 +3778,7 @@ def load_labeled_in_meters(data: dict, transform_data: dict) -> list[dict]:
             {
                 "points_m": georef.pixels_to_meters(points, origin, px_per_mm),
                 "room_id": record.get("room_id"),
+                "drawing_name": record.get("drawing_name"),
             }
         )
     return result
