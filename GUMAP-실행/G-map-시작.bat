@@ -1,3 +1,5 @@
 @echo off
+chcp 65001 >nul
 cd /d "%~dp0"
-py "%~dp0G-map-start.py"
+python "G-map-start.py"
+pause
