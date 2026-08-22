@@ -1,5 +1,3 @@
-import pytest
-
 from fp import config, excel
 
 
@@ -45,9 +43,24 @@ def test_category_library():
     assert excel.guess_category("독서실") == "library"
 
 
+def test_category_breakroom_handles_the_spelling_used_in_the_spreadsheet():
+    # 실제 엑셀은 "휴게실" 이 아니라 "휴계실" 로 적혀 있다 (1F 108/110/160)
+    assert excel.guess_category("학생휴계실") == "breakroom"
+    assert excel.guess_category("교수휴계실 및 보관함실") == "breakroom"
+    assert excel.guess_category("휴게실") == "breakroom"
+
+
 def test_category_falls_back_to_office():
     assert excel.guess_category("관리실") == "office"
     assert excel.guess_category("") == "office"
+
+
+def test_real_breakrooms_in_the_spreadsheet_are_classified():
+    """죽은 규칙 방지: 실제 데이터에 대해 규칙이 실제로 걸리는지 확인한다."""
+    rooms = excel.load_rooms()
+    by_id = {r.room_id: r for r in rooms["1F"]}
+    assert by_id["160"].category == "breakroom"
+    assert by_id["108"].category == "breakroom"
 
 
 def test_every_guessed_category_is_valid():
