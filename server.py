@@ -50,7 +50,25 @@ load_dotenv()
 # Simple in-memory cache system for proxy endpoints
 class MemoryCache:
     def __init__(self):
-        self.cache = {}  # Key: (url, method, data_str) -> (expiry_time, content, status_code, media_type)
+        self.cache = {}
+
+    def get(self, key):
+        if key in self.cache:
+            expiry, content, status_code, media_type = self.cache[key]
+            if time.time() < expiry:
+                return content, status_code, media_type
+            else:
+                del self.cache[key]
+        return None
+
+    def set(self, key, content, status_code, media_type, ttl_seconds):
+        if len(self.cache) > 2000:
+            now = time.time()
+            self.cache = {k: v for k, v in self.cache.items() if v[0] > now}
+            if len(self.cache) > 2000:
+                self.cache.clear()
+        self.cache[key] = (time.time() + ttl_seconds, content, status_code, media_type)
+
 
     def get(self, key):
         if key in self.cache:
