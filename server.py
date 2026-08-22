@@ -1,3 +1,4 @@
+import asyncio
 # =================================================================================
 # 📁 파일명: server.py (구 backend_fastapi.py)
 # 📌 역할: 외부 공공 API 연동 프록시 서버 및 백엔드 로직 처리
@@ -1274,8 +1275,8 @@ async def groute_inference(request: Request):
                 print(f"[groute-api] Snapped way nodes: start={start_node}, way={way_node}, end={end_node}")
                 path1 = []
                 path2 = []
-                route1 = run_groute_routing(start_node, way_node, hour, mode, profile, path1)
-                route2 = run_groute_routing(way_node, end_node, hour, mode, profile, path2)
+                route1 = await asyncio.to_thread(run_groute_routing, start_node, way_node, hour, mode, profile, path1)
+                route2 = await asyncio.to_thread(run_groute_routing, way_node, end_node, hour, mode, profile, path2)
                 
                 if len(route1) > 0 and len(route2) > 0:
                     route_coords = route1 + route2[1:]
@@ -1284,10 +1285,10 @@ async def groute_inference(request: Request):
                     route_coords = route1 if len(route1) > 0 else route2
                     path_nodes = path1 if len(path1) > 0 else path2
             else:
-                route_coords = run_groute_routing(start_node, end_node, hour, mode, profile, path_nodes)
+                route_coords = await asyncio.to_thread(run_groute_routing, start_node, end_node, hour, mode, profile, path_nodes)
         else:
             print(f"[groute-api] Snapped nodes: start_node={start_node}, end_node={end_node}")
-            route_coords = run_groute_routing(start_node, end_node, hour, mode, profile, path_nodes)
+            route_coords = await asyncio.to_thread(run_groute_routing, start_node, end_node, hour, mode, profile, path_nodes)
             
         print(f"[groute-api] Route generated successfully. Path nodes: {len(route_coords)}")
         
@@ -1346,13 +1347,13 @@ async def groute_benchmark(request: Request):
         if way_lat is not None and way_lng is not None:
             way_node = find_closest_node(float(way_lat), float(way_lng))
             if way_node is not None:
-                route1 = run_groute_routing(start_node, way_node, hour, mode)
-                route2 = run_groute_routing(way_node, end_node, hour, mode)
+                route1 = await asyncio.to_thread(run_groute_routing, start_node, way_node, hour, mode)
+                route2 = await asyncio.to_thread(run_groute_routing, way_node, end_node, hour, mode)
                 route_coords = route1 + route2[1:] if len(route1) > 0 and len(route2) > 0 else (route1 or route2)
             else:
-                route_coords = run_groute_routing(start_node, end_node, hour, mode)
+                route_coords = await asyncio.to_thread(run_groute_routing, start_node, end_node, hour, mode)
         else:
-            route_coords = run_groute_routing(start_node, end_node, hour, mode)
+            route_coords = await asyncio.to_thread(run_groute_routing, start_node, end_node, hour, mode)
 
         # AI 경로 누적 거리(km) 산출
         ai_distance = 0.0
@@ -1415,7 +1416,7 @@ async def proxy_transit_post(request: Request):
         end_lng = float(data.get("endX", 0.0))
         
         if start_lat > 0 and start_lng > 0 and end_lat > 0 and end_lng > 0:
-            itineraries = run_groute_transit(start_lat, start_lng, end_lat, end_lng)
+            itineraries = await asyncio.to_thread(run_groute_transit, start_lat, start_lng, end_lat, end_lng)
             if itineraries:
                 print(f"[*] G-Route AI Transit: Route found locally ({len(itineraries)} paths).")
                 return JSONResponse({"metaData": {"plan": {"itineraries": itineraries}}})

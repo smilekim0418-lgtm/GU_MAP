@@ -4,7 +4,7 @@ USAGE: py cors_server.py <port> <directory>
 """
 import sys
 import os
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 
 class CORSRequestHandler(SimpleHTTPRequestHandler):
@@ -28,7 +28,7 @@ class CORSRequestHandler(SimpleHTTPRequestHandler):
 
 def run(port, directory):
     os.chdir(directory)
-    server = HTTPServer(('', port), CORSRequestHandler)
+    server = ThreadingHTTPServer(('', port), CORSRequestHandler)
     print(f"[GIS Server] 포트 {port} | 디렉토리: {directory}")
     print(f"[GIS Server] http://localhost:{port}/")
     print("[GIS Server] CORS 활성화 (Access-Control-Allow-Origin: *)")
