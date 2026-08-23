@@ -6,8 +6,8 @@ department / research_tags 를 반드시 가진다.
 """
 import uuid
 
-from shapely.geometry import Polygon
-from shapely.ops import unary_union
+from shapely.geometry import MultiPoint
+from shapely.geometry.polygon import orient
 
 from . import config
 from . import excel as excel_module
@@ -174,16 +174,23 @@ def _hull_ring(rings):
     건물 외곽선이 실제 건물과 눈에 띄게 어긋난다. 대신 union 의 convex hull
     을 링 모양으로 감는다.
 
+    여러 링의 합집합의 convex hull 은 그 링들의 모든 점의 convex hull 과 같다.
+    링마다 Polygon 을 만들지 않고 점을 한꺼번에 감싸는 이유는 그래야 축퇴 링이
+    섞여도 안 터지기 때문이다 — 점 하나짜리 링은 _ring() 이 [p, p] 두 좌표로
+    닫아 넘기는데 Polygon() 은 좌표 4개 미만을 거부한다. 방 하나가 망가졌다고
+    번들 생성 전체가 죽으면 안 된다.
+
     링이 없거나(빈 리스트) 전부 점·선으로 무너지는 축퇴 입력이면 이전과 같은
     축 정렬 bbox 로 대체한다 — 예외를 던지지 않고 계속 쓸 수 있는 결과를 낸다.
+    외곽 링은 GeoJSON RFC 7946 대로 반시계 방향으로 맞춘다.
     """
     if not rings:
         return _bounds_ring(rings)
-    hulls = [Polygon(ring).convex_hull for ring in rings]
-    merged = unary_union(hulls).convex_hull
+    points = [(p[0], p[1]) for ring in rings for p in ring]
+    merged = MultiPoint(points).convex_hull
     if merged.geom_type != "Polygon":
         return _bounds_ring(rings)
-    return [list(point) for point in merged.exterior.coords]
+    return [list(point) for point in orient(merged, sign=1.0).exterior.coords]
 
 
 def _bounds_ring(rings):

@@ -188,3 +188,34 @@ def test_footprint_area_matches_the_units_not_an_inflated_axis_aligned_bbox(tran
         f"footprint area {area:.1f} sq m does not match true unit area "
         f"{true_area:.1f} sq m -- is this still an axis-aligned bbox?"
     )
+
+
+def test_hull_ring_survives_a_single_point_ring():
+    """폴리곤 하나가 점 하나로 무너져도 번들 전체가 죽으면 안 된다.
+
+    _ring() 이 점 하나짜리 폴리곤을 [p, p] 두 좌표로 닫아 넘기면 shapely 의
+    Polygon() 이 "a linearring requires at least 4 coordinates" 로 터진다.
+    한 링이 망가졌다고 CLI 실행 전체가 죽는 대신 쓸 수 있는 링이 나와야 한다.
+    """
+    ring = imdf._hull_ring([[[5.0, 5.0], [5.0, 5.0]]])
+    assert len(ring) >= 4
+    assert ring[0] == ring[-1]
+
+
+def test_hull_ring_keeps_a_broken_ring_inside_the_bounds():
+    """망가진 링을 그냥 버리면 그 방이 외곽선 밖으로 삐져나온다."""
+    good = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]]
+    ring = imdf._hull_ring([good, [[50.0, 50.0], [50.0, 50.0]]])
+    xs = [p[0] for p in ring]
+    ys = [p[1] for p in ring]
+    assert max(xs) >= 50.0 and max(ys) >= 50.0
+
+
+def test_hull_ring_winds_counter_clockwise():
+    """GeoJSON RFC 7946 은 외곽 링을 반시계로 요구한다 (신발끈 면적이 양수)."""
+    ring = imdf._hull_ring([[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]]])
+    signed = sum(
+        ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]
+        for i in range(len(ring) - 1)
+    ) / 2.0
+    assert signed > 0, f"외곽 링이 시계 방향이다 (신발끈 면적 {signed})"
