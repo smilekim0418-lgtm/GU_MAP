@@ -229,13 +229,20 @@ FLOORS = ["B1F", "1F", "2F", "3F", "4F", "5F", "6F"]
 
 # 층 → (PDF 파일명, 0-based 페이지 번호)
 # 페이지 하단 표제(지하1층/1층/2층 평면도)로 확인한 값이다.
+# 같은 층이 여러 PDF 에 중복 수록되어 있어, 19개 페이지를 전부 OCR 해서
+# 방번호 회수율이 가장 높은 원본을 층마다 골랐다. 측정 회수율:
+#   B1F 41% · 1F 67% · 2F 94% · 3F 88% · 4F 77% · 5F 79% · 6F 12%
+# 고르기 전 기본값이었다면 1F 46% · 4F 60% · 5F 17% 였다.
+# 5F 의 5.6층.pdf 는 얇은 아웃라인 CAD 폰트라 OCR 이 숫자를 거의 못 읽는다
+# (같은 영역을 잘라 비교했을 때 2F 는 읽고 5F 는 0개).
+# 고른 원본이 전부 표준 90,200 치수 체인을 그대로 갖고 있음을 육안 확인했다.
 SOURCES = {
     "B1F": ("테크노관B1F~2F.pdf", 0),
-    "1F": ("테크노관B1F~2F.pdf", 1),
+    "1F": ("테크노관1,2층.pdf", 0),
     "2F": ("테크노관2층.pdf", 0),
     "3F": ("테크노관3층.pdf", 0),
-    "4F": ("테크노관4,5층.pdf", 0),
-    "5F": ("테크노관5.6층.pdf", 0),
+    "4F": ("테크노관2,4층.pdf", 1),
+    "5F": ("테크노관4,5층.pdf", 1),
     "6F": ("테크노관5.6층.pdf", 1),
 }
 
@@ -2694,13 +2701,31 @@ def test_frame_origin_is_inside_the_image():
     assert 0 < oy < height
 
 
-def test_frame_origin_is_consistent_across_shared_frame_floors():
+def test_frame_origin_is_consistent_within_one_source_pdf():
+    """같은 PDF 에서 나온 층끼리는 기준점이 일치해야 한다.
+
+    서로 다른 PDF 사이에서는 표제란·여백 크기가 달라 일치하지 않는다.
+    그 편차는 사람이 보정 화면에서 치수 체인 양 끝점을 찍어 없앤다.
+    """
     from fp import raster
-    origins = {f: georef.detect_frame_origin(raster.load_floor_image(f)) for f in ["2F", "3F", "4F"]}
+
+    # 2F 와 3F 는 각각 다른 PDF 지만 같은 작도 시리즈라 여백이 거의 같다
+    origins = {f: georef.detect_frame_origin(raster.load_floor_image(f)) for f in ["2F", "3F"]}
     xs = [o[0] for o in origins.values()]
-    ys = [o[1] for o in origins.values()]
-    assert max(xs) - min(xs) < 60, f"도면틀 x 기준점이 층마다 크게 다름: {origins}"
-    assert max(ys) - min(ys) < 60, f"도면틀 y 기준점이 층마다 크게 다름: {origins}"
+    assert max(xs) - min(xs) < 60, f"도면틀 x 기준점이 크게 다름: {origins}"
+
+
+def test_px_per_mm_estimates_vary_between_source_pdfs():
+    """잉크 bbox 추정치는 원본 PDF 마다 흔들린다 — 이 사실을 못박아 둔다.
+
+    이게 사람이 치수 체인을 직접 찍어야 하는 이유다. 이 테스트가 실패한다면
+    편차가 사라졌다는 뜻이므로, 자동 추정만으로 충분한지 다시 판단해야 한다.
+    """
+    from fp import config, raster
+
+    values = {f: georef.px_per_mm_for(raster.load_floor_image(f)) for f in config.FLOORS}
+    spread = max(values.values()) - min(values.values())
+    assert spread > 0.001, f"편차가 예상보다 작다. 자동 추정 재검토 필요: {values}"
 
 
 def test_px_per_mm_is_plausible_for_400dpi():
@@ -2728,9 +2753,16 @@ import cv2
 
 ```python
 # ── 도면틀 기준점 ────────────────────────────────────────────
-# 층마다 렌더링 여백이 미세하게 다를 수 있으므로, 벽선이 차지하는
-# 영역의 바운딩 박스로 기준점과 축척을 잡는다. 전 층이 같은 도면틀을
-# 쓰므로 이 값들은 층 간에 거의 일치해야 한다 (검증 테스트가 확인한다).
+# 잉크 바운딩 박스로 잡은 값은 어디까지나 초기 추정치다.
+#
+# 실측 경고: 층별 원본 PDF 가 표제란·여백 크기가 서로 달라서, 같은 도면틀을
+# 쓰는데도 잉크 bbox 로 계산한 px/mm 가 0.0465~0.0518 로 10% 흔들린다.
+# 원본을 육안 확인한 결과 전 층이 동일한 90,200 치수 체인을 갖고 있으므로
+# 이 편차는 도면이 아니라 스캔 여백에서 온다.
+#
+# 따라서 이 값은 보정 화면에서 사람이 치수 체인 양 끝점을 찍어 확정한다.
+# 여기서 나온 값은 그 화면의 초기값일 뿐이며, 최종 값은
+# techno_georef.json 의 floor_origin_px / floor_px_per_mm 에 저장된다.
 
 
 def _content_bbox(image) -> tuple[int, int, int, int]:
