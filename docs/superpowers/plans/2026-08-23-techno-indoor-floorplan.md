@@ -1721,6 +1721,63 @@ def test_solve_round_trips_points():
         assert got_lat == pytest.approx(lat, abs=1e-8)
 
 
+def test_one_hundred_metres_east_lands_at_an_independently_computed_longitude():
+    """왕복 테스트만으로는 apply 와 solve 가 같은 방향으로 틀려도 통과한다.
+
+    그래서 코드를 쓰지 않고 손으로 계산한 절대값에 못을 박는다.
+    위도 36.1466 에서 경도 1도 = 111320 * cos(36.1466°) = 89892.06 m 이므로
+    동쪽 100m 는 0.001112445도다. cos 보정을 빼먹으면 0.000898311도가 되어
+    이 테스트가 잡아낸다.
+    """
+    t = georef.Transform(theta_deg=0.0, scale=1.0, t_lon=128.0, t_lat=36.0)
+    lon, lat = georef.apply(t, 100.0, 0.0)
+    assert lon - 128.0 == pytest.approx(0.001112445, abs=1e-8)
+    assert lat == pytest.approx(36.0, abs=1e-12)
+
+
+def test_one_hundred_metres_north_lands_at_an_independently_computed_latitude():
+    # 위도 1도 = 110540 m 이므로 북쪽 100m 는 0.00090465도
+    t = georef.Transform(theta_deg=0.0, scale=1.0, t_lon=128.0, t_lat=36.0)
+    lon, lat = georef.apply(t, 0.0, 100.0)
+    assert lat - 36.0 == pytest.approx(0.00090465, abs=1e-8)
+    assert lon == pytest.approx(128.0, abs=1e-12)
+
+
+def test_a_degree_of_longitude_is_shorter_than_a_degree_of_latitude_here():
+    """같은 거리를 가도 경도 변화가 더 커야 한다. 뒤집히면 건물이 찌그러진다."""
+    t = georef.Transform(theta_deg=0.0, scale=1.0, t_lon=128.0, t_lat=36.0)
+    lon_east, _ = georef.apply(t, 100.0, 0.0)
+    _, lat_north = georef.apply(t, 0.0, 100.0)
+    assert (lon_east - 128.0) > (lat_north - 36.0)
+
+
+def test_transform_from_rejects_an_unsolved_transform():
+    """좌표가 확정되기 전에 지도를 만들지 못하게 막는 안전장치."""
+    for broken in [
+        {},
+        {"transform": None},
+        {"transform": {}},
+        {"transform": {"theta_deg": 1.0, "scale": 1.0, "t_lon": 128.0, "t_lat": None}},
+        {"transform": {"theta_deg": None, "scale": None, "t_lon": None, "t_lat": None}},
+        {"transform": {"theta_deg": 1.0, "scale": 1.0, "t_lon": 128.0}},
+    ]:
+        with pytest.raises(georef.GeoRefError):
+            georef.transform_from(broken)
+
+
+def test_transform_from_accepts_a_complete_transform():
+    got = georef.transform_from(
+        {"transform": {"theta_deg": 26.6, "scale": 1.0, "t_lon": 128.39, "t_lat": 36.14}}
+    )
+    assert got.theta_deg == 26.6
+    assert got.scale == 1.0
+
+
+def test_to_dict_round_trips_through_transform_from():
+    original = georef.Transform(theta_deg=26.6, scale=1.0, t_lon=128.39, t_lat=36.14)
+    assert georef.transform_from({"transform": georef.to_dict(original)}) == original
+
+
 def test_solve_rejects_fewer_than_three_points():
     with pytest.raises(georef.GeoRefError, match="3"):
         georef.solve_similarity([(0.0, 0.0), (1.0, 1.0)], [(128.0, 36.0), (128.1, 36.1)])
