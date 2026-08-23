@@ -2863,10 +2863,49 @@ def detect_frame_origin(image) -> tuple[int, int]:
     return (x, y + h)
 
 
+# 사람이 치수 체인을 찍어 확정하기 전까지, 이 자동 추정치는 신뢰할 수 없다.
+# 아래 상수보다 크면 건물이 아니라 도면 테두리를 잰 것이다.
+PLAUSIBLE_PX_PER_MM = (0.015, 0.040)
+
+
 def px_per_mm_for(image) -> float:
-    """도면 가로 폭을 실측 치수로 나눈 px/mm."""
+    """도면 잉크 전체 폭을 실측 치수로 나눈 **거친 추정치**.
+
+    경고: 잉크 bbox 에는 건물뿐 아니라 도면 테두리와 치수선이 들어간다.
+    2F 실측으로 전체 잉크 폭 4676px, 건물 외곽 폭 2400px 이라 이 값은
+    실제보다 약 1.95배 크게 나온다. 대응점을 이 값으로 풀면 축척이 2.09 로
+    나와 허용 범위(1.0±0.02)에서 거부된다 - 실제로 그렇게 걸렸다.
+
+    그래서 이 값은 보정 화면의 초기값일 뿐이고, 최종 값은 사람이 90,200
+    치수 체인 양 끝을 찍어 techno_georef.json 에 기록한다.
+    """
     _, _, w, _ = _content_bbox(image)
     return w / config.DRAWING_EXTENT_MM[0]
+
+
+def assert_calibrated(data: dict, floors: list[str]) -> None:
+    """사람이 찍은 층별 축척이 있는지 확인한다. 없으면 진행을 막는다.
+
+    보정 안 된 층을 자동 추정치로 그냥 통과시키면 그 층 방들이 두 배 크기로
+    지도에 올라가고, 아무 테스트도 그것을 잡지 못한다.
+    """
+    per_mm = (data or {}).get("floor_px_per_mm") or {}
+    low, high = PLAUSIBLE_PX_PER_MM
+    bad = []
+    for floor in floors:
+        value = per_mm.get(floor)
+        if value is None:
+            bad.append(f"{floor}: 값 없음")
+        elif not (low <= value <= high):
+            bad.append(f"{floor}: {value:.6f} (허용 {low}~{high})")
+    if bad:
+        raise GeoRefError(
+            "층별 축척이 보정되지 않았다:
+  " + "
+  ".join(bad)
+            + "
+보정 화면의 '② 층별 축척' 에서 90,200 치수선 양 끝을 찍어라."
+        )
 ```
 
 - [ ] **Step 4: 테스트 통과 확인**
@@ -4178,6 +4217,10 @@ def main() -> int:
     if not labeled_by_floor:
         print("처리할 층이 없다. 01_extract.py 와 02_label.py 를 먼저 실행하라.")
         return 1
+
+    # 사람이 치수 체인을 찍지 않은 층은 자동 추정치가 약 2배 크다.
+    # 그대로 통과시키면 그 층 방들이 두 배 크기로 지도에 올라간다.
+    georef.assert_calibrated(transform_data, sorted(labeled_by_floor))
 
     bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
     units = len(bundle["units"]["features"])
