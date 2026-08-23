@@ -1066,6 +1066,31 @@ def test_missing_file_raises(tmp_path):
         ocr.ocr_image(tmp_path / "nope.png")
 
 
+def test_undecodable_file_raises(tmp_path):
+    path = tmp_path / "garbage.png"
+    path.write_bytes(b"this is not an image")
+    with pytest.raises(ocr.OcrError):
+        ocr.ocr_image(path)
+
+
+def test_timeout_surfaces_as_ocr_error(tmp_path, monkeypatch):
+    """배치 실행 중 한 장이 멎어도 OcrError 로 나와야 그 층만 건너뛸 수 있다."""
+    import subprocess
+
+    image = np.full((50, 50, 3), 255, dtype=np.uint8)
+    path = tmp_path / "ok.png"
+    ok, buffer = cv2.imencode(".png", image)
+    assert ok
+    buffer.tofile(str(path))
+
+    def fake_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd="powershell", timeout=180)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    with pytest.raises(ocr.OcrError, match="시간 초과"):
+        ocr.ocr_image(path)
+
+
 def test_oversized_image_raises(tmp_path):
     big = np.full((11000, 100, 3), 255, dtype=np.uint8)
     path = tmp_path / "big.png"
@@ -1136,17 +1161,22 @@ def ocr_image(png_path: Path, lang: str = "ko") -> list[OcrWord]:
             f"이미지가 너무 큼 ({max(image.shape[:2])}px). WinRT OCR 한계는 {MAX_IMAGE_DIMENSION}px 이다."
         )
 
-    completed = subprocess.run(
-        [
-            "powershell", "-NoProfile", "-NonInteractive",
-            "-ExecutionPolicy", "Bypass",
-            "-File", str(_SCRIPT),
-            "-ImagePath", str(path.resolve()),
-            "-Lang", lang,
-        ],
-        capture_output=True,
-        timeout=180,
-    )
+    try:
+        completed = subprocess.run(
+            [
+                "powershell", "-NoProfile", "-NonInteractive",
+                "-ExecutionPolicy", "Bypass",
+                "-File", str(_SCRIPT),
+                "-ImagePath", str(path.resolve()),
+                "-Lang", lang,
+            ],
+            capture_output=True,
+            timeout=180,
+        )
+    except subprocess.TimeoutExpired as exc:
+        # 배치로 7개 층을 돌리므로 한 장이 멎어도 OcrError 로 나와야
+        # 호출부가 그 층만 건너뛸 수 있다.
+        raise OcrError(f"OCR 시간 초과 (180초): {path}") from exc
     if completed.returncode != 0:
         raise OcrError(f"OCR 실패: {completed.stderr.decode('utf-8', 'replace')}")
 
