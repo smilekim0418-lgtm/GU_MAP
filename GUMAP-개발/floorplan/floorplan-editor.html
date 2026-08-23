@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>테크노관 도면 보정 도구</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0f28; color:#e2e8f0; font-family:system-ui,-apple-system,sans-serif;
+         height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  #top { display:flex; align-items:center; gap:10px; padding:8px 12px;
+         background:rgba(10,15,40,.95); border-bottom:1px solid rgba(129,140,248,.3); }
+  #top select, #top button { background:#1e293b; color:#e2e8f0; border:1px solid #475569;
+         border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  #top button.primary { background:linear-gradient(135deg,#6366f1,#4f46e5); border:none; font-weight:700; }
+  #stat { font-size:12px; color:#94a3b8; margin-left:auto; }
+  #main { flex:1; display:flex; min-height:0; }
+  #map { flex:1; background:#111827; }
+  #side { width:260px; background:rgba(10,15,40,.95); border-left:1px solid rgba(129,140,248,.3);
+          display:flex; flex-direction:column; }
+  #side h3 { font-size:11px; color:#818cf8; padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.08); }
+  #todo { flex:1; overflow-y:auto; }
+  .item { padding:6px 10px; font-size:12px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,.04); }
+  .item:hover { background:rgba(99,102,241,.2); }
+  .item.sel { background:#6366f1; color:#fff; }
+  #help { padding:8px 10px; font-size:11px; color:#64748b; line-height:1.6;
+          border-top:1px solid rgba(255,255,255,.08); }
+</style>
+</head>
+<body>
+
+<div id="top">
+  <select id="floor"></select>
+  <button id="draw">그리기 (D)</button>
+  <button id="del">삭제 (Del)</button>
+  <button id="purge">도면틀 잡음 제거</button>
+  <button id="save" class="primary">저장</button>
+  <span id="stat">로딩 중…</span>
+</div>
+
+<div id="main">
+  <div id="map"></div>
+  <div id="side">
+    <h3 id="side-title">미배치 방</h3>
+    <div id="todo"></div>
+    <div id="help">
+      · 목록에서 방 선택 → <b>그리기</b> → 도면 위 클릭으로 꼭짓점 → 더블클릭 종료<br>
+      · 폴리곤 클릭 → 선택, <b>삭제</b>로 제거<br>
+      · 저장하면 work/{층}_labeled.json 이 갱신된다<br><br>
+      좌표 대응점은 <b>georef-picker.html</b> 에서 따로 찍는다.
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+const FLOORS = ["B1F","1F","2F","3F","4F","5F","6F"];
+
+let state = {
+  floor: '2F',
+  data: null,          // {floor,size,polygons,report}
+  layers: [],          // {poly, rec}
+  selected: null,
+  drawing: null,       // {points:[], markers:[]}
+  selectedRoomId: null
+};
+
+// 도면 픽셀 좌표를 그대로 Leaflet 의 CRS.Simple 좌표로 쓴다.
+const map = L.map('map', { crs: L.CRS.Simple, minZoom: -5, maxZoom: 4, zoomControl: true });
+let imageLayer = null;
+
+function pxToLatLng(x, y) { return map.unproject([x, y], 0); }
+function latLngToPx(ll) { const p = map.project(ll, 0); return [p.x, p.y]; }
+
+async function loadFloor(floor) {
+  state.floor = floor;
+  const res = await fetch(`${API}/work/${floor}_labeled.json?t=${Date.now()}`);
+  if (!res.ok) { setStat(`work/${floor}_labeled.json 없음 — 02_label.py 를 먼저 실행하세요`); return; }
+  state.data = await res.json();
+
+  const [w, h] = state.data.size;
+  if (imageLayer) map.removeLayer(imageLayer);
+  const bounds = [pxToLatLng(0, 0), pxToLatLng(w, h)];
+  imageLayer = L.imageOverlay(`${API}/work/${floor}_raster_400.png`, bounds, { opacity: 0.85 }).addTo(map);
+  map.fitBounds(bounds);
+
+  renderPolygons();
+  renderTodo();
+}
+
+// 추출기가 도면틀·치수선을 방으로 오인한 것이 층마다 11~41% 나온다 (실측).
+// 특징이 뚜렷하다: 종횡비가 6:1 을 넘고 방 번호가 붙지 않는다.
+// 지도에는 어차피 안 들어가지만 화면이 빨갛게 뒤덮여 진짜 미매칭이 안 보이므로
+// 흐리게 깔고, 한 번에 지울 수 있게 한다.
+function isLikelyFrameNoise(rec) {
+  if (rec.room_id) return false;
+  const xs = rec.points.map(p => p[0]), ys = rec.points.map(p => p[1]);
+  const w = Math.max(...xs) - Math.min(...xs);
+  const h = Math.max(...ys) - Math.min(...ys);
+  if (w === 0 || h === 0) return true;
+  return Math.max(w, h) / Math.min(w, h) > 6;
+}
+
+function styleFor(rec) {
+  if (rec.room_id) return { color:'#22c55e', weight:2, fillColor:'#22c55e', fillOpacity:0.18 };
+  if (isLikelyFrameNoise(rec)) return { color:'#64748b', weight:1, fillColor:'#64748b', fillOpacity:0.06 };
+  return { color:'#ef4444', weight:2, fillColor:'#ef4444', fillOpacity:0.22 };
+}
+
+function purgeFrameNoise() {
+  const before = state.data.polygons.length;
+  state.data.polygons = state.data.polygons.filter(r => !isLikelyFrameNoise(r));
+  state.selected = null;
+  renderPolygons();
+  setStat(`도면틀 잡음 ${before - state.data.polygons.length}개 제거 — 저장해야 반영됩니다`);
+}
+
+function renderPolygons() {
+  state.layers.forEach(l => map.removeLayer(l.poly));
+  state.layers = [];
+  state.data.polygons.forEach(rec => {
+    const latlngs = rec.points.map(p => pxToLatLng(p[0], p[1]));
+    const poly = L.polygon(latlngs, styleFor(rec)).addTo(map);
+    poly.on('click', e => { L.DomEvent.stop(e); select(rec); });
+    if (rec.room_id) poly.bindTooltip(rec.room_id, { permanent:true, direction:'center', className:'lbl' });
+    state.layers.push({ poly, rec });
+  });
+  updateStat();
+}
+
+function select(rec) {
+  state.selected = rec;
+  state.layers.forEach(l => l.poly.setStyle(
+    l.rec === rec ? { color:'#facc15', weight:4, fillOpacity:0.35 } : styleFor(l.rec)
+  ));
+}
+
+function renderTodo() {
+  const box = document.getElementById('todo');
+  const missing = (state.data.report && state.data.report.missing) || [];
+  box.innerHTML = missing.map(id =>
+    `<div class="item" data-id="${id}">${id}</div>`).join('') ||
+    '<div class="item" style="color:#64748b">미배치 방 없음</div>';
+  box.querySelectorAll('.item[data-id]').forEach(el => {
+    el.onclick = () => {
+      box.querySelectorAll('.item').forEach(x => x.classList.remove('sel'));
+      el.classList.add('sel');
+      state.selectedRoomId = el.dataset.id;
+      setStat(`선택: ${state.selectedRoomId} — 그리기(D) 후 도면 위를 클릭하세요`);
+    };
+  });
+}
+
+function updateStat() {
+  const total = state.data.polygons.length;
+  const named = state.data.polygons.filter(p => p.room_id).length;
+  const missing = (state.data.report && state.data.report.missing || []).length;
+  setStat(`${state.floor} · 폴리곤 ${total} · 번호부여 ${named} · 미배치 ${missing}`);
+}
+function setStat(t) { document.getElementById('stat').textContent = t; }
+
+// ── 그리기 ───────────────────────────────────────────────
+function startDraw() {
+  if (!state.selectedRoomId) {
+    setStat('먼저 오른쪽 목록에서 방을 선택하세요'); return;
+  }
+  state.drawing = { points: [], markers: [] };
+  setStat('클릭으로 꼭짓점 추가, 더블클릭으로 종료');
+}
+
+map.on('click', e => {
+  if (!state.drawing) return;
+  const [x, y] = latLngToPx(e.latlng);
+  state.drawing.points.push([Math.round(x), Math.round(y)]);
+  state.drawing.markers.push(L.circleMarker(e.latlng, { radius:4, color:'#facc15' }).addTo(map));
+});
+
+map.on('dblclick', e => {
+  L.DomEvent.stop(e);
+  if (!state.drawing || state.drawing.points.length < 3) return;
+  const rec = {
+    points: state.drawing.points,
+    area_px: 0,
+    centroid: centroidOf(state.drawing.points),
+    room_id: state.selectedRoomId,
+    candidates: []
+  };
+  state.data.polygons.push(rec);
+  const missing = state.data.report.missing || [];
+  const idx = missing.indexOf(state.selectedRoomId);
+  if (idx >= 0) missing.splice(idx, 1);
+  state.drawing.markers.forEach(m => map.removeLayer(m));
+  state.drawing = null;
+  state.selectedRoomId = null;
+  renderPolygons(); renderTodo();
+});
+
+function centroidOf(pts) {
+  const n = pts.length;
+  return [pts.reduce((s,p)=>s+p[0],0)/n, pts.reduce((s,p)=>s+p[1],0)/n];
+}
+
+function deleteSelected() {
+  if (!state.selected) { setStat('삭제할 폴리곤을 먼저 클릭하세요'); return; }
+  const i = state.data.polygons.indexOf(state.selected);
+  if (i >= 0) state.data.polygons.splice(i, 1);
+  if (state.selected.room_id) state.data.report.missing.push(state.selected.room_id);
+  state.selected = null;
+  renderPolygons(); renderTodo();
+}
+
+// ── 저장 ─────────────────────────────────────────────────
+async function save() {
+  const res = await fetch(`${API}/save/labeled`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(state.data)
+  });
+  setStat(res.ok ? '저장 완료' : '저장 실패');
+}
+
+// ── 초기화 ───────────────────────────────────────────────
+const sel = document.getElementById('floor');
+FLOORS.forEach(f => { const o=document.createElement('option'); o.value=f; o.textContent=f; sel.appendChild(o); });
+sel.value = '2F';
+sel.onchange = () => loadFloor(sel.value);
+document.getElementById('draw').onclick = startDraw;
+document.getElementById('del').onclick = deleteSelected;
+document.getElementById('purge').onclick = purgeFrameNoise;
+document.getElementById('save').onclick = save;
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'd' || ev.key === 'D') startDraw();
+  if (ev.key === 'Delete') deleteSelected();
+});
+map.doubleClickZoom.disable();
+loadFloor('2F');
+</script>
+</body>
+</html>
