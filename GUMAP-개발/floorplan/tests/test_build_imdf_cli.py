@@ -56,8 +56,7 @@ def test_an_uncalibrated_floor_is_refused_before_its_origin_is_looked_up(tmp_pat
     work.mkdir()
     _write_labeled(work, "2F")
 
-    monkeypatch.setattr(config, "WORK_DIR", work)
-    monkeypatch.setattr(cli.config, "WORK_DIR", work)
+    monkeypatch.setattr(config, "WORK_DIR", work)  # cli.config 와 같은 모듈 객체다
     monkeypatch.setattr(
         cli.georef,
         "load",
