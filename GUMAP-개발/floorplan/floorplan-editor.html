@@ -35,6 +35,7 @@
   <button id="draw">그리기 (D)</button>
   <button id="del">삭제 (Del)</button>
   <button id="purge">도면틀 잡음 제거</button>
+  <button id="undo">되돌리기 (Ctrl+Z)</button>
   <button id="save" class="primary">저장</button>
   <span id="stat">로딩 중…</span>
 </div>
@@ -63,8 +64,34 @@ let state = {
   layers: [],          // {poly, rec}
   selected: null,
   drawing: null,       // {points:[], markers:[]}
-  selectedRoomId: null
+  selectedRoomId: null,
+  dirty: false,        // 저장 안 된 변경이 있는가
+  undo: []             // 변경 직전 스냅샷 스택
 };
+
+// 이 화면에서 172개 방을 몇 시간에 걸쳐 고친다. 실수 한 번이나 층 전환 한 번에
+// 그 작업이 날아가면 안 되므로, 모든 변경 전에 스냅샷을 남기고 저장 여부를 추적한다.
+const UNDO_LIMIT = 50;
+
+function snapshot(label) {
+  state.undo.push({
+    label,
+    polygons: JSON.parse(JSON.stringify(state.data.polygons)),
+    missing: (state.data.report && state.data.report.missing || []).slice()
+  });
+  if (state.undo.length > UNDO_LIMIT) state.undo.shift();
+  state.dirty = true;
+}
+
+function undo() {
+  const prev = state.undo.pop();
+  if (!prev) { setStat('되돌릴 작업이 없습니다'); return; }
+  state.data.polygons = prev.polygons;
+  if (state.data.report) state.data.report.missing = prev.missing;
+  state.selected = null;
+  renderPolygons(); renderTodo();
+  setStat(`되돌림: ${prev.label} (남은 되돌리기 ${state.undo.length})`);
+}
 
 // 도면 픽셀 좌표를 그대로 Leaflet 의 CRS.Simple 좌표로 쓴다.
 const map = L.map('map', { crs: L.CRS.Simple, minZoom: -5, maxZoom: 4, zoomControl: true });
@@ -75,6 +102,10 @@ function latLngToPx(ll) { const p = map.project(ll, 0); return [p.x, p.y]; }
 
 async function loadFloor(floor) {
   state.floor = floor;
+  state.dirty = false;
+  state.undo = [];
+  state.selected = null;
+  state.selectedRoomId = null;
   const res = await fetch(`${API}/work/${floor}_labeled.json?t=${Date.now()}`);
   if (!res.ok) { setStat(`work/${floor}_labeled.json 없음 — 02_label.py 를 먼저 실행하세요`); return; }
   state.data = await res.json();
@@ -109,11 +140,14 @@ function styleFor(rec) {
 }
 
 function purgeFrameNoise() {
-  const before = state.data.polygons.length;
+  const doomed = state.data.polygons.filter(isLikelyFrameNoise);
+  if (!doomed.length) { setStat('제거할 도면틀 잡음이 없습니다'); return; }
+  if (!confirm(`도면틀 잡음 ${doomed.length}개를 제거합니다. (되돌리기 가능)`)) return;
+  snapshot(`잡음 ${doomed.length}개 제거`);
   state.data.polygons = state.data.polygons.filter(r => !isLikelyFrameNoise(r));
   state.selected = null;
   renderPolygons();
-  setStat(`도면틀 잡음 ${before - state.data.polygons.length}개 제거 — 저장해야 반영됩니다`);
+  setStat(`도면틀 잡음 ${doomed.length}개 제거 — 저장해야 반영됩니다`);
 }
 
 function renderPolygons() {
@@ -186,8 +220,9 @@ map.on('dblclick', e => {
     room_id: state.selectedRoomId,
     candidates: []
   };
+  snapshot(`${state.selectedRoomId} 그리기`);
   state.data.polygons.push(rec);
-  const missing = state.data.report.missing || [];
+  const missing = (state.data.report && state.data.report.missing) || [];
   const idx = missing.indexOf(state.selectedRoomId);
   if (idx >= 0) missing.splice(idx, 1);
   state.drawing.markers.forEach(m => map.removeLayer(m));
@@ -203,11 +238,17 @@ function centroidOf(pts) {
 
 function deleteSelected() {
   if (!state.selected) { setStat('삭제할 폴리곤을 먼저 클릭하세요'); return; }
+  const label = state.selected.room_id || '무번호 폴리곤';
+  // 번호가 붙은 방은 이미 확보한 작업이므로 지울 때 한 번 더 묻는다
+  if (state.selected.room_id && !confirm(`${label} 을(를) 삭제합니다. (되돌리기 가능)`)) return;
+  snapshot(`${label} 삭제`);
   const i = state.data.polygons.indexOf(state.selected);
   if (i >= 0) state.data.polygons.splice(i, 1);
-  if (state.selected.room_id) state.data.report.missing.push(state.selected.room_id);
+  if (state.selected.room_id && state.data.report && state.data.report.missing)
+    state.data.report.missing.push(state.selected.room_id);
   state.selected = null;
   renderPolygons(); renderTodo();
+  setStat(`${label} 삭제 — Ctrl+Z 로 되돌릴 수 있습니다`);
 }
 
 // ── 저장 ─────────────────────────────────────────────────
@@ -216,6 +257,7 @@ async function save() {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify(state.data)
   });
+  if (res.ok) { state.dirty = false; state.undo = []; }
   setStat(res.ok ? '저장 완료' : '저장 실패');
 }
 
@@ -223,14 +265,28 @@ async function save() {
 const sel = document.getElementById('floor');
 FLOORS.forEach(f => { const o=document.createElement('option'); o.value=f; o.textContent=f; sel.appendChild(o); });
 sel.value = '2F';
-sel.onchange = () => loadFloor(sel.value);
+sel.onchange = () => {
+  if (state.dirty && !confirm('저장하지 않은 변경이 있습니다. 버리고 층을 바꿀까요?')) {
+    sel.value = state.floor;   // 선택을 되돌린다
+    return;
+  }
+  loadFloor(sel.value);
+};
 document.getElementById('draw').onclick = startDraw;
 document.getElementById('del').onclick = deleteSelected;
 document.getElementById('purge').onclick = purgeFrameNoise;
+document.getElementById('undo').onclick = undo;
 document.getElementById('save').onclick = save;
 document.addEventListener('keydown', ev => {
-  if (ev.key === 'd' || ev.key === 'D') startDraw();
+  if (ev.ctrlKey && (ev.key === 'z' || ev.key === 'Z')) { ev.preventDefault(); undo(); return; }
   if (ev.key === 'Delete') deleteSelected();
+  if (!ev.ctrlKey && (ev.key === 'd' || ev.key === 'D')) startDraw();
+});
+// 저장 안 한 채로 창을 닫으면 몇 시간치 보정이 날아간다
+window.addEventListener('beforeunload', ev => {
+  if (!state.dirty) return;
+  ev.preventDefault();
+  ev.returnValue = '';
 });
 map.doubleClickZoom.disable();
 loadFloor('2F');
