@@ -9,10 +9,10 @@ def test_every_floor_has_a_plan_source():
     assert set(config.SOURCES) == set(config.FLOORS)
 
 
-def test_b1f_and_1f_and_2f_come_from_the_same_shared_frame_pdf():
+def test_each_floor_maps_to_its_measured_best_source():
     assert config.SOURCES["B1F"] == ("테크노관B1F~2F.pdf", 0)
-    assert config.SOURCES["1F"] == ("테크노관B1F~2F.pdf", 1)
-    assert config.SOURCES["2F"] == ("테크노관2층.pdf", 0)
+    assert config.SOURCES["1F"] == ("테크노관1,2층.pdf", 0)
+    assert config.SOURCES["5F"] == ("테크노관4,5층.pdf", 1)
 
 
 def test_6f_is_the_second_page_of_the_5_6_pdf():
