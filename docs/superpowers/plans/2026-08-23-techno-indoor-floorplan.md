@@ -3182,6 +3182,8 @@ Expected: PASS (6 passed)
 
 <div id="top">
   <select id="floor"></select>
+  <button id="mode-cp" class="primary">① 대응점</button>
+  <button id="mode-scale">② 층별 축척</button>
   <button id="undo">마지막 취소</button>
   <button id="clear">전체 지우기</button>
   <button id="save" class="primary">저장</button>
@@ -3200,8 +3202,57 @@ const TECHNO = [36.146643, 128.394348];
 
 let georef = null;
 let floor = '2F';
+let mode = 'cp';        // 'cp' = 대응점, 'scale' = 층별 축척
 let points = [];        // {px:[x,y], lon:null, lat:null}
 let planMarkers = [], orthoMarkers = [];
+
+// 층별 축척: 도면마다 표제란·여백이 달라 잉크 bbox 추정치가 10% 흔들린다.
+// 모든 도면이 가로 전체 치수 90,200mm 체인을 갖고 있으므로, 그 양 끝을 찍으면
+// 그 층의 원점과 px/mm 가 한 번에 정해진다. 층당 클릭 두 번이면 끝난다.
+const CHAIN_MM = 90200;
+let scaleCal = {};      // floor -> {left:[x,y], right:[x,y]}
+let scaleMarkers = [];
+
+function recordScaleClick(px) {
+  const cur = scaleCal[floor] || {};
+  if (!cur.left || (cur.left && cur.right)) {
+    scaleCal[floor] = { left: px, right: null };
+    setStat(`${floor}: 치수선 왼쪽 끝 지정 — 이제 오른쪽 끝(90,200 반대편)을 찍으세요`);
+  } else {
+    cur.right = px;
+    scaleCal[floor] = cur;
+    const dx = Math.hypot(cur.right[0] - cur.left[0], cur.right[1] - cur.left[1]);
+    setStat(`${floor}: 축척 확정 ${(dx / CHAIN_MM).toFixed(6)} px/mm (${Math.round(dx)}px = 90,200mm)`);
+  }
+  drawScaleMarkers();
+  renderScaleList();
+}
+
+function drawScaleMarkers() {
+  scaleMarkers.forEach(m => planMap.removeLayer(m));
+  scaleMarkers = [];
+  const c = scaleCal[floor];
+  if (!c) return;
+  for (const [key, color] of [['left', '#22c55e'], ['right', '#ef4444']]) {
+    if (!c[key]) continue;
+    scaleMarkers.push(L.circleMarker(pxToLL(c[key][0], c[key][1]),
+      { radius: 7, color, fillOpacity: 1 }).bindTooltip(key, { permanent: true }).addTo(planMap));
+  }
+}
+
+function renderScaleList() {
+  document.getElementById('list').innerHTML = FLOORS.map(f => {
+    const c = scaleCal[f];
+    if (c && c.left && c.right) {
+      const dx = Math.hypot(c.right[0] - c.left[0], c.right[1] - c.left[1]);
+      return `<div class="cp done">${f}: ${(dx / CHAIN_MM).toFixed(6)} px/mm</div>`;
+    }
+    if (c && c.left) return `<div class="cp">${f}: 왼쪽만 지정됨</div>`;
+    return `<div class="cp">${f}: 미지정</div>`;
+  }).join('');
+  const done = FLOORS.filter(f => scaleCal[f] && scaleCal[f].right).length;
+  setStat(`층별 축척 ${done}/${FLOORS.length} 지정됨`);
+}
 
 // ① 도면: 픽셀 좌표계
 const planMap = L.map('plan', { crs: L.CRS.Simple, minZoom:-5, maxZoom:4 });
@@ -3236,6 +3287,7 @@ async function loadFloor(f) {
 }
 
 planMap.on('click', e => {
+  if (mode === 'scale') { recordScaleClick(llToPx(e.latlng)); return; }
   const pending = points.find(p => p.lon === null);
   if (pending) { setStat('먼저 오른쪽 정사영상에서 같은 지점을 찍으세요'); return; }
   const px = llToPx(e.latlng);
@@ -3283,6 +3335,16 @@ async function save() {
   if (done.length < 3) { setStat('3쌍 이상 필요합니다'); return; }
   const g = await (await fetch('/techno_georef.json?t=' + Date.now())).json();
   g.control_points = done;
+  // 층별 축척을 사람이 찍었으면 자동 추정치를 덮어쓴다
+  g.floor_origin_px = g.floor_origin_px || {};
+  g.floor_px_per_mm = g.floor_px_per_mm || {};
+  for (const f of FLOORS) {
+    const c = scaleCal[f];
+    if (!c || !c.left || !c.right) continue;
+    const dx = Math.hypot(c.right[0] - c.left[0], c.right[1] - c.left[1]);
+    g.floor_px_per_mm[f] = dx / CHAIN_MM;
+    g.floor_origin_px[f] = c.left;
+  }
   const res = await fetch('/save/georef', {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(g)
   });
@@ -3292,7 +3354,21 @@ async function save() {
 const sel = document.getElementById('floor');
 FLOORS.forEach(f => { const o=document.createElement('option'); o.value=f; o.textContent=f; sel.appendChild(o); });
 sel.value = '2F';
-sel.onchange = () => loadFloor(sel.value);
+sel.onchange = () => { loadFloor(sel.value); if (mode === 'scale') { drawScaleMarkers(); renderScaleList(); } };
+function setMode(m) {
+  mode = m;
+  document.getElementById('mode-cp').className = m === 'cp' ? 'primary' : '';
+  document.getElementById('mode-scale').className = m === 'scale' ? 'primary' : '';
+  if (m === 'scale') {
+    drawScaleMarkers(); renderScaleList();
+    setStat('도면에서 90,200 치수선의 양 끝을 차례로 찍으세요 (층마다 2번)');
+  } else {
+    scaleMarkers.forEach(x => planMap.removeLayer(x)); scaleMarkers = [];
+    render();
+  }
+}
+document.getElementById('mode-cp').onclick = () => setMode('cp');
+document.getElementById('mode-scale').onclick = () => setMode('scale');
 document.getElementById('undo').onclick = undo;
 document.getElementById('clear').onclick = clearAll;
 document.getElementById('save').onclick = save;
