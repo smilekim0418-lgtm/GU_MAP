@@ -2041,7 +2041,9 @@ git commit -m "feat(floorplan): solve and apply the drawing-to-WGS84 similarity 
 - Produces:
   - `fp.qc.draw_overlay(image, labeled) -> np.ndarray`
   - `fp.qc.save_image(image, path) -> None`
-  - `work/{floor}_polygons.json` — `{"floor":..., "image":..., "size":[w,h], "polygons":[{"points":[[x,y]...],"area_px":...,"centroid":[cx,cy]}]}`
+  - `work/{floor}_polygons.json` — `{"floor":..., "size":[w,h], "polygons":[{"points":[[x,y]...],"area_px":...,"centroid":[cx,cy]}]}`
+    (이미지 경로 필드는 두지 않는다. 보정 화면은 `work/{floor}_raster_400.png`
+    라는 파일명 규칙으로 찾으므로 JSON 에 중복 기록하면 어긋날 여지만 생긴다.)
   - `work/{floor}_labeled.json` — `{"floor":..., "size":[w,h], "polygons":[{"points":..., "room_id":...|null, "candidates":[...]}], "report":{...}}`
   - `work/{floor}_qc.png`
   - `work/report.json`
