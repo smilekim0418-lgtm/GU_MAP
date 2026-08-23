@@ -160,17 +160,46 @@ def to_dict(transform: Transform) -> dict:
     return asdict(transform)
 
 
-# ── 도면틀 기준점 ────────────────────────────────────────────
-# 잉크 바운딩 박스로 잡은 값은 어디까지나 초기 추정치다.
-#
-# 실측 경고: 층별 원본 PDF 가 표제란·여백 크기가 서로 달라서, 같은 도면틀을
-# 쓰는데도 잉크 bbox 로 계산한 px/mm 가 0.0465~0.0518 로 10% 흔들린다.
-# 원본을 육안 확인한 결과 전 층이 동일한 90,200 치수 체인을 갖고 있으므로
-# 이 편차는 도면이 아니라 스캔 여백에서 온다.
-#
-# 따라서 이 값은 보정 화면에서 사람이 치수 체인 양 끝점을 찍어 확정한다.
-# 여기서 나온 값은 그 화면의 초기값일 뿐이며, 최종 값은
-# techno_georef.json 의 floor_origin_px / floor_px_per_mm 에 저장된다.
+# 사람이 치수 체인을 찍어 확정하기 전까지, 이 자동 추정치는 신뢰할 수 없다.
+# 아래 상수보다 크면 건물이 아니라 도면 테두리를 잰 것이다.
+PLAUSIBLE_PX_PER_MM = (0.015, 0.040)
+
+
+def px_per_mm_for(image) -> float:
+    """도면 잉크 전체 폭을 실측 치수로 나눈 **거친 추정치**.
+
+    경고: 잉크 bbox 에는 건물뿐 아니라 도면 테두리와 치수선이 들어간다.
+    2F 실측으로 전체 잉크 폭 4676px, 건물 외곽 폭 2400px 이라 이 값은
+    실제보다 약 1.95배 크게 나온다. 대응점을 이 값으로 풀면 축척이 2.09 로
+    나와 허용 범위(1.0±0.02)에서 거부된다 - 실제로 그렇게 걸렸다.
+
+    그래서 이 값은 보정 화면의 초기값일 뿐이고, 최종 값은 사람이 90,200
+    치수 체인 양 끝을 찍어 techno_georef.json 에 기록한다.
+    """
+    _, _, w, _ = _content_bbox(image)
+    return w / config.DRAWING_EXTENT_MM[0]
+
+
+def assert_calibrated(data: dict, floors: list[str]) -> None:
+    """사람이 찍은 층별 축척이 있는지 확인한다. 없으면 진행을 막는다.
+
+    보정 안 된 층을 자동 추정치로 그냥 통과시키면 그 층 방들이 두 배 크기로
+    지도에 올라가고, 아무 테스트도 그것을 잡지 못한다.
+    """
+    per_mm = (data or {}).get("floor_px_per_mm") or {}
+    low, high = PLAUSIBLE_PX_PER_MM
+    bad = []
+    for floor in floors:
+        value = per_mm.get(floor)
+        if value is None:
+            bad.append(f"{floor}: 값 없음")
+        elif not (low <= value <= high):
+            bad.append(f"{floor}: {value:.6f} (허용 {low}~{high})")
+    if bad:
+        raise GeoRefError(
+            "층별 축척이 보정되지 않았다:\n  " + "\n  ".join(bad)
+            + "\n보정 화면의 '② 층별 축척' 에서 90,200 치수선 양 끝을 찍어라."
+        )
 
 
 def _content_bbox(image) -> tuple[int, int, int, int]:
@@ -188,9 +217,3 @@ def detect_frame_origin(image) -> tuple[int, int]:
     """도면 내용 바운딩 박스의 좌하단 픽셀 좌표."""
     x, y, w, h = _content_bbox(image)
     return (x, y + h)
-
-
-def px_per_mm_for(image) -> float:
-    """도면 가로 폭을 실측 치수로 나눈 px/mm."""
-    _, _, w, _ = _content_bbox(image)
-    return w / config.DRAWING_EXTENT_MM[0]

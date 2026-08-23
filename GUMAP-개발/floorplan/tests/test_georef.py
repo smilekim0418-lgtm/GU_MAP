@@ -214,3 +214,41 @@ def test_px_per_mm_is_plausible_for_400dpi():
     value = georef.px_per_mm_for(image)
     # 90200mm 를 약 2400~3600px 로 표현 → 0.026~0.040 px/mm
     assert 0.02 < value < 0.06, f"px_per_mm 이 이상함: {value}"
+
+
+def test_assert_calibrated_accepts_human_clicked_values():
+    data = {"floor_px_per_mm": {"2F": 0.0266, "3F": 0.0271}}
+    georef.assert_calibrated(data, ["2F", "3F"])  # 예외가 나면 실패
+
+
+def test_assert_calibrated_rejects_a_missing_floor():
+    data = {"floor_px_per_mm": {"2F": 0.0266}}
+    with pytest.raises(georef.GeoRefError, match="3F"):
+        georef.assert_calibrated(data, ["2F", "3F"])
+
+
+def test_assert_calibrated_rejects_the_uncorrected_auto_estimate():
+    """실제로 걸렸던 값. 잉크 bbox 추정치 0.05184 는 참값의 약 1.95배다."""
+    data = {"floor_px_per_mm": {"2F": 0.05184}}
+    with pytest.raises(georef.GeoRefError, match="2F"):
+        georef.assert_calibrated(data, ["2F"])
+
+
+def test_assert_calibrated_rejects_an_empty_document():
+    with pytest.raises(georef.GeoRefError):
+        georef.assert_calibrated({}, ["2F"])
+    with pytest.raises(georef.GeoRefError):
+        georef.assert_calibrated(None, ["2F"])
+
+
+def test_every_auto_estimate_is_currently_out_of_range():
+    """자동 추정치가 전부 거부되는지 실제 도면으로 확인한다.
+
+    하나라도 통과한다면 추정 방식이 바뀐 것이므로 가드를 재검토해야 한다.
+    """
+    from fp import config, raster
+
+    for floor in config.FLOORS:
+        estimate = georef.px_per_mm_for(raster.load_floor_image(floor))
+        with pytest.raises(georef.GeoRefError):
+            georef.assert_calibrated({"floor_px_per_mm": {floor: estimate}}, [floor])
