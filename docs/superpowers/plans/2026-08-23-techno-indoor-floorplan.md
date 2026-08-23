@@ -1191,6 +1191,7 @@ git commit -m "feat(floorplan): read text via built-in Windows OCR, no install n
   - `fp.labels.LabeledPolygon` — dataclass: `polygon: RoomPolygon`, `room_id: str | None`, `candidates: list[str]`, `drawing_name: str | None`
   - `fp.labels.MatchReport` — dataclass: `matched: list[str]`, `unlabeled: int`, `missing: list[str]`, `ambiguous: list[list[str]]`, `unexpected: list[str]`
   - `fp.labels.looks_like_room_number(text: str) -> bool`
+  - `fp.labels.extract_embedded_room_numbers(text: str) -> list[str]`
   - `fp.labels.match_service_name(text: str) -> str | None`
   - `fp.labels.point_in_polygon(point, points) -> bool`
   - `fp.labels.assign_labels(polygons, words, expected_ids) -> tuple[list[LabeledPolygon], MatchReport]`
@@ -1248,6 +1249,39 @@ def test_rejects_dimension_numbers():
 
 def test_rejects_two_digit_numbers():
     assert not labels.looks_like_room_number("12")
+
+
+def test_extracts_a_room_number_fused_to_a_name():
+    # 실측: OCR 이 대학원연구실 241-1 을 한 토큰으로 붙여 내놓았다
+    assert labels.extract_embedded_room_numbers("학원연구닐241-1") == ["241-1"]
+    assert labels.extract_embedded_room_numbers("화장실155") == ["155"]
+
+
+def test_does_not_extract_numbers_out_of_dimension_strings():
+    for dimension in ["7,200", "90,200", "88,700", "69,000", "13,300", "75800", "90200"]:
+        assert labels.extract_embedded_room_numbers(dimension) == [], dimension
+
+
+def test_extracts_nothing_from_plain_korean():
+    assert labels.extract_embedded_room_numbers("탄소재료연구실") == []
+    assert labels.extract_embedded_room_numbers("") == []
+
+
+def test_fused_room_number_is_assigned_when_it_is_expected():
+    polygons = [square(0, 0, 100)]
+    words = [word_at("학원연구닐241-1", 50, 50)]
+    labeled, report = labels.assign_labels(polygons, words, {"241-1"})
+    assert labeled[0].room_id == "241-1"
+    assert report.matched == ["241-1"]
+
+
+def test_fused_number_outside_the_expected_set_is_dropped_silently():
+    # 도면의 임의 숫자를 unexpected 로 시끄럽게 보고하지 않는다
+    polygons = [square(0, 0, 100)]
+    words = [word_at("가나다999", 50, 50)]
+    labeled, report = labels.assign_labels(polygons, words, {"201"})
+    assert labeled[0].room_id is None
+    assert report.unexpected == []
 
 
 def test_service_name_matches_an_exact_vocabulary_entry():
@@ -1397,6 +1431,11 @@ from .rooms import RoomPolygon
 # 치수선 숫자(7,200 / 90200)를 걸러내기 위해 쉼표와 네 자리 이상을 배제한다.
 ROOM_NUMBER_RE = re.compile(r"^[Bb]?\d{3}(?:-\d{1,2})?$")
 
+# OCR 이 방번호를 옆 글자와 붙여 한 토큰으로 내놓는 경우가 있다.
+# 실측 예: "학원연구닐241-1" (대학원연구실 + 241-1 이 붙어 나옴)
+# 앞뒤가 숫자나 쉼표면 매칭하지 않는다 → 치수선 7,200 / 90,200 / 75800 배제.
+EMBEDDED_ROOM_NUMBER_RE = re.compile(r"(?<![\d,])([Bb]?\d{3}(?:-\d{1,2})?)(?![\d,])")
+
 # 엑셀에 이름이 없는 서비스 공간만 도면에서 읽는다. 닫힌 목록이라
 # OCR 이 한글을 틀리게 읽어도 목록 밖으로 떨어지지 않는다.
 # 긴 이름을 먼저 두어 "장애인화장실" 이 "화장실" 로 뭉개지지 않게 한다.
@@ -1431,8 +1470,18 @@ class MatchReport:
 
 
 def looks_like_room_number(text: str) -> bool:
-    """OCR 단어가 방번호 형태인지."""
+    """OCR 단어 전체가 방번호 형태인지."""
     return bool(ROOM_NUMBER_RE.match((text or "").strip()))
+
+
+def extract_embedded_room_numbers(text: str) -> list[str]:
+    """옆 글자와 붙어 나온 방번호를 뽑는다.
+
+    OCR 이 "학원연구닐241-1" 처럼 이름과 번호를 한 토큰으로 내놓는 일이 있다.
+    호출부는 여기서 나온 값을 반드시 기대 목록과 대조해야 한다. 이 함수만으로는
+    도면의 임의 숫자와 방번호를 구분하지 못한다.
+    """
+    return [m.group(1) for m in EMBEDDED_ROOM_NUMBER_RE.finditer((text or "").strip())]
 
 
 def match_service_name(text: str) -> str | None:
@@ -1493,12 +1542,23 @@ def assign_labels(
 
     for word in words:
         text = word.text.strip()
+
+        # 1) 토큰 전체가 방번호인 경우 — 기대 목록에 없으면 unexpected 로 보고한다
         if looks_like_room_number(text):
             target = smallest_containing(word)
             if target is not None:
                 target.candidates.append(text)
             continue
-        # 엑셀에 이름이 없는 서비스 공간만 도면에서 이름을 얻는다
+
+        # 2) 옆 글자와 붙어 나온 방번호 — 기대 목록에 있는 것만 받는다.
+        #    도면의 임의 숫자를 걸러낼 방법이 이것뿐이라 unexpected 로는 보고하지 않는다.
+        embedded = [n for n in extract_embedded_room_numbers(text) if n in expected_ids]
+        if embedded:
+            target = smallest_containing(word)
+            if target is not None:
+                target.candidates.extend(embedded)
+
+        # 3) 엑셀에 이름이 없는 서비스 공간만 도면에서 이름을 얻는다
         service = match_service_name(text)
         if service is not None:
             target = smallest_containing(word)
