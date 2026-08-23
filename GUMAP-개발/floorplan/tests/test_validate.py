@@ -94,6 +94,31 @@ def test_extent_check_allows_a_small_margin():
     assert validate.check_within_extent(edge) == []
 
 
+def test_flags_a_duplicate_room_number_on_the_same_floor(transform):
+    """같은 층에서 방번호가 중복되면 unit id 가 겹쳐서 지도에서 하나가 조용히 사라진다."""
+    polys = [
+        {"points_m": square_m(0, 0, 7), "room_id": "201"},
+        {"points_m": square_m(20, 20, 7), "room_id": "201"},
+    ]
+    bundle = make_bundle(polys, [room("201")], transform)
+    issues = validate.run_all(bundle, {"2F": [room("201")]})
+    duplicates = [i for i in issues if i.code == "duplicate_room_id"]
+    assert len(duplicates) == 1
+    assert duplicates[0].severity == "error"
+    assert "2F" in duplicates[0].message and "201" in duplicates[0].message
+
+
+def test_clean_data_has_no_duplicate_room_id_issue(transform):
+    polys = [
+        {"points_m": square_m(0, 0, 7), "room_id": "201"},
+        {"points_m": square_m(20, 20, 7), "room_id": "202"},
+    ]
+    rooms = [room("201"), room("202")]
+    bundle = make_bundle(polys, rooms, transform)
+    issues = validate.run_all(bundle, {"2F": rooms})
+    assert not any(i.code == "duplicate_room_id" for i in issues)
+
+
 def test_flags_stairs_that_do_not_line_up_between_floors(transform):
     stair = excel.Room(room_id="290", floor="2F", name="계단", category="stairs")
     stair3 = excel.Room(room_id="390", floor="3F", name="계단", category="stairs")

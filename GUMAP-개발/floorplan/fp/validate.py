@@ -146,7 +146,27 @@ def run_all(bundle: dict, rooms_by_floor: dict) -> list[ValidationIssue]:
                                     f"{floor} {room.room_id} ({room.name or '이름없음'}) 에 도형이 없다")
                 )
 
-    # 7. 층간 정합 — 계단·엘리베이터가 층마다 같은 자리에 있는지
+    # 7. 같은 층에서 방번호 중복 — unit id 가 room_id 만으로 정해지므로
+    #    두 폴리곤이 같은 방번호를 가지면 뒤에 만든 unit 이 앞의 것과 id 가
+    #    겹친다. map-techno-indoor.js 는 unitMap[u.id] = u; 로 마지막 값만
+    #    남기므로, 겹치는 폴리곤이 지오메트리로 겹치지 않아도(overlap 검사가
+    #    안 걸려도) 한 방이 지도에서 조용히 사라진다.
+    room_counts: dict[tuple[str, str], int] = {}
+    for unit in units:
+        floor = level_short.get(unit["properties"]["level_id"], "?")
+        room_id = unit["properties"]["label"]["ko-KR"]
+        room_counts[(floor, room_id)] = room_counts.get((floor, room_id), 0) + 1
+    for (floor, room_id), count in sorted(room_counts.items()):
+        if count > 1:
+            issues.append(
+                ValidationIssue(
+                    "error", "duplicate_room_id",
+                    f"{floor} {room_id}: 같은 방번호를 가진 유닛이 {count}개 있다 "
+                    "(id 가 겹쳐 지도에서 하나만 남고 나머지는 조용히 사라진다)",
+                )
+            )
+
+    # 8. 층간 정합 — 계단·엘리베이터가 층마다 같은 자리에 있는지
     verticals: dict[str, list] = {}
     for unit in units:
         if unit["properties"]["category"] in VERTICAL_CATEGORIES:

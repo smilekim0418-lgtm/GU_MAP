@@ -1,6 +1,17 @@
-import pytest
+import math
 
-from fp import excel, georef, imdf
+import pytest
+from shapely.geometry import Polygon
+
+from fp import config, excel, georef, imdf
+
+
+def _metric_area(ring):
+    """validate._to_metric_polygon 과 같은 근사로 링 면적을 미터 단위로 잰다."""
+    mpd_lon = config.METERS_PER_DEG_LON_AT_EQUATOR * math.cos(
+        math.radians(config.REFERENCE_LATITUDE)
+    )
+    return Polygon([(lon * mpd_lon, lat * config.METERS_PER_DEG_LAT) for lon, lat in ring]).area
 
 
 @pytest.fixture
@@ -144,3 +155,36 @@ def test_footprint_is_the_hull_of_the_units(labeled_by_floor, rooms_by_floor, tr
     assert bundle["footprint"]["features"]
     ring = bundle["footprint"]["features"][0]["geometry"]["coordinates"][0]
     assert len(ring) >= 4
+
+
+def test_footprint_area_matches_the_units_not_an_inflated_axis_aligned_bbox(transform):
+    """building rotated (fixture theta=26.6, real building theta ~=12.58) so the
+    footprint area must track the true combined unit area, not an axis-aligned
+    bbox area (which inflates by roughly wh + (w^2+h^2)*sin(2*theta)/2).
+
+    Two units tiling a 20m x 10m rectangle: true area is 200 sq m, while the
+    axis-aligned bbox around the rotated ring is nearly double that at this angle.
+    """
+    width, height = 20.0, 10.0
+    labeled = {
+        "2F": [
+            {"points_m": [(0.0, 0.0), (10.0, 0.0), (10.0, height), (0.0, height)],
+             "room_id": "301"},
+            {"points_m": [(10.0, 0.0), (width, 0.0), (width, height), (10.0, height)],
+             "room_id": "302"},
+        ]
+    }
+    rooms = {
+        "2F": [
+            excel.Room(room_id="301", floor="2F", name="A", category="laboratory"),
+            excel.Room(room_id="302", floor="2F", name="B", category="laboratory"),
+        ]
+    }
+    bundle = imdf.build_bundle(labeled, rooms, transform)
+    ring = bundle["footprint"]["features"][0]["geometry"]["coordinates"][0]
+    area = _metric_area(ring)
+    true_area = width * height
+    assert area == pytest.approx(true_area, rel=0.05), (
+        f"footprint area {area:.1f} sq m does not match true unit area "
+        f"{true_area:.1f} sq m -- is this still an axis-aligned bbox?"
+    )

@@ -6,6 +6,9 @@ department / research_tags 를 반드시 가진다.
 """
 import uuid
 
+from shapely.geometry import Polygon
+from shapely.ops import unary_union
+
 from . import config
 from . import excel as excel_module
 from . import georef
@@ -111,7 +114,7 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
                     )
                 )
 
-        level_ring = _bounds_ring(floor_rings)
+        level_ring = _hull_ring(floor_rings)
         levels.append(
             _feature(
                 level_id,
@@ -135,7 +138,7 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
             )
         )
 
-    building_ring = _bounds_ring(all_rings)
+    building_ring = _hull_ring(all_rings)
     building = _feature(
         BUILDING_ID,
         "building",
@@ -161,8 +164,34 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
     }
 
 
+def _hull_ring(rings):
+    """여러 링을 감싸는 convex hull.
+
+    _ring() 은 geo transform 을 먼저 적용하므로 이 링들은 이미 lon/lat 이고,
+    실제로 풀린 transform 만큼(테크노관은 theta ≈ 12.58°) 회전돼 있다. 그걸
+    축 정렬 bbox 로 감싸면 회전각만큼 면적이 부풀어 오르고(직사각형 기준
+    wh + (w²+h²)·sin(2θ)/2), map-techno-indoor.js 가 zoom 14~16 에서 그리는
+    건물 외곽선이 실제 건물과 눈에 띄게 어긋난다. 대신 union 의 convex hull
+    을 링 모양으로 감는다.
+
+    링이 없거나(빈 리스트) 전부 점·선으로 무너지는 축퇴 입력이면 이전과 같은
+    축 정렬 bbox 로 대체한다 — 예외를 던지지 않고 계속 쓸 수 있는 결과를 낸다.
+    """
+    if not rings:
+        return _bounds_ring(rings)
+    hulls = [Polygon(ring).convex_hull for ring in rings]
+    merged = unary_union(hulls).convex_hull
+    if merged.geom_type != "Polygon":
+        return _bounds_ring(rings)
+    return [list(point) for point in merged.exterior.coords]
+
+
 def _bounds_ring(rings):
-    """여러 링을 감싸는 경계 사각형. 링이 없으면 빈 사각형."""
+    """여러 링을 감싸는 축 정렬 경계 사각형.
+
+    _hull_ring 이 축퇴 입력(점·선으로 무너지는 경우)에서 쓰는 대체용이다.
+    링이 없으면 빈 사각형.
+    """
     if not rings:
         return [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
     xs = [p[0] for ring in rings for p in ring]

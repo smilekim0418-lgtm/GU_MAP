@@ -54,23 +54,31 @@ def main() -> int:
     print(f"변환: 회전 {transform.theta_deg:.3f}° · 축척 {transform.scale:.5f}")
 
     rooms_by_floor = excel.load_rooms()
-    labeled_by_floor = {}
+    floors_present = []
     for floor in config.FLOORS:
         path = config.WORK_DIR / f"{floor}_labeled.json"
         if not path.exists():
             print(f"건너뜀: {floor} ({path.name} 없음)")
             continue
-        labeled_by_floor[floor] = load_labeled_in_meters(
-            json.loads(path.read_text(encoding="utf-8")), transform_data
-        )
+        floors_present.append(floor)
 
-    if not labeled_by_floor:
+    if not floors_present:
         print("처리할 층이 없다. 01_extract.py 와 02_label.py 를 먼저 실행하라.")
         return 1
 
-    # 사람이 치수 체인을 찍지 않은 층은 자동 추정치가 약 2배 크다.
-    # 그대로 통과시키면 그 층 방들이 두 배 크기로 지도에 올라간다.
-    georef.assert_calibrated(transform_data, sorted(labeled_by_floor))
+    # 사람이 치수 체인을 찍지 않은 층은 자동 추정치가 약 2배 크다. 그대로
+    # 통과시키면 그 층 방들이 두 배 크기로 지도에 올라간다. load_labeled_in_meters
+    # 가 층별로 floor_origin_px/floor_px_per_mm 를 찾기 전에 먼저 확인해야,
+    # 보정 안 된 층에서 원시 KeyError 대신 친절한 GeoRefError 로 막을 수 있다.
+    georef.assert_calibrated(transform_data, floors_present)
+
+    labeled_by_floor = {
+        floor: load_labeled_in_meters(
+            json.loads((config.WORK_DIR / f"{floor}_labeled.json").read_text(encoding="utf-8")),
+            transform_data,
+        )
+        for floor in floors_present
+    }
 
     bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
     units = len(bundle["units"]["features"])
