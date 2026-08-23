@@ -58,6 +58,31 @@ def test_missing_file_raises(tmp_path):
         ocr.ocr_image(tmp_path / "nope.png")
 
 
+def test_undecodable_file_raises(tmp_path):
+    path = tmp_path / "garbage.png"
+    path.write_bytes(b"this is not an image")
+    with pytest.raises(ocr.OcrError):
+        ocr.ocr_image(path)
+
+
+def test_timeout_surfaces_as_ocr_error(tmp_path, monkeypatch):
+    """배치 실행 중 한 장이 멎어도 OcrError 로 나와야 그 층만 건너뛸 수 있다."""
+    import subprocess
+
+    image = np.full((50, 50, 3), 255, dtype=np.uint8)
+    path = tmp_path / "ok.png"
+    ok, buffer = cv2.imencode(".png", image)
+    assert ok
+    buffer.tofile(str(path))
+
+    def fake_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd="powershell", timeout=180)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    with pytest.raises(ocr.OcrError, match="시간 초과"):
+        ocr.ocr_image(path)
+
+
 def test_oversized_image_raises(tmp_path):
     big = np.full((11000, 100, 3), 255, dtype=np.uint8)
     path = tmp_path / "big.png"

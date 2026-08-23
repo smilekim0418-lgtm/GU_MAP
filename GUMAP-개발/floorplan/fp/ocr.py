@@ -48,17 +48,22 @@ def ocr_image(png_path: Path, lang: str = "ko") -> list[OcrWord]:
             f"이미지가 너무 큼 ({max(image.shape[:2])}px). WinRT OCR 한계는 {MAX_IMAGE_DIMENSION}px 이다."
         )
 
-    completed = subprocess.run(
-        [
-            "powershell", "-NoProfile", "-NonInteractive",
-            "-ExecutionPolicy", "Bypass",
-            "-File", str(_SCRIPT),
-            "-ImagePath", str(path.resolve()),
-            "-Lang", lang,
-        ],
-        capture_output=True,
-        timeout=180,
-    )
+    try:
+        completed = subprocess.run(
+            [
+                "powershell", "-NoProfile", "-NonInteractive",
+                "-ExecutionPolicy", "Bypass",
+                "-File", str(_SCRIPT),
+                "-ImagePath", str(path.resolve()),
+                "-Lang", lang,
+            ],
+            capture_output=True,
+            timeout=180,
+        )
+    except subprocess.TimeoutExpired as exc:
+        # 배치로 7개 층을 돌리므로 한 장이 멎어도 OcrError 로 나와야
+        # 호출부가 그 층만 건너뛸 수 있다.
+        raise OcrError(f"OCR 시간 초과 (180초): {path}") from exc
     if completed.returncode != 0:
         raise OcrError(f"OCR 실패: {completed.stderr.decode('utf-8', 'replace')}")
 
