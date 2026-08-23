@@ -52,12 +52,30 @@ def cmd_solve() -> int:
         print(f"대응점이 {len(points)}개다. 3개 이상 필요하다.")
         return 1
 
+    # 원점은 치수선이 아니라 층마다 찍은 같은 건물 모서리에서 가져온다.
+    #
+    # 치수선을 원점으로 쓰면 안 되는 이유: 90,200 체인이 B1F·1F 도면에서는
+    # 위쪽에, 나머지 층에서는 아래쪽에 있다. 그러면 층마다 건물 북쪽 끝과
+    # 남쪽 끝을 섞어 가리키게 되어(약 88m 차이) 하나의 변환으로 못 맞춘다.
+    # 실측에서 통합 축척이 0.55 로 나왔다.
+    reference = min(points, key=lambda c: c["lat"] + c["lon"])  # 남서쪽 모서리
+    by_floor: dict[str, list] = {}
+    for cp in points:
+        by_floor.setdefault(cp["floor"], []).append(cp)
+
+    origins = {}
+    for floor, floor_points in by_floor.items():
+        nearest = min(
+            floor_points,
+            key=lambda c: (c["lat"] - reference["lat"]) ** 2 + (c["lon"] - reference["lon"]) ** 2,
+        )
+        origins[floor] = [int(nearest["px"][0]), int(nearest["px"][1])]
+
     src, dst = [], []
     for cp in points:
         floor = cp["floor"]
-        origin = data["floor_origin_px"][floor]
         px_per_mm = data["floor_px_per_mm"][floor]
-        meters = georef.pixels_to_meters([tuple(cp["px"])], tuple(origin), px_per_mm)[0]
+        meters = georef.pixels_to_meters([tuple(cp["px"])], tuple(origins[floor]), px_per_mm)[0]
         src.append(meters)
         dst.append((float(cp["lon"]), float(cp["lat"])))
 
@@ -68,8 +86,21 @@ def cmd_solve() -> int:
         return 1
 
     data["transform"] = georef.to_dict(transform)
+    data["floor_origin_px"] = {**(data.get("floor_origin_px") or {}), **origins}
     georef.save(data)
+
+    # 잔차를 보고한다. 이 숫자가 좌표 품질의 유일한 실측 근거다.
+    residuals = []
+    for (x, y), (lon, lat) in zip(src, dst):
+        got_lon, got_lat = georef.apply(transform, x, y)
+        east = (got_lon - lon) * georef._meters_per_deg_lon()
+        north = (got_lat - lat) * config.METERS_PER_DEG_LAT
+        residuals.append((east ** 2 + north ** 2) ** 0.5)
+    rms = (sum(r ** 2 for r in residuals) / len(residuals)) ** 0.5
     print(f"회전 {transform.theta_deg:.3f}° · 축척 {transform.scale:.5f}")
+    print(f"잔차 RMS {rms:.2f}m · 최대 {max(residuals):.2f}m · 대응점 {len(src)}개")
+    if max(residuals) > 3.0:
+        print("경고: 최대 잔차가 3m 를 넘는다. 대응점 하나가 어긋났을 수 있다.")
     print(f"원점 {transform.t_lon:.7f}, {transform.t_lat:.7f}")
     print(f"저장: {config.GEOREF_PATH}")
     return 0

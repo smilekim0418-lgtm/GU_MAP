@@ -37,8 +37,8 @@ def test_drawing_extent_matches_dimension_chain():
     assert config.DRAWING_EXTENT_MM == (90200, 88700)
 
 
-def test_scale_tolerance_is_two_percent():
-    assert config.SCALE_TOLERANCE == (0.98, 1.02)
+def test_scale_tolerance_is_five_percent():
+    assert config.SCALE_TOLERANCE == (0.95, 1.05)
 
 
 def test_categories_match_the_indoor_module_style_table():

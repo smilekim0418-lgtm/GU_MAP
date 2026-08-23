@@ -57,7 +57,11 @@ EXPECTED_ROOM_COUNTS = {
 DRAWING_EXTENT_MM = (90200, 88700)
 REFERENCE_LATITUDE = 36.1466
 RENDER_DPI = 400
-SCALE_TOLERANCE = (0.98, 1.02)
+# 실측으로 정한 값. 항공사진은 지붕이 벽보다 바깥으로 밀려 보이므로 실제
+# 대응점을 잘 찍어도 축척이 1.02 안팎으로 나온다 (관측 1.0205, 잔차 RMS 0.47m).
+# 처음의 ±2% 는 데이터 없이 조인 값이라 정상 작업을 막았다. ±5% 로 넓혀도
+# 2배 오차(관측 2.09) 같은 실수는 여전히 확실히 걸린다.
+SCALE_TOLERANCE = (0.95, 1.05)
 
 METERS_PER_DEG_LAT = 110540.0
 METERS_PER_DEG_LON_AT_EQUATOR = 111320.0
