@@ -8,6 +8,7 @@ import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+import cv2
 import numpy as np
 
 from . import config
@@ -157,3 +158,39 @@ def transform_from(data: dict) -> Transform:
 
 def to_dict(transform: Transform) -> dict:
     return asdict(transform)
+
+
+# ── 도면틀 기준점 ────────────────────────────────────────────
+# 잉크 바운딩 박스로 잡은 값은 어디까지나 초기 추정치다.
+#
+# 실측 경고: 층별 원본 PDF 가 표제란·여백 크기가 서로 달라서, 같은 도면틀을
+# 쓰는데도 잉크 bbox 로 계산한 px/mm 가 0.0465~0.0518 로 10% 흔들린다.
+# 원본을 육안 확인한 결과 전 층이 동일한 90,200 치수 체인을 갖고 있으므로
+# 이 편차는 도면이 아니라 스캔 여백에서 온다.
+#
+# 따라서 이 값은 보정 화면에서 사람이 치수 체인 양 끝점을 찍어 확정한다.
+# 여기서 나온 값은 그 화면의 초기값일 뿐이며, 최종 값은
+# techno_georef.json 의 floor_origin_px / floor_px_per_mm 에 저장된다.
+
+
+def _content_bbox(image) -> tuple[int, int, int, int]:
+    """도면 내용(잉크)의 바운딩 박스 (x, y, w, h)."""
+    from .rooms import extract_wall_mask
+
+    mask = extract_wall_mask(image)
+    points = cv2.findNonZero(mask)
+    if points is None:
+        raise GeoRefError("도면에서 벽선을 찾지 못했다.")
+    return cv2.boundingRect(points)
+
+
+def detect_frame_origin(image) -> tuple[int, int]:
+    """도면 내용 바운딩 박스의 좌하단 픽셀 좌표."""
+    x, y, w, h = _content_bbox(image)
+    return (x, y + h)
+
+
+def px_per_mm_for(image) -> float:
+    """도면 가로 폭을 실측 치수로 나눈 px/mm."""
+    _, _, w, _ = _content_bbox(image)
+    return w / config.DRAWING_EXTENT_MM[0]

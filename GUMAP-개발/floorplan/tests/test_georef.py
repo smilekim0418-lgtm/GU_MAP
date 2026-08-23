@@ -170,3 +170,47 @@ def test_save_and_load_round_trip(tmp_path):
     }
     georef.save(data, path)
     assert georef.load(path)["transform"]["theta_deg"] == 26.6
+
+
+def test_frame_origin_is_inside_the_image():
+    from fp import raster
+    image = raster.load_floor_image("2F")
+    ox, oy = georef.detect_frame_origin(image)
+    height, width = image.shape[:2]
+    assert 0 < ox < width
+    assert 0 < oy < height
+
+
+def test_frame_origin_is_consistent_within_one_source_pdf():
+    """같은 PDF 에서 나온 층끼리는 기준점이 일치해야 한다.
+
+    서로 다른 PDF 사이에서는 표제란·여백 크기가 달라 일치하지 않는다.
+    그 편차는 사람이 보정 화면에서 치수 체인 양 끝점을 찍어 없앤다.
+    """
+    from fp import raster
+
+    # 2F 와 3F 는 각각 다른 PDF 지만 같은 작도 시리즈라 여백이 거의 같다
+    origins = {f: georef.detect_frame_origin(raster.load_floor_image(f)) for f in ["2F", "3F"]}
+    xs = [o[0] for o in origins.values()]
+    assert max(xs) - min(xs) < 60, f"도면틀 x 기준점이 크게 다름: {origins}"
+
+
+def test_px_per_mm_estimates_vary_between_source_pdfs():
+    """잉크 bbox 추정치는 원본 PDF 마다 흔들린다 — 이 사실을 못박아 둔다.
+
+    이게 사람이 치수 체인을 직접 찍어야 하는 이유다. 이 테스트가 실패한다면
+    편차가 사라졌다는 뜻이므로, 자동 추정만으로 충분한지 다시 판단해야 한다.
+    """
+    from fp import config, raster
+
+    values = {f: georef.px_per_mm_for(raster.load_floor_image(f)) for f in config.FLOORS}
+    spread = max(values.values()) - min(values.values())
+    assert spread > 0.001, f"편차가 예상보다 작다. 자동 추정 재검토 필요: {values}"
+
+
+def test_px_per_mm_is_plausible_for_400dpi():
+    from fp import raster
+    image = raster.load_floor_image("2F")
+    value = georef.px_per_mm_for(image)
+    # 90200mm 를 약 2400~3600px 로 표현 → 0.026~0.040 px/mm
+    assert 0.02 < value < 0.06, f"px_per_mm 이 이상함: {value}"
