@@ -2466,6 +2466,7 @@ if __name__ == "__main__":
   <select id="floor"></select>
   <button id="draw">그리기 (D)</button>
   <button id="del">삭제 (Del)</button>
+  <button id="purge">도면틀 잡음 제거</button>
   <button id="save" class="primary">저장</button>
   <span id="stat">로딩 중…</span>
 </div>
@@ -2520,10 +2521,31 @@ async function loadFloor(floor) {
   renderTodo();
 }
 
+// 추출기가 도면틀·치수선을 방으로 오인한 것이 층마다 11~41% 나온다 (실측).
+// 특징이 뚜렷하다: 종횡비가 6:1 을 넘고 방 번호가 붙지 않는다.
+// 지도에는 어차피 안 들어가지만 화면이 빨갛게 뒤덮여 진짜 미매칭이 안 보이므로
+// 흐리게 깔고, 한 번에 지울 수 있게 한다.
+function isLikelyFrameNoise(rec) {
+  if (rec.room_id) return false;
+  const xs = rec.points.map(p => p[0]), ys = rec.points.map(p => p[1]);
+  const w = Math.max(...xs) - Math.min(...xs);
+  const h = Math.max(...ys) - Math.min(...ys);
+  if (w === 0 || h === 0) return true;
+  return Math.max(w, h) / Math.min(w, h) > 6;
+}
+
 function styleFor(rec) {
-  return rec.room_id
-    ? { color:'#22c55e', weight:2, fillColor:'#22c55e', fillOpacity:0.18 }
-    : { color:'#ef4444', weight:2, fillColor:'#ef4444', fillOpacity:0.22 };
+  if (rec.room_id) return { color:'#22c55e', weight:2, fillColor:'#22c55e', fillOpacity:0.18 };
+  if (isLikelyFrameNoise(rec)) return { color:'#64748b', weight:1, fillColor:'#64748b', fillOpacity:0.06 };
+  return { color:'#ef4444', weight:2, fillColor:'#ef4444', fillOpacity:0.22 };
+}
+
+function purgeFrameNoise() {
+  const before = state.data.polygons.length;
+  state.data.polygons = state.data.polygons.filter(r => !isLikelyFrameNoise(r));
+  state.selected = null;
+  renderPolygons();
+  setStat(`도면틀 잡음 ${before - state.data.polygons.length}개 제거 — 저장해야 반영됩니다`);
 }
 
 function renderPolygons() {
@@ -2636,6 +2658,7 @@ sel.value = '2F';
 sel.onchange = () => loadFloor(sel.value);
 document.getElementById('draw').onclick = startDraw;
 document.getElementById('del').onclick = deleteSelected;
+document.getElementById('purge').onclick = purgeFrameNoise;
 document.getElementById('save').onclick = save;
 document.addEventListener('keydown', ev => {
   if (ev.key === 'd' || ev.key === 'D') startDraw();
