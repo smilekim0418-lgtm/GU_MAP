@@ -1,0 +1,221 @@
+import math
+
+import pytest
+from shapely.geometry import Polygon
+
+from fp import config, excel, georef, imdf
+
+
+def _metric_area(ring):
+    """validate._to_metric_polygon 과 같은 근사로 링 면적을 미터 단위로 잰다."""
+    mpd_lon = config.METERS_PER_DEG_LON_AT_EQUATOR * math.cos(
+        math.radians(config.REFERENCE_LATITUDE)
+    )
+    return Polygon([(lon * mpd_lon, lat * config.METERS_PER_DEG_LAT) for lon, lat in ring]).area
+
+
+@pytest.fixture
+def transform():
+    return georef.Transform(theta_deg=26.6, scale=1.0, t_lon=128.3940, t_lat=36.1460)
+
+
+@pytest.fixture
+def labeled_by_floor():
+    return {
+        "2F": [
+            {"points_m": [(0.0, 0.0), (7.0, 0.0), (7.0, 7.0), (0.0, 7.0)], "room_id": "201"},
+            {"points_m": [(8.0, 0.0), (14.0, 0.0), (14.0, 7.0), (8.0, 7.0)], "room_id": "202"},
+            {"points_m": [(20.0, 0.0), (24.0, 0.0), (24.0, 4.0), (20.0, 4.0)], "room_id": None},
+        ]
+    }
+
+
+@pytest.fixture
+def rooms_by_floor():
+    return {
+        "2F": [
+            excel.Room(room_id="201", floor="2F", name="대강의실", category="classroom",
+                       tags=["지방대학특성화사업"]),
+            excel.Room(room_id="202", floor="2F", name="탄소재료연구실", category="laboratory"),
+            excel.Room(room_id="203", floor="2F", name="나노재료 공정 실험실", category="laboratory"),
+        ]
+    }
+
+
+def test_bundle_has_the_imdf_collections(labeled_by_floor, rooms_by_floor, transform):
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    for key in ["venue", "building", "levels", "units", "footprint", "occupants"]:
+        assert key in bundle
+
+
+def test_units_are_geojson_feature_collections(labeled_by_floor, rooms_by_floor, transform):
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    assert bundle["units"]["type"] == "FeatureCollection"
+    assert isinstance(bundle["units"]["features"], list)
+
+
+def test_only_labeled_polygons_become_units(labeled_by_floor, rooms_by_floor, transform):
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    assert len(bundle["units"]["features"]) == 2
+
+
+def test_unit_keeps_the_schema_the_indoor_module_reads(labeled_by_floor, rooms_by_floor, transform):
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    props = bundle["units"]["features"][0]["properties"]
+    for key in ["level_id", "category", "label", "name", "department", "research_tags"]:
+        assert key in props
+    assert "ko-KR" in props["label"]
+    assert "ko-KR" in props["name"]
+
+
+def test_unit_name_comes_from_the_spreadsheet(labeled_by_floor, rooms_by_floor, transform):
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    by_label = {f["properties"]["label"]["ko-KR"]: f for f in bundle["units"]["features"]}
+    assert by_label["201"]["properties"]["name"]["ko-KR"] == "대강의실"
+    assert by_label["201"]["properties"]["category"] == "classroom"
+
+
+def test_drawing_name_fills_in_when_the_spreadsheet_name_is_blank(transform):
+    """엑셀 361개 중 69개는 이름이 비어 있고 도면에만 적혀 있다."""
+    labeled = {"2F": [{"points_m": [(0.0, 0.0), (4.0, 0.0), (4.0, 4.0), (0.0, 4.0)],
+                       "room_id": "228", "drawing_name": "화장실"}]}
+    rooms = {"2F": [excel.Room(room_id="228", floor="2F", name="", category="office")]}
+    bundle = imdf.build_bundle(labeled, rooms, transform)
+    props = bundle["units"]["features"][0]["properties"]
+    assert props["name"]["ko-KR"] == "화장실"
+    assert props["category"] == "restroom"
+
+
+def test_spreadsheet_name_wins_over_the_drawing_name(transform):
+    labeled = {"2F": [{"points_m": [(0.0, 0.0), (4.0, 0.0), (4.0, 4.0), (0.0, 4.0)],
+                       "room_id": "202", "drawing_name": "준비실"}]}
+    rooms = {"2F": [excel.Room(room_id="202", floor="2F", name="탄소재료연구실",
+                               category="laboratory")]}
+    bundle = imdf.build_bundle(labeled, rooms, transform)
+    props = bundle["units"]["features"][0]["properties"]
+    assert props["name"]["ko-KR"] == "탄소재료연구실"
+    assert props["category"] == "laboratory"
+
+
+def test_room_number_is_the_last_resort_name(transform):
+    labeled = {"2F": [{"points_m": [(0.0, 0.0), (4.0, 0.0), (4.0, 4.0), (0.0, 4.0)],
+                       "room_id": "211", "drawing_name": None}]}
+    rooms = {"2F": [excel.Room(room_id="211", floor="2F", name="", category="office")]}
+    bundle = imdf.build_bundle(labeled, rooms, transform)
+    assert bundle["units"]["features"][0]["properties"]["name"]["ko-KR"] == "211"
+    assert bundle["occupants"]["features"] == []
+
+
+def test_unit_geometry_is_a_closed_polygon(labeled_by_floor, rooms_by_floor, transform):
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    ring = bundle["units"]["features"][0]["geometry"]["coordinates"][0]
+    assert ring[0] == ring[-1], "폴리곤 링이 닫혀 있어야 한다"
+
+
+def test_ring_vertex_count_follows_the_input_shape(rooms_by_floor, transform):
+    """도형을 사각형으로 뭉개지 않는다. 입력 꼭짓점 수가 그대로 나와야 한다."""
+    l_shape = [(0.0, 0.0), (10.0, 0.0), (10.0, 4.0), (4.0, 4.0), (4.0, 9.0), (0.0, 9.0)]
+    bundle = imdf.build_bundle(
+        {"2F": [{"points_m": l_shape, "room_id": "201"}]}, rooms_by_floor, transform
+    )
+    ring = bundle["units"]["features"][0]["geometry"]["coordinates"][0]
+    assert len(ring) == len(l_shape) + 1, "L 자 방이 사각형으로 뭉개졌다"
+
+
+def test_coordinates_land_near_the_campus(labeled_by_floor, rooms_by_floor, transform):
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    lon, lat = bundle["units"]["features"][0]["geometry"]["coordinates"][0][0]
+    assert 128.39 < lon < 128.40
+    assert 36.14 < lat < 36.15
+
+
+def test_levels_cover_every_floor_present(labeled_by_floor, rooms_by_floor, transform):
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    shorts = {f["properties"]["short_name"]["ko-KR"] for f in bundle["levels"]["features"]}
+    assert "2F" in shorts
+
+
+def test_every_unit_level_id_exists_in_levels(labeled_by_floor, rooms_by_floor, transform):
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    level_ids = {f["id"] for f in bundle["levels"]["features"]}
+    for feature in bundle["units"]["features"]:
+        assert feature["properties"]["level_id"] in level_ids
+
+
+def test_occupants_reference_existing_units(labeled_by_floor, rooms_by_floor, transform):
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    unit_ids = {f["id"] for f in bundle["units"]["features"]}
+    for occupant in bundle["occupants"]["features"]:
+        for unit_id in occupant["properties"]["unit_ids"]:
+            assert unit_id in unit_ids
+
+
+def test_footprint_is_the_hull_of_the_units(labeled_by_floor, rooms_by_floor, transform):
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    assert bundle["footprint"]["features"]
+    ring = bundle["footprint"]["features"][0]["geometry"]["coordinates"][0]
+    assert len(ring) >= 4
+
+
+def test_footprint_area_matches_the_units_not_an_inflated_axis_aligned_bbox(transform):
+    """building rotated (fixture theta=26.6, real building theta ~=12.58) so the
+    footprint area must track the true combined unit area, not an axis-aligned
+    bbox area (which inflates by roughly wh + (w^2+h^2)*sin(2*theta)/2).
+
+    Two units tiling a 20m x 10m rectangle: true area is 200 sq m, while the
+    axis-aligned bbox around the rotated ring is nearly double that at this angle.
+    """
+    width, height = 20.0, 10.0
+    labeled = {
+        "2F": [
+            {"points_m": [(0.0, 0.0), (10.0, 0.0), (10.0, height), (0.0, height)],
+             "room_id": "301"},
+            {"points_m": [(10.0, 0.0), (width, 0.0), (width, height), (10.0, height)],
+             "room_id": "302"},
+        ]
+    }
+    rooms = {
+        "2F": [
+            excel.Room(room_id="301", floor="2F", name="A", category="laboratory"),
+            excel.Room(room_id="302", floor="2F", name="B", category="laboratory"),
+        ]
+    }
+    bundle = imdf.build_bundle(labeled, rooms, transform)
+    ring = bundle["footprint"]["features"][0]["geometry"]["coordinates"][0]
+    area = _metric_area(ring)
+    true_area = width * height
+    assert area == pytest.approx(true_area, rel=0.05), (
+        f"footprint area {area:.1f} sq m does not match true unit area "
+        f"{true_area:.1f} sq m -- is this still an axis-aligned bbox?"
+    )
+
+
+def test_hull_ring_survives_a_single_point_ring():
+    """폴리곤 하나가 점 하나로 무너져도 번들 전체가 죽으면 안 된다.
+
+    _ring() 이 점 하나짜리 폴리곤을 [p, p] 두 좌표로 닫아 넘기면 shapely 의
+    Polygon() 이 "a linearring requires at least 4 coordinates" 로 터진다.
+    한 링이 망가졌다고 CLI 실행 전체가 죽는 대신 쓸 수 있는 링이 나와야 한다.
+    """
+    ring = imdf._hull_ring([[[5.0, 5.0], [5.0, 5.0]]])
+    assert len(ring) >= 4
+    assert ring[0] == ring[-1]
+
+
+def test_hull_ring_keeps_a_broken_ring_inside_the_bounds():
+    """망가진 링을 그냥 버리면 그 방이 외곽선 밖으로 삐져나온다."""
+    good = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]]
+    ring = imdf._hull_ring([good, [[50.0, 50.0], [50.0, 50.0]]])
+    xs = [p[0] for p in ring]
+    ys = [p[1] for p in ring]
+    assert max(xs) >= 50.0 and max(ys) >= 50.0
+
+
+def test_hull_ring_winds_counter_clockwise():
+    """GeoJSON RFC 7946 은 외곽 링을 반시계로 요구한다 (신발끈 면적이 양수)."""
+    ring = imdf._hull_ring([[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]]])
+    signed = sum(
+        ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]
+        for i in range(len(ring) - 1)
+    ) / 2.0
+    assert signed > 0, f"외곽 링이 시계 방향이다 (신발끈 면적 {signed})"

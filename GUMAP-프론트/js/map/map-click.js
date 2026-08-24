@@ -61,6 +61,7 @@ window.initMapClickEvents = function() {
 
     // ── 지도 일반 클릭: 건물 중력 스냅핑 및 POI 조회 ──
     window.map.on('click', function(e) {
+    if (window._indoorMapClicked) return;
         window.clickToken++;
         var currentToken = window.clickToken;
         window.infoWindow = window.infoWindow || L.popup();

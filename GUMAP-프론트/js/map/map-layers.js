@@ -1,24 +1,21 @@
-// ============================================================
-// 📁 파일명: js/map/map-layers.js
-// 📌 역할: 지도 위 실시간 데이터 오버레이 레이어 관리
-// ============================================================
+﻿// ============================================================
+// ?뱚 ?뚯씪紐? js/map/map-layers.js
+// ?뱦 ??븷: 吏?????ㅼ떆媛??곗씠???ㅻ쾭?덉씠 ?덉씠??愿由?// ============================================================
 //
-// [파일 설명]
-//   지도 위에 토글 방식으로 켜고 끌 수 있는 실시간 데이터 레이어들을 관리합니다.
-//   - 🎥 CCTV 레이어: 경찰청/ITS 실시간 교통 CCTV 위치 및 영상 스트림
-//   - 🚨 교통사고 레이어: 도로교통공단 실시간 돌발교통정보 API 연동
-//   - 🛴 공유 PM 레이어: 공유 킥보드/전동휠 위치 (시뮬레이션 기반)
-//   - ⛽ 주유소 레이어: 한국석유공사 오피넷 실시간 유가 API 연동
-//   - 각 레이어는 MarkerCluster 플러그인으로 밀집 지역 자동 클러스터링
+// [?뚯씪 ?ㅻ챸]
+//   吏???꾩뿉 ?좉? 諛⑹떇?쇰줈 耳쒓퀬 ?????덈뒗 ?ㅼ떆媛??곗씠???덉씠?대뱾??愿由ы빀?덈떎.
+//   - ?렏 CCTV ?덉씠?? 寃쎌같泥?ITS ?ㅼ떆媛?援먰넻 CCTV ?꾩튂 諛??곸긽 ?ㅽ듃由?//   - ?슚 援먰넻?ш퀬 ?덉씠?? ?꾨줈援먰넻怨듬떒 ?ㅼ떆媛??뚮컻援먰넻?뺣낫 API ?곕룞
+//   - ?쎍 怨듭쑀 PM ?덉씠?? 怨듭쑀 ?λ낫???꾨룞???꾩튂 (?쒕??덉씠??湲곕컲)
+//   - ??二쇱쑀???덉씠?? ?쒓뎅?앹쑀怨듭궗 ?ㅽ뵾???ㅼ떆媛??좉? API ?곕룞
+//   - 媛??덉씠?대뒗 MarkerCluster ?뚮윭洹몄씤?쇰줈 諛吏?吏???먮룞 ?대윭?ㅽ꽣留?//
+// [?섏〈 愿怨?
+//   - config.js ??API ?? ?꾨줉??URL 李몄“
+//   - map-init.js ??window.map ?꾩뿭 吏??媛앹껜 李몄“
 //
-// [의존 관계]
-//   - config.js → API 키, 프록시 URL 참조
-//   - map-init.js → window.map 전역 지도 객체 참조
-//
-// [사용된 외부 API]
-//   - 국가교통정보센터(ITS) CCTV API
-//   - 도로교통공단 실시간 돌발교통정보 API
-//   - 한국석유공사 오피넷 유가 API
+// [?ъ슜???몃? API]
+//   - 援??援먰넻?뺣낫?쇳꽣(ITS) CCTV API
+//   - ?꾨줈援먰넻怨듬떒 ?ㅼ떆媛??뚮컻援먰넻?뺣낫 API
+//   - ?쒓뎅?앹쑀怨듭궗 ?ㅽ뵾???좉? API
 // ============================================================
 
 window.cctvMarkers = [];
@@ -32,40 +29,36 @@ window.trafficLayer = null;
 window.cctvRenderToken = 0;
 window.eventRenderToken = 0;
 
-// ═══════════════════════════════════════════════════════
-// 🛰️ 금오공대 정사영상 레이어 (드론 고해상도 항공사진)
-//   - 데이터 경로: 학교지도/GUMI-KUMHO/2. 정사영상/
-//   - 포트 8765 로컬 서버 필요 (start-gis-servers.bat 실행)
-//   - 타일 구조: EPSG:4326 TMS (GDAL2Tiles 지리좌표계 출력)
-//   - 줌별 타일 수: x = 2^(z+1), y = 2^z, TMS방식(y=0이 남쪽)
-//   - 데이터 범위: lat=35.99~36.32, lon=128.21~128.58
-//   - 전체 중심: lat=36.156, lon=128.397 (금오공대)
-// ═══════════════════════════════════════════════════════
-window.orthophotoLayer = null;
+// ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??// ?쎇截?湲덉삤怨듬? ?뺤궗?곸긽 ?덉씠??(?쒕줎 怨좏빐?곷룄 ??났?ъ쭊)
+//   - ?곗씠??寃쎈줈: ?숆탳吏??GUMI-KUMHO/2. ?뺤궗?곸긽/
+//   - ?ы듃 8765 濡쒖뺄 ?쒕쾭 ?꾩슂 (start-gis-servers.bat ?ㅽ뻾)
+//   - ???援ъ“: EPSG:4326 TMS (GDAL2Tiles 吏由ъ쥖?쒓퀎 異쒕젰)
+//   - 以뚮퀎 ????? x = 2^(z+1), y = 2^z, TMS諛⑹떇(y=0???⑥そ)
+//   - ?곗씠??踰붿쐞: lat=35.99~36.32, lon=128.21~128.58
+//   - ?꾩껜 以묒떖: lat=36.156, lon=128.397 (湲덉삤怨듬?)
+// ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??window.orthophotoLayer = null;
 window.isOrthophotoOn = false;
 
-// WebMercator 타일좌표(z,x,y) → EPSG:4326 TMS 타일좌표 변환
-// Leaflet은 WebMercator XYZ로 요청하므로 위경도를 거쳐 4326 TMS 타일로 역산
+// WebMercator ??쇱쥖??z,x,y) ??EPSG:4326 TMS ??쇱쥖??蹂??// Leaflet? WebMercator XYZ濡??붿껌?섎?濡??꾧꼍?꾨? 嫄곗퀜 4326 TMS ??쇰줈 ??궛
 window._wmTile2geo4326Tms = function(z, wx, wy) {
-    // WebMercator XYZ → 위경도 (타일 중심점)
+    // WebMercator XYZ ???꾧꼍??(???以묒떖??
     var n = Math.pow(2, z);
     var lon = (wx + 0.5) / n * 360.0 - 180.0;
     var latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * (wy + 0.5) / n)));
     var lat = latRad * 180.0 / Math.PI;
 
-    // EPSG:4326 TMS 타일 인덱스 계산
-    var xTiles = Math.pow(2, z + 1);  // 4326: 줌당 x타일 수 = 2^(z+1)
-    var yTiles = Math.pow(2, z);       // 4326: 줌당 y타일 수 = 2^z
+    // EPSG:4326 TMS ????몃뜳??怨꾩궛
+    var xTiles = Math.pow(2, z + 1);  // 4326: 以뚮떦 x?????= 2^(z+1)
+    var yTiles = Math.pow(2, z);       // 4326: 以뚮떦 y?????= 2^z
     var tx = Math.floor((lon + 180.0) / 360.0 * xTiles);
-    var ty = Math.floor((lat + 90.0) / 180.0 * yTiles);  // TMS: y=0이 남쪽
+    var ty = Math.floor((lat + 90.0) / 180.0 * yTiles);  // TMS: y=0???⑥そ
     return { z: z, x: tx, y: ty };
 };
 
-// 커스텀 TileLayer: WebMercator 요청을 4326 TMS로 변환
-window.Ortho4326TmsLayer = L.TileLayer.extend({
+// 而ㅼ뒪? TileLayer: WebMercator ?붿껌??4326 TMS濡?蹂??window.Ortho4326TmsLayer = L.TileLayer.extend({
     getTileUrl: function(coords) {
         var t = window._wmTile2geo4326Tms(coords.z, coords.x, coords.y);
-        return 'http://localhost:8765/' + t.z + '/' + t.x + '/' + t.y + '.jpg';
+        return window.location.protocol + '//' + window.location.hostname + ':8765/' + t.z + '/' + t.x + '/' + t.y + '.jpg';
     }
 });
 
@@ -73,10 +66,10 @@ window.initOrthophotoLayer = function() {
     if (window.orthophotoLayer) return;
     window.orthophotoLayer = new window.Ortho4326TmsLayer(null, {
         maxZoom: 17,
-        maxNativeZoom: 16,   // Z=17 타일이 불완전 → Z=16으로 스케일업
+        maxNativeZoom: 16,   // Z=17 ??쇱씠 遺덉셿????Z=16?쇰줈 ?ㅼ??쇱뾽
         minZoom: 13,
         opacity: 0.92,
-        attribution: '© 금오공과대학교 드론 정사영상 (EPSG:4326 TMS, 2024)',
+        attribution: '짤 湲덉삤怨듦낵??숆탳 ?쒕줎 ?뺤궗?곸긽 (EPSG:4326 TMS, 2024)',
         errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
         crossOrigin: true
     });
@@ -91,7 +84,7 @@ window.toggleOrthophotoLayer = function(forceOn) {
         window.isOrthophotoOn = true;
         var cb = document.getElementById('layer-orthophoto');
         if (cb) cb.checked = true;
-        if (window.showToast) window.showToast('📸 드론 정사영상 레이어 활성화 (EPSG:4326 TMS)');
+        if (window.showToast) window.showToast('?벝 ?쒕줎 ?뺤궗?곸긽 ?덉씠???쒖꽦??(EPSG:4326 TMS)');
     } else {
         if (window.orthophotoLayer && window.map.hasLayer(window.orthophotoLayer)) {
             window.map.removeLayer(window.orthophotoLayer);
@@ -102,17 +95,15 @@ window.toggleOrthophotoLayer = function(forceOn) {
     }
 };
 
-// ═══════════════════════════════════════════════════════
-// 📐 DEM 고도 레이어 (수치표고모델, 경사도 분석용)
-//   - 포트 8767 로컬 서버 필요
-// ═══════════════════════════════════════════════════════
-window.demLayer = null;
+// ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??// ?뱪 DEM 怨좊룄 ?덉씠??(?섏튂?쒓퀬紐⑤뜽, 寃쎌궗??遺꾩꽍??
+//   - ?ы듃 8767 濡쒖뺄 ?쒕쾭 ?꾩슂
+// ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??window.demLayer = null;
 window.isDemOn = false;
 window.slopeHeatLayer = null;
 
 window.initDemLayer = function() {
     if (window.demLayer) return;
-    window.demLayer = L.tileLayer('http://localhost:8767/{z}/{x}/{y}.png', {
+    window.demLayer = L.tileLayer(window.location.protocol + '//' + window.location.hostname + ':8767/{z}/{x}/{y}.png', {
         maxZoom: 17,
         minZoom: 13,
         tms: false,
@@ -122,13 +113,13 @@ window.initDemLayer = function() {
     });
 };
 
-// DEM 타일 픽셀에서 고도값 추출 (Mapbox Terrain RGB 방식 우선 시도)
+// DEM ????쎌??먯꽌 怨좊룄媛?異붿텧 (Mapbox Terrain RGB 諛⑹떇 ?곗꽑 ?쒕룄)
 window.getElevationAt = async function(lat, lon, zoom) {
     zoom = zoom || 15;
     var n = Math.pow(2, zoom);
     var x = Math.floor((lon + 180) / 360 * n);
     var y = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n);
-    var url = 'http://localhost:8767/' + zoom + '/' + x + '/' + y + '.png';
+    var url = window.location.protocol + '//' + window.location.hostname + ':8767/' + zoom + '/' + x + '/' + y + '.png';
 
     return new Promise(function(resolve) {
         var img = new Image();
@@ -150,11 +141,10 @@ window.getElevationAt = async function(lat, lon, zoom) {
     });
 };
 
-// 거리 기반 겹침 방지 필터링 함수 (약 40m 내에 겹치는 장소는 하나로 묶고 누적 갯수 뱃지 표기)
+// 嫄곕━ 湲곕컲 寃뱀묠 諛⑹? ?꾪꽣留??⑥닔 (??40m ?댁뿉 寃뱀튂???μ냼???섎굹濡?臾띔퀬 ?꾩쟻 媛?닔 諭껋? ?쒓린)
 window.filterPoisForOverlap = function(items, latKey, lngKey) {
     var filtered = [];
-    var threshold = 0.00035; // 약 35~40m 간격의 임계치
-    
+    var threshold = 0.00035; // ??35~40m 媛꾧꺽???꾧퀎移?    
     items.forEach(function(item) {
         var lat = parseFloat(item[latKey]);
         var lng = parseFloat(item[lngKey]);
@@ -173,14 +163,13 @@ window.filterPoisForOverlap = function(items, latKey, lngKey) {
                 lat: lat,
                 lng: lng,
                 main: item,
-                children: [] // 겹치는 하위 항목들
-            });
+                children: [] // 寃뱀튂???섏쐞 ??ぉ??            });
         }
     });
     return filtered;
 };
 
-// 길찾기 동선 기준 400m 이내 인접 마커 여부 계산 및 투명도 획득 함수
+// 湲몄갼湲??숈꽑 湲곗? 400m ?대궡 ?몄젒 留덉빱 ?щ? 怨꾩궛 諛??щ챸???띾뱷 ?⑥닔
 window.getMarkerOpacityByRoute = function(lat, lng) {
     if (typeof window.currentRoutingPolylines === 'undefined' || !window.currentRoutingPolylines || window.currentRoutingPolylines.length === 0) {
         return 1.0;
@@ -214,7 +203,7 @@ window.getMarkerOpacityByRoute = function(lat, lng) {
     return minDistance <= 400 ? 1.0 : 0.4;
 };
 
-// CCTV 레이어 토글
+// CCTV ?덉씠???좉?
 window.toggleCctvLayer = function(show) {
     window.isCctvLayerOn = show;
     if (show) {
@@ -231,7 +220,7 @@ window.toggleCctvLayer = function(show) {
     }
 };
 
-// 돌발상황 레이어 토글
+// ?뚮컻?곹솴 ?덉씠???좉?
 window.toggleEventLayer = function(show) {
     window.isEventLayerOn = show;
     if (show) {
@@ -242,8 +231,7 @@ window.toggleEventLayer = function(show) {
     }
 };
 
-// 실시간 CCTV 렌더링
-window.fetchAndRenderCctv = function() {
+// ?ㅼ떆媛?CCTV ?뚮뜑留?window.fetchAndRenderCctv = function() {
     window.cctvRenderToken++;
     var myCctvToken = window.cctvRenderToken;
 
@@ -263,7 +251,7 @@ window.fetchAndRenderCctv = function() {
     ];
 
     urls.forEach(url => {
-        var type = url.indexOf('type=its') !== -1 ? 'ITS 국도' : 'EX 고속도로';
+        var type = url.indexOf('type=its') !== -1 ? 'ITS 援?룄' : 'EX 怨좎냽?꾨줈';
         fetchWithRetry(url, {}, window.GUMAP_CONSTANTS.API.MAX_RETRIES)
         .then(data => {
             if (!window.isCctvLayerOn) return;
@@ -280,7 +268,7 @@ window.fetchAndRenderCctv = function() {
                         var lng = parseFloat(lngVal);
                         
                         var icon = L.divIcon({
-                            html: `<div style="font-size:18px; text-shadow:0 0 3px white; cursor:pointer;" title="${item.cctvname}">📹</div>`,
+                            html: `<div style="font-size:18px; text-shadow:0 0 3px white; cursor:pointer;" title="${item.cctvname}">?벞</div>`,
                             className: 'its-cctv-icon',
                             iconSize: [22, 22],
                             iconAnchor: [11, 11]
@@ -302,12 +290,12 @@ window.fetchAndRenderCctv = function() {
                         var videoId = `cctv-video-${item.cctvname.replace(/[^a-zA-Z0-9]/g, '')}`;
                         var popupContent = `
                         <div style="font-family:'Noto Sans KR',sans-serif; padding:5px; width:280px; line-height:1.4;">
-                            <b style="font-size:14px; color:#1e293b; display:block; margin-bottom:4px;">📹 실시간 CCTV [${item.cctvname}]</b>
+                            <b style="font-size:14px; color:#1e293b; display:block; margin-bottom:4px;">?벞 ?ㅼ떆媛?CCTV [${item.cctvname}]</b>
                             <div style="margin-top:8px; background:#000; border-radius:8px; overflow:hidden; position:relative; padding-top:56.25%;">
                                 <video id="${videoId}" data-src="${proxyCctvUrl}" controls autoplay muted playsinline style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain;"></video>
                             </div>
                             <div style="margin-top:6px; text-align:right;">
-                                <a href="${secureCctvUrl}" target="_blank" style="font-size:11px; color:#2563eb; text-decoration:underline; font-weight:700;">외부 플레이어로 보기 ↗</a>
+                                <a href="${secureCctvUrl}" target="_blank" style="font-size:11px; color:#2563eb; text-decoration:underline; font-weight:700;">?몃? ?뚮젅?댁뼱濡?蹂닿린 ??/a>
                             </div>
                         </div>`;
                         
@@ -350,16 +338,15 @@ window.fetchAndRenderCctv = function() {
         })
         .catch(err => {
             if (window.ErrorHandler) {
-                window.ErrorHandler.handle(err, `${type} CCTV 로드`, window.ErrorHandler.LEVEL.TOAST);
+                window.ErrorHandler.handle(err, `${type} CCTV 濡쒕뱶`, window.ErrorHandler.LEVEL.TOAST);
             } else {
-                console.warn("CCTV API 로드 실패:", err);
+                console.warn("CCTV API 濡쒕뱶 ?ㅽ뙣:", err);
             }
         });
     });
 };
 
-// 실시간 도로 돌발상황 렌더링
-window.fetchAndRenderEvent = function() {
+// ?ㅼ떆媛??꾨줈 ?뚮컻?곹솴 ?뚮뜑留?window.fetchAndRenderEvent = function() {
     window.eventRenderToken++;
     var myEventToken = window.eventRenderToken;
 
@@ -388,12 +375,12 @@ window.fetchAndRenderEvent = function() {
                     var lat = parseFloat(item.coordy);
                     var lng = parseFloat(item.coordx);
                     
-                    var emoji = "⚠️";
+                    var emoji = "?좑툘";
                     var type = item.eventtype || "";
-                    if (type.indexOf("공사") !== -1 || type.indexOf("🚧") !== -1) emoji = "🚧";
-                    else if (type.indexOf("사고") !== -1) emoji = "💥";
-                    else if (type.indexOf("통제") !== -1 || type.indexOf("폐쇄") !== -1) emoji = "🚫";
-                    else if (type.indexOf("행사") !== -1 || type.indexOf("축제") !== -1) emoji = "🎉";
+                    if (type.indexOf("怨듭궗") !== -1 || type.indexOf("?슙") !== -1) emoji = "?슙";
+                    else if (type.indexOf("?ш퀬") !== -1) emoji = "?뮙";
+                    else if (type.indexOf("?듭젣") !== -1 || type.indexOf("?먯뇙") !== -1) emoji = "?슟";
+                    else if (type.indexOf("?됱궗") !== -1 || type.indexOf("異뺤젣") !== -1) emoji = "?럦";
                     
                     var icon = L.divIcon({
                         html: `<div style="font-size:20px; text-shadow:0 0 3px white; cursor:pointer;" title="${item.eventdescription}">${emoji}</div>`,
@@ -406,8 +393,8 @@ window.fetchAndRenderEvent = function() {
                     
                     var popupContent = `
                     <div style="font-family:'Noto Sans KR',sans-serif; padding:5px; width:240px; line-height:1.4;">
-                        <b style="font-size:14px; color:#dc2626; display:block; margin-bottom:4px;">🚨 도로 돌발상황 [${item.eventtype || "기타"}]</b>
-                        <span style="font-size:11px; color:#64748b; display:block; margin-bottom:4px;"><b>상세구분:</b> ${item.eventdetailtype || "정보 없음"}</span>
+                        <b style="font-size:14px; color:#dc2626; display:block; margin-bottom:4px;">?슚 ?꾨줈 ?뚮컻?곹솴 [${item.eventtype || "湲고?"}]</b>
+                        <span style="font-size:11px; color:#64748b; display:block; margin-bottom:4px;"><b>?곸꽭援щ텇:</b> ${item.eventdetailtype || "?뺣낫 ?놁쓬"}</span>
                         <div style="margin-top:6px; font-size:11px; color:#1e293b; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0; word-break:break-all;">
                             ${item.eventdescription}
                         </div>
@@ -421,14 +408,14 @@ window.fetchAndRenderEvent = function() {
     })
     .catch(err => {
         if (window.ErrorHandler) {
-            window.ErrorHandler.handle(err, 'ITS 돌발상황 조회', window.ErrorHandler.LEVEL.TOAST);
+            window.ErrorHandler.handle(err, 'ITS ?뚮컻?곹솴 議고쉶', window.ErrorHandler.LEVEL.TOAST);
         } else {
-            console.warn("돌발상황 API 로드 실패:", err);
+            console.warn("?뚮컻?곹솴 API 濡쒕뱶 ?ㅽ뙣:", err);
         }
     });
 };
 
-// 다크모드 토글
+// ?ㅽ겕紐⑤뱶 ?좉?
 window.toggleDarkMode = function() {
     var layers = window._mapLayers;
     if (!layers) return;
@@ -437,7 +424,7 @@ window.toggleDarkMode = function() {
         document.body.classList.remove('dark-theme');
         localStorage.setItem('gumap_dark_theme', 'false');
         var toggle = document.getElementById('dark-mode-toggle');
-        if (toggle) { toggle.textContent = '🌙'; toggle.title = '다크모드 전환'; }
+        if (toggle) { toggle.textContent = '?뙔'; toggle.title = '?ㅽ겕紐⑤뱶 ?꾪솚'; }
         if (window.map) {
             window.map.removeLayer(layers.darkLayer);
             window.map.addLayer(window._lastActiveBaseLayer || layers.baseLayer);
@@ -446,7 +433,7 @@ window.toggleDarkMode = function() {
         document.body.classList.add('dark-theme');
         localStorage.setItem('gumap_dark_theme', 'true');
         var toggle = document.getElementById('dark-mode-toggle');
-        if (toggle) { toggle.textContent = '☀️'; toggle.title = '라이트모드 전환'; }
+        if (toggle) { toggle.textContent = '?截?; toggle.title = '?쇱씠?몃え???꾪솚'; }
         if (window.map) {
             var baseLayers = [layers.osmLayer, layers.baseLayer, layers.satelliteLayer, layers.esriSatelliteLayer, layers.lightGrayLayer];
             baseLayers.forEach(function(l) {
@@ -459,12 +446,12 @@ window.toggleDarkMode = function() {
     }
 };
 
-// 실시간 교통 혼잡도 레이어 토글
+// ?ㅼ떆媛?援먰넻 ?쇱옟???덉씠???좉?
 window.toggleTrafficLayer = function(show) {
     if (show) {
         if (!window.trafficLayer) {
             window.trafficLayer = L.tileLayer('https://its.go.kr:9443/geoserver/gwc/service/wmts/rest/ntic:N_LEVEL_11/ntic:REALTIME/EPSG:3857/EPSG:3857:{z}/{y}/{x}?format=image/png8', {
-                maxZoom: 19, minZoom: 6, opacity: 0.7, attribution: 'ITS 실시간 교통정보'
+                maxZoom: 19, minZoom: 6, opacity: 0.7, attribution: 'ITS ?ㅼ떆媛?援먰넻?뺣낫'
             });
         }
         window.trafficLayer.addTo(window.map);
@@ -475,7 +462,7 @@ window.toggleTrafficLayer = function(show) {
 
 window.sharedPmRenderToken = window.sharedPmRenderToken || 0;
 
-// 공유 퍼스널모빌리티 레이어 토글
+// 怨듭쑀 ?쇱뒪?먮え鍮뚮━???덉씠???좉?
 window.toggleSharedPmLayer = function(show) {
     window.isSharedPmLayerOn = show;
     window.sharedPmRenderToken++;
@@ -493,8 +480,8 @@ window.toggleSharedPmLayer = function(show) {
                     var lat = parseFloat(pm.gpslati || pm.lat);
                     var lng = parseFloat(pm.gpslong || pm.lng);
                     if (!lat || !lng) return;
-                    var type = pm.pmType || '킥보드';
-                    var emoji = type.indexOf('자전거') >= 0 ? '🚲' : '🛴';
+                    var type = pm.pmType || '?λ낫??;
+                    var emoji = type.indexOf('?먯쟾嫄?) >= 0 ? '?슩' : '?쎍';
                     var battery = pm.battery ? pm.battery + '%' : '?';
                     var company = pm.companyNm || pm.company || '';
                     var icon = L.divIcon({
@@ -502,37 +489,37 @@ window.toggleSharedPmLayer = function(show) {
                         className: 'shared-pm-icon', iconSize: [24, 24], iconAnchor: [12, 12]
                     });
                     var marker = L.marker([lat, lng], { icon: icon }).addTo(window.sharedPmLayerGroup);
-                    marker.bindPopup('<div style="font-family:Noto Sans KR,sans-serif; min-width:120px;"><b>' + emoji + ' ' + type + '</b><br><span style="font-size:11px; color:#64748b;">' + company + '</span><br>🔋 배터리: <b>' + battery + '</b><div style="display:flex; justify-content:flex-end; gap:6px; margin-top:5px;"><a href="javascript:void(0)" onclick="window.addFavorite(\'' + company.replace(/'/g, "\\'") + ' ' + type + '\', ' + lat + ', ' + lng + ', \'\')" style="font-size:11px; color:#92400e; text-decoration:underline; font-weight:600; cursor:pointer;">⭐ 즐겨찾기</a></div></div>');
+                    marker.bindPopup('<div style="font-family:Noto Sans KR,sans-serif; min-width:120px;"><b>' + emoji + ' ' + type + '</b><br><span style="font-size:11px; color:#64748b;">' + company + '</span><br>?뵅 諛고꽣由? <b>' + battery + '</b><div style="display:flex; justify-content:flex-end; gap:6px; margin-top:5px;"><a href="javascript:void(0)" onclick="window.addFavorite(\'' + company.replace(/'/g, "\\'") + ' ' + type + '\', ' + lat + ', ' + lng + ', \'\')" style="font-size:11px; color:#92400e; text-decoration:underline; font-weight:600; cursor:pointer;">狩?利먭꺼李얘린</a></div></div>');
                     window.sharedPmMarkers.push(marker);
                 });
                 var infoBar = document.getElementById('clicked-info');
-                if (infoBar) infoBar.innerHTML = '🛴 공유 모빌리티 ' + items.length + '대 발견!';
+                if (infoBar) infoBar.innerHTML = '?쎍 怨듭쑀 紐⑤퉴由ы떚 ' + items.length + '? 諛쒓껄!';
             } else {
                 var infoBar = document.getElementById('clicked-info');
-                if (infoBar) infoBar.innerHTML = '🛴 현재 구미시 공유 모빌리티 API 데이터가 0건입니다. (테스트용 가상 데이터 표시)';
+                if (infoBar) infoBar.innerHTML = '?쎍 ?꾩옱 援щ???怨듭쑀 紐⑤퉴由ы떚 API ?곗씠?곌? 0嫄댁엯?덈떎. (?뚯뒪?몄슜 媛???곗씠???쒖떆)';
                 var center = window.map.getCenter();
                 for (var i=0; i<15; i++) {
                     var lat = center.lat + (Math.random() - 0.5) * 0.04;
                     var lng = center.lng + (Math.random() - 0.5) * 0.04;
-                    var type = Math.random() > 0.5 ? '자전거' : '킥보드';
-                    var emoji = type === '자전거' ? '🚲' : '🛴';
-                    var company = type === '자전거' ? '지바이크' : '씽씽';
+                    var type = Math.random() > 0.5 ? '?먯쟾嫄? : '?λ낫??;
+                    var emoji = type === '?먯쟾嫄? ? '?슩' : '?쎍';
+                    var company = type === '?먯쟾嫄? ? '吏諛붿씠?? : '?쎌뵿';
                     var battery = Math.floor(Math.random() * 100) + '%';
                     var icon = L.divIcon({
                         html: '<div style="font-size:22px; text-shadow:0 0 4px white; cursor:pointer;" title="' + company + ' ' + type + '">' + emoji + '</div>',
                         className: 'shared-pm-icon', iconSize: [24, 24], iconAnchor: [12, 12]
                     });
                     var marker = L.marker([lat, lng], { icon: icon }).addTo(window.sharedPmLayerGroup);
-                    marker.bindPopup('<div style="font-family:Noto Sans KR,sans-serif; min-width:120px;"><b>' + emoji + ' ' + type + ' (가상)</b><br><span style="font-size:11px; color:#64748b;">' + company + '</span><br>🔋 배터리: <b>' + battery + '</b><div style="display:flex; justify-content:flex-end; gap:6px; margin-top:5px;"><a href="javascript:void(0)" onclick="window.addFavorite(\'' + company.replace(/'/g, "\\'") + ' ' + type + '\', ' + lat + ', ' + lng + ', \'\')" style="font-size:11px; color:#92400e; text-decoration:underline; font-weight:600; cursor:pointer;">⭐ 즐겨찾기</a></div></div>');
+                    marker.bindPopup('<div style="font-family:Noto Sans KR,sans-serif; min-width:120px;"><b>' + emoji + ' ' + type + ' (媛??</b><br><span style="font-size:11px; color:#64748b;">' + company + '</span><br>?뵅 諛고꽣由? <b>' + battery + '</b><div style="display:flex; justify-content:flex-end; gap:6px; margin-top:5px;"><a href="javascript:void(0)" onclick="window.addFavorite(\'' + company.replace(/'/g, "\\'") + ' ' + type + '\', ' + lat + ', ' + lng + ', \'\')" style="font-size:11px; color:#92400e; text-decoration:underline; font-weight:600; cursor:pointer;">狩?利먭꺼李얘린</a></div></div>');
                     window.sharedPmMarkers.push(marker);
                 }
             }
         })
         .catch(function(err) {
             if (window.ErrorHandler) {
-                window.ErrorHandler.handle(err, '공유모빌리티 조회', window.ErrorHandler.LEVEL.TOAST);
+                window.ErrorHandler.handle(err, '怨듭쑀紐⑤퉴由ы떚 議고쉶', window.ErrorHandler.LEVEL.TOAST);
             } else {
-                console.error('공유PM 조회 실패:', err);
+                console.error('怨듭쑀PM 議고쉶 ?ㅽ뙣:', err);
             }
         });
     } else {
@@ -541,12 +528,12 @@ window.toggleSharedPmLayer = function(show) {
     }
 };
 
-// 오피넷(Opinet) 주유소 검색 및 유가 표시
+// ?ㅽ뵾??Opinet) 二쇱쑀??寃??諛??좉? ?쒖떆
 window.searchOpinetGasStations = function(center, options = {}) {
     if (typeof proj4 === 'undefined') {
         console.error("Proj4js library not loaded.");
         var infoBar = document.getElementById('clicked-info');
-        if (infoBar) infoBar.innerHTML = `🚨 Proj4js 라이브러리가 로드되지 않아 주유소 검색을 수행할 수 없습니다.`;
+        if (infoBar) infoBar.innerHTML = `?슚 Proj4js ?쇱씠釉뚮윭由ш? 濡쒕뱶?섏? ?딆븘 二쇱쑀??寃?됱쓣 ?섑뻾?????놁뒿?덈떎.`;
         return;
     }
 
@@ -563,18 +550,18 @@ window.searchOpinetGasStations = function(center, options = {}) {
     var url = `${window.PROXY_URL}/opinet-around?out=json&x=${x}&y=${y}&radius=3000&prodcd=B027&sort=1`;
     
     var infoBar = document.getElementById('clicked-info');
-    if (infoBar) infoBar.innerHTML = `⏳ 주변 3km 내 주유소를 검색 중입니다...`;
+    if (infoBar) infoBar.innerHTML = `??二쇰? 3km ??二쇱쑀?뚮? 寃??以묒엯?덈떎...`;
 
     fetchWithRetry(url, {}, window.GUMAP_CONSTANTS.API.MAX_RETRIES)
     .then(data => {
-        if (window.currentCategorySearch !== '주유소') return;
+        if (window.currentCategorySearch !== '二쇱쑀??) return;
         
         if (data.RESULT && data.RESULT.OIL) {
             var stations = data.RESULT.OIL;
             if (!Array.isArray(stations)) stations = [stations];
             
             if (stations.length === 0) {
-                if (infoBar) infoBar.innerHTML = `❌ 반경 3km 내에 <b>주유소</b> 검색 결과가 없습니다. (오피넷 인증 제한 또는 데이터 없음)`;
+                if (infoBar) infoBar.innerHTML = `??諛섍꼍 3km ?댁뿉 <b>二쇱쑀??/b> 寃??寃곌낵媛 ?놁뒿?덈떎. (?ㅽ뵾???몄쬆 ?쒗븳 ?먮뒗 ?곗씠???놁쓬)`;
                 return;
             }
             
@@ -607,7 +594,7 @@ window.searchOpinetGasStations = function(center, options = {}) {
                 var brandColor = getOpinetBrandColor(brandCode);
                 
                 var rawPrice = parseInt(st.PRICE) || 0;
-                var displayPrice = rawPrice > 0 ? (rawPrice.toLocaleString() + '원') : '가격정보없음';
+                var displayPrice = rawPrice > 0 ? (rawPrice.toLocaleString() + '??) : '媛寃⑹젙蹂댁뾾??;
                 var stGlowColor = brandColor + '4d';
 
                 var opacity = window.getMarkerOpacityByRoute(lat, lng);
@@ -617,7 +604,7 @@ window.searchOpinetGasStations = function(center, options = {}) {
                     badgeHtml = `<span style="background:#ef4444; color:white; font-size:9px; border-radius:4px; padding:1px 3px; margin-left:3px; font-weight:900; vertical-align:middle;">+${group.children.length}</span>`;
                 }
 
-                var iconHtml = `<div class="glass-capsule-marker" style="--marker-border-color:${brandColor}; --marker-glow-color:${stGlowColor}; opacity:${opacity};" title="${st.OS_NM}">⛽ <span style="color:${brandColor}; font-weight:800;">${brandName}</span> <span style="margin:0 2px; opacity:0.3;">|</span> <span style="color:#ef4444; font-weight:800;">${displayPrice}</span>${badgeHtml}</div>`;
+                var iconHtml = `<div class="glass-capsule-marker" style="--marker-border-color:${brandColor}; --marker-glow-color:${stGlowColor}; opacity:${opacity};" title="${st.OS_NM}">??<span style="color:${brandColor}; font-weight:800;">${brandName}</span> <span style="margin:0 2px; opacity:0.3;">|</span> <span style="color:#ef4444; font-weight:800;">${displayPrice}</span>${badgeHtml}</div>`;
                 var icon = L.divIcon({
                     html: iconHtml,
                     className: 'category-marker-icon', 
@@ -657,19 +644,19 @@ window.searchOpinetGasStations = function(center, options = {}) {
                     
                     section.innerHTML = `
                         <div style="margin-bottom:4px;">
-                            <b style="font-size:13px; color:#1e293b; vertical-align:middle;">⛽ ${DOMPurify.sanitize(item.OS_NM)}</b>
+                            <b style="font-size:13px; color:#1e293b; vertical-align:middle;">??${DOMPurify.sanitize(item.OS_NM)}</b>
                             <div style="margin-top:2px;">${brandBadge}</div>
                         </div>
-                        <div id="opinet-addr-${item.UNI_ID}" style="font-size:10px; color:#64748b; margin-bottom:6px;">⏳ 주소 로딩 중...</div>
+                        <div id="opinet-addr-${item.UNI_ID}" style="font-size:10px; color:#64748b; margin-bottom:6px;">??二쇱냼 濡쒕뵫 以?..</div>
                         <div style="font-size:12px; font-weight:bold; color:#1e293b; margin-bottom:8px;">
-                            기본 휘발유: <span style="font-size:14px; color:#ef4444;">${rPrice.toLocaleString()}원</span>
+                            湲곕낯 ?섎컻?? <span style="font-size:14px; color:#ef4444;">${rPrice.toLocaleString()}??/span>
                             <span style="font-size:9px; color:#64748b; font-weight:normal;">(${parseInt(item.DISTANCE).toLocaleString()}m)</span>
                         </div>
-                        <div id="opinet-detail-${item.UNI_ID}" style="font-size:11px; color:#475569; margin-bottom:4px;">⏳ 유가 상세 정보 로딩 중...</div>
+                        <div id="opinet-detail-${item.UNI_ID}" style="font-size:11px; color:#475569; margin-bottom:4px;">???좉? ?곸꽭 ?뺣낫 濡쒕뵫 以?..</div>
                         <div style="display:flex; gap:4px; margin-top:8px; justify-content:flex-end;">
-                            <button onclick="window.addFavorite('${safeName}', ${itemLat}, ${itemLng}, '${safeBrand} 주유소'); window.map.closePopup();" style="padding:3px 6px; font-size:10px; background:#ca8a04; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">⭐ 즐겨찾기</button>
-                            <button onclick="setRoutingPoint('START', ${itemLat}, ${itemLng}, '${safeName}'); window.map.closePopup();" style="padding:3px 6px; font-size:10px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">출발</button>
-                            <button onclick="setRoutingPoint('END', ${itemLat}, ${itemLng}, '${safeName}'); window.map.closePopup();" style="padding:3px 6px; font-size:10px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">도착</button>
+                            <button onclick="window.addFavorite('${safeName}', ${itemLat}, ${itemLng}, '${safeBrand} 二쇱쑀??); window.map.closePopup();" style="padding:3px 6px; font-size:10px; background:#ca8a04; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">狩?利먭꺼李얘린</button>
+                            <button onclick="setRoutingPoint('START', ${itemLat}, ${itemLng}, '${safeName}'); window.map.closePopup();" style="padding:3px 6px; font-size:10px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">異쒕컻</button>
+                            <button onclick="setRoutingPoint('END', ${itemLat}, ${itemLng}, '${safeName}'); window.map.closePopup();" style="padding:3px 6px; font-size:10px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">?꾩갑</button>
                         </div>
                     `;
                     
@@ -705,27 +692,27 @@ window.searchOpinetGasStations = function(center, options = {}) {
 
                     var bCode = cheapestStation.POLL_DIV_CD || cheapestStation.POLL_DIV_CO;
                     var bName = getOpinetBrandName(bCode);
-                    var displayPrice = parseInt(cheapestStation.PRICE).toLocaleString() + '원';
+                    var displayPrice = parseInt(cheapestStation.PRICE).toLocaleString() + '??;
                     var refPoint = (window.userLocation && window.userLocation.lat) ? window.userLocation : window.map.getCenter();
                     var dist = (typeof window.getLatLngDistance === 'function') ? window.getLatLngDistance(refPoint.lat, refPoint.lng, cheapestStation.stLat, cheapestStation.stLng) : 9999;
 
                     if (window.appendChatMessage) {
-                        window.appendChatMessage("ai", `🤖 구미시 실시간 유가 비교 결과, 가장 저렴한 주유소는 **${bName} ${cheapestStation.OS_NM}** (휘발유 최저가: **${displayPrice}**) 입니다. (현 위치 기준 약 ${Math.round(dist)}m)`);
+                        window.appendChatMessage("ai", `?쨼 援щ????ㅼ떆媛??좉? 鍮꾧탳 寃곌낵, 媛????댄븳 二쇱쑀?뚮뒗 **${bName} ${cheapestStation.OS_NM}** (?섎컻??理쒖?媛: **${displayPrice}**) ?낅땲?? (???꾩튂 湲곗? ??${Math.round(dist)}m)`);
                     }
                 }
             }
             
-            if (infoBar) infoBar.innerHTML = `✅ 내 주변 3km 반경 내 <b>주유소 (${stations.length}곳)</b>을(를) 찾았습니다!`;
+            if (infoBar) infoBar.innerHTML = `????二쇰? 3km 諛섍꼍 ??<b>二쇱쑀??(${stations.length}怨?</b>??瑜? 李얠븯?듬땲??`;
         } else {
-            if (infoBar) infoBar.innerHTML = `❌ 반경 3km 내에 <b>주유소</b> 검색 결과가 없습니다.`;
+            if (infoBar) infoBar.innerHTML = `??諛섍꼍 3km ?댁뿉 <b>二쇱쑀??/b> 寃??寃곌낵媛 ?놁뒿?덈떎.`;
         }
     })
     .catch(err => {
         if (window.ErrorHandler) {
-            window.ErrorHandler.handle(err, '오피넷 주유소 검색', window.ErrorHandler.LEVEL.TOAST);
+            window.ErrorHandler.handle(err, '?ㅽ뵾??二쇱쑀??寃??, window.ErrorHandler.LEVEL.TOAST);
         } else {
-            console.error("Opinet 주유소 검색 실패:", err);
-            if (infoBar) infoBar.innerHTML = `🚨 오피넷 API 호출에 실패했습니다. (API 키/IP 등록 상태 확인 필요)`;
+            console.error("Opinet 二쇱쑀??寃???ㅽ뙣:", err);
+            if (infoBar) infoBar.innerHTML = `?슚 ?ㅽ뵾??API ?몄텧???ㅽ뙣?덉뒿?덈떎. (API ??IP ?깅줉 ?곹깭 ?뺤씤 ?꾩슂)`;
         }
     });
 };
@@ -744,7 +731,7 @@ window.loadOpinetStationDetail = function(uniId) {
             var stInfo = data.RESULT.OIL[0];
             
             if (addrEl) {
-                var addressText = stInfo.NEW_ADR || stInfo.VAN_ADR || "주소 정보 없음";
+                var addressText = stInfo.NEW_ADR || stInfo.VAN_ADR || "二쇱냼 ?뺣낫 ?놁쓬";
                 addrEl.textContent = addressText;
             }
             
@@ -754,16 +741,16 @@ window.loadOpinetStationDetail = function(uniId) {
             var tableHtml = `<table style="width:100%; border-collapse:collapse; text-align:center; font-size:11px; margin-top:4px;">
                 <thead>
                     <tr style="background:#f1f5f9; border-bottom:1px solid #cbd5e1;">
-                        <th style="padding:4px; font-weight:700;">유종</th>
-                        <th style="padding:4px; font-weight:700;">가격</th>
+                        <th style="padding:4px; font-weight:700;">?좎쥌</th>
+                        <th style="padding:4px; font-weight:700;">媛寃?/th>
                     </tr>
                 </thead>
                 <tbody>`;
             
             var productNames = {
-                'B027': '휘발유',
-                'D047': '경유',
-                'B034': '고급휘발유',
+                'B027': '?섎컻??,
+                'D047': '寃쎌쑀',
+                'B034': '怨좉툒?섎컻??,
                 'K015': 'LPG'
             };
             
@@ -774,7 +761,7 @@ window.loadOpinetStationDetail = function(uniId) {
                 if (price > 0) {
                     tableHtml += `<tr style="border-bottom:1px solid #f1f5f9;">
                         <td style="padding:4px; color:#475569;">${name}</td>
-                        <td style="padding:4px; font-weight:700; color:#1e293b;">${price.toLocaleString()}원</td>
+                        <td style="padding:4px; font-weight:700; color:#1e293b;">${price.toLocaleString()}??/td>
                     </tr>`;
                     rowsAdded++;
                 }
@@ -783,38 +770,38 @@ window.loadOpinetStationDetail = function(uniId) {
             tableHtml += `</tbody></table>`;
             
             if (rowsAdded === 0) {
-                container.innerHTML = `<span style="color:#ef4444;">❌ 등록된 유가 가격 정보 없음</span>`;
+                container.innerHTML = `<span style="color:#ef4444;">???깅줉???좉? 媛寃??뺣낫 ?놁쓬</span>`;
             } else {
                 container.innerHTML = DOMPurify.sanitize(tableHtml, window.DOM_PURIFY_CONFIG);
             }
             container.dataset.loaded = 'true';
         } else {
-            container.innerHTML = `<span style="color:#ef4444;">❌ 세부 유가를 조회할 수 없습니다.</span>`;
+            container.innerHTML = `<span style="color:#ef4444;">???몃? ?좉?瑜?議고쉶?????놁뒿?덈떎.</span>`;
         }
     })
     .catch(err => {
         if (window.ErrorHandler) {
-            window.ErrorHandler.handle(err, '오피넷 주유소 상세 가격 조회', window.ErrorHandler.LEVEL.TOAST);
+            window.ErrorHandler.handle(err, '?ㅽ뵾??二쇱쑀???곸꽭 媛寃?議고쉶', window.ErrorHandler.LEVEL.TOAST);
         } else {
-            console.error("오피넷 주유소 상세 가격 로드 에러:", err);
-            container.innerHTML = `<span style="color:#ef4444;">🚨 유가 정보 상세 로드 실패</span>`;
+            console.error("?ㅽ뵾??二쇱쑀???곸꽭 媛寃?濡쒕뱶 ?먮윭:", err);
+            container.innerHTML = `<span style="color:#ef4444;">?슚 ?좉? ?뺣낫 ?곸꽭 濡쒕뱶 ?ㅽ뙣</span>`;
         }
     });
 };
 
 function getOpinetBrandName(code) {
     var brands = {
-        'SKE': 'SK에너지',
-        'GSC': 'GS칼텍스',
-        'HDO': '현대오일뱅크',
+        'SKE': 'SK?먮꼫吏',
+        'GSC': 'GS移쇳뀓??,
+        'HDO': '?꾨??ㅼ씪諭낇겕',
         'SOL': 'S-OIL',
-        'RTE': '알뜰주유소',
-        'RTX': '고속도로알뜰',
-        'NHO': '농협알뜰',
+        'RTE': '?뚮쑑二쇱쑀??,
+        'RTX': '怨좎냽?꾨줈?뚮쑑',
+        'NHO': '?랁삊?뚮쑑',
         'E1G': 'E1',
-        'SKG': 'SK가스'
+        'SKG': 'SK媛??
     };
-    return brands[code] || '주유소';
+    return brands[code] || '二쇱쑀??;
 }
 
 function getOpinetBrandColor(code) {

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>GUMAP Georef Fine-Tuner</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; display: flex; height: 100vh; font-family: sans-serif; }
+        #map { flex: 1; }
+        #panel {
+            width: 350px; background: #fff; padding: 20px; box-shadow: -2px 0 5px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column; overflow-y: auto; z-index: 1000;
+        }
+        h2 { margin-top: 0; font-size: 18px; }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
+        input[type=range] { width: 100%; }
+        input[type=number] { width: 100%; box-sizing: border-box; padding: 5px; margin-bottom: 5px; }
+        button {
+            padding: 10px; background: #4f46e5; color: white; border: none; border-radius: 4px;
+            font-weight: bold; cursor: pointer; margin-top: 10px;
+        }
+        button:hover { background: #4338ca; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="panel">
+        <h2>지도 미세 조정 도구</h2>
+        <p style="font-size:12px; color:#666;">배경 지도와 건물이 완벽히 겹치도록 슬라이더나 텍스트 상자를 조절하세요.</p>
+        
+        <div class="control-group">
+            <label>X 이동 (경도 - East/West)</label>
+            <input type="number" id="t_lon_num" step="0.00001">
+            <input type="range" id="t_lon" min="-0.0005" max="0.0005" step="0.0000005" value="0">
+        </div>
+        
+        <div class="control-group">
+            <label>Y 이동 (위도 - North/South)</label>
+            <input type="number" id="t_lat_num" step="0.00001">
+            <input type="range" id="t_lat" min="-0.0005" max="0.0005" step="0.0000005" value="0">
+        </div>
+        
+        <div class="control-group">
+            <label>회전 (도 - Rotation)</label>
+            <input type="number" id="theta_num" step="0.01">
+            <input type="range" id="theta" min="10" max="15" step="0.02" value="13.6">
+        </div>
+        
+        <div class="control-group">
+            <label>크기 (스케일 - Scale)</label>
+            <input type="number" id="scale_num" step="0.001">
+            <input type="range" id="scale" min="0.95" max="1.05" step="0.001" value="1">
+        </div>
+
+        <button id="btnSave">저장하기</button>
+        <div id="status" style="margin-top: 10px; font-size: 12px; color: green;"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map', { maxZoom: 22 }).setView([36.1466, 128.3942], 19);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 22, maxNativeZoom: 19
+        }).addTo(map);
+
+        let geoLayer = null;
+        let polygonsData = [];
+        let baseTransform = {};
+        let baseGeoref = {};
+        
+        const REFERENCE_LATITUDE = 36.1466;
+        const METERS_PER_DEG_LAT = 110540.0;
+        const METERS_PER_DEG_LON_AT_EQUATOR = 111320.0;
+        const metersPerDegLon = METERS_PER_DEG_LON_AT_EQUATOR * Math.cos(REFERENCE_LATITUDE * Math.PI / 180.0);
+
+        const ctrls = ['t_lon', 't_lat', 'theta', 'scale'];
+        const inputs = {};
+        ctrls.forEach(c => {
+            inputs[c] = document.getElementById(c);
+            inputs[c + '_num'] = document.getElementById(c + '_num');
+            
+            inputs[c].addEventListener('input', (e) => {
+                let v = parseFloat(e.target.value);
+                if (c === 't_lon') v += baseTransform.t_lon;
+                if (c === 't_lat') v += baseTransform.t_lat;
+                inputs[c + '_num'].value = v.toFixed(7);
+                updateMap();
+            });
+            inputs[c + '_num'].addEventListener('change', (e) => {
+                let v = parseFloat(e.target.value);
+                if (c === 't_lon') inputs[c].value = v - baseTransform.t_lon;
+                else if (c === 't_lat') inputs[c].value = v - baseTransform.t_lat;
+                else inputs[c].value = v;
+                updateMap();
+            });
+        });
+
+        Promise.all([
+            fetch('techno_georef.json').then(r => r.json()),
+            fetch('work/2F_labeled.json').then(r => r.json())
+        ]).then(([georef, labeled]) => {
+            baseTransform = georef.transform;
+            baseGeoref = georef;
+            polygonsData = labeled.polygons;
+            
+            inputs['t_lon_num'].value = baseTransform.t_lon.toFixed(7);
+            inputs['t_lat_num'].value = baseTransform.t_lat.toFixed(7);
+            inputs['theta_num'].value = baseTransform.theta_deg.toFixed(3);
+            inputs['theta'].value = baseTransform.theta_deg;
+            inputs['scale_num'].value = baseTransform.scale.toFixed(4);
+            inputs['scale'].value = baseTransform.scale;
+            
+            updateMap();
+        });
+
+        function updateMap() {
+            if (!baseTransform.t_lon) return;
+            
+            const tf = {
+                t_lon: parseFloat(inputs['t_lon_num'].value),
+                t_lat: parseFloat(inputs['t_lat_num'].value),
+                theta_deg: parseFloat(inputs['theta_num'].value),
+                scale: parseFloat(inputs['scale_num'].value),
+                origin_px: baseGeoref.floor_origin_px['2F'],
+                px_per_mm: baseGeoref.floor_px_per_mm['2F']
+            };
+
+            const features = polygonsData.map(poly => {
+                const coords = poly.points.map(pt => {
+                    const mm_per_px = 1.0 / tf.px_per_mm;
+                    const x_m = (pt[0] - tf.origin_px[0]) * mm_per_px / 1000.0;
+                    const y_m = -(pt[1] - tf.origin_px[1]) * mm_per_px / 1000.0;
+                    
+                    const theta = tf.theta_deg * Math.PI / 180.0;
+                    const east = tf.scale * (x_m * Math.cos(theta) - y_m * Math.sin(theta));
+                    const north = tf.scale * (x_m * Math.sin(theta) + y_m * Math.cos(theta));
+                    
+                    const lon = tf.t_lon + east / metersPerDegLon;
+                    const lat = tf.t_lat + north / METERS_PER_DEG_LAT;
+                    
+                    return [lon, lat];
+                });
+                coords.push(coords[0]);
+                return {
+                    type: "Feature",
+                    properties: { id: poly.room_id },
+                    geometry: { type: "Polygon", coordinates: [coords] }
+                };
+            });
+
+            if (geoLayer) map.removeLayer(geoLayer);
+            geoLayer = L.geoJSON({ type: "FeatureCollection", features: features }, {
+                style: { color: '#4f46e5', weight: 2, fillColor: '#6366f1', fillOpacity: 0.3 }
+            }).addTo(map);
+        }
+
+        document.getElementById('btnSave').addEventListener('click', () => {
+            const btn = document.getElementById('btnSave');
+            btn.disabled = true;
+            btn.innerText = '저장 중...';
+            
+            fetch('techno_georef.json').then(r => r.json()).then(georef => {
+                georef.transform.t_lon = parseFloat(inputs['t_lon_num'].value);
+                georef.transform.t_lat = parseFloat(inputs['t_lat_num'].value);
+                georef.transform.theta_deg = parseFloat(inputs['theta_num'].value);
+                georef.transform.scale = parseFloat(inputs['scale_num'].value);
+                
+                fetch('/save/georef', {
+                    method: 'POST',
+                    body: JSON.stringify(georef),
+                    headers: { 'Content-Type': 'application/json' }
+                }).then(res => res.json()).then(data => {
+                    document.getElementById('status').innerText = '저장 완료! 터미널에서 python 04_build_imdf.py 를 실행해주세요.';
+                    btn.innerText = '저장하기';
+                    btn.disabled = false;
+                });
+            });
+        });
+    </script>
+</body>
+</html>

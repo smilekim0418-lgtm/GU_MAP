@@ -52,7 +52,7 @@ window.onload = function() {
 
     // 0. 오픈스트리트맵 레이어 정의 (CartoDB Positron No Labels)
     var osmLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
+        maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
         keepBuffer: 1,
@@ -61,7 +61,7 @@ window.onload = function() {
 
     // 1. 일반지도 레이어 정의 (CartoDB Voyager No Labels)
     var baseLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
+        maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
         keepBuffer: 1,
@@ -70,7 +70,7 @@ window.onload = function() {
 
     // 2. 위성지도 레이어 정의 (VWorld)
     var satelliteLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/Satellite/{z}/{y}/{x}.jpeg', {
-        maxZoom: 19,
+        maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         detectRetina: true,
         updateWhenIdle: true,
@@ -80,7 +80,7 @@ window.onload = function() {
 
     // 고화질 글로벌 위성지도 (Esri World Imagery)
     var esriSatelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19,
+        maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         detectRetina: true,
         updateWhenIdle: true,
@@ -90,14 +90,14 @@ window.onload = function() {
 
     // 3. 하이브리드 레이어 정의 (어노테이션)
     var hybridLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/Hybrid/{z}/{y}/{x}.png', {
-        maxZoom: 19,
+        maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         attribution: '© VWorld Hybrid'
     });
 
     // 4. 다크모드 레이어 정의 (CartoDB DarkMatter No Labels)
     var darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
+        maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
         keepBuffer: 1,
@@ -106,7 +106,7 @@ window.onload = function() {
 
     // 5. 연구지도용 그레이스케일 레이어 정의 (CartoDB Positron No Labels)
     var lightGrayLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
+        maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
         keepBuffer: 1,
@@ -156,6 +156,7 @@ window.onload = function() {
     window.map = L.map('map', {
         center: [DEFAULT_LAT, DEFAULT_LNG], 
         zoom: DEFAULT_ZOOM,
+        maxZoom: 22,
         layers: [activeBaseLayer].concat(activeOverlays),
         zoomControl: false
     });
@@ -170,7 +171,7 @@ window.onload = function() {
 
     // 실시간 교통 혼잡도 레이어 (ITS WMTS)
     window.trafficLayer = L.tileLayer('https://its.go.kr:9443/geoserver/gwc/service/wmts/rest/ntic:N_LEVEL_11/ntic:REALTIME/EPSG:3857/EPSG:3857:{z}/{y}/{x}?format=image/png8', {
-        maxZoom: 19, minZoom: 6, opacity: 0.8, attribution: '© ITS 실시간 교통정보'
+        maxZoom: 22, maxNativeZoom: 19, minZoom: 6, opacity: 0.8, attribution: '© ITS 실시간 교통정보'
     });
 
     // 마커 레이어 그룹 사전 정의

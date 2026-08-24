@@ -143,6 +143,7 @@
         if (bounds && bounds.isValid()) {
             const center = bounds.getCenter();
             const landmarkMarker = L.marker(center, {
+                  interactive: false,
                 icon: L.divIcon({
                     className: 'techno-building-badge',
                     html: `<div style="background:rgba(15,23,42,0.85);border:1px solid #6366f1;color:#fff;
@@ -187,6 +188,7 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
         levelUnits.forEach(unit => {
             const props = unit.properties || {};
             const cat = props.category || 'other';
+            if (cat === 'walkway') return; // 사용자 요청: 복도는 표시하지 않고 데이터만 유지
             const st = getCategoryStyle(cat);
             const labelStr = props.label?.['ko-KR'] || props.label?.en || '';
             const rawName = props.name?.['ko-KR'] || props.name?.en || labelStr;
@@ -265,6 +267,14 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
 </div>`;
 
             geoLayer.bindPopup(popupContent, { maxWidth: 290 });
+            
+            geoLayer.on('click', function(e) {
+                if (e.originalEvent) {
+                    L.DomEvent.stopPropagation(e.originalEvent);
+                    window._indoorMapClicked = true;
+                    setTimeout(() => window._indoorMapClicked = false, 100);
+                }
+            });
 
             // 텍스트 라벨 마커 (중앙 배치)
             const bounds = geoLayer.getBounds();
@@ -272,13 +282,10 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
                 const center = bounds.getCenter();
                 if (labelStr && cat !== 'walkway') {
                     const lblMarker = L.marker(center, {
+                        interactive: false,
                         icon: L.divIcon({
-                            className: 'imdf-unit-label',
-                            html: `<div style="font-size:9px;font-weight:800;color:#ffffff;
-text-shadow:0 1px 3px #000, 0 0 2px #000;text-align:center;white-space:nowrap;line-height:1.2;pointer-events:none;">
-${st.icon} ${escHtml(labelStr)}<br>
-<span style="font-size:8px;opacity:.9;font-weight:600">${escHtml(displayName.length > 7 ? displayName.slice(0, 7) + '…' : displayName)}</span>
-</div>`,
+                            className: 'imdf-unit-label cat-' + cat,
+                            html: `<div style="font-size:10px;font-weight:800;color:#ffffff;text-shadow:0 1px 3px #000, 0 0 2px #000;text-align:center;white-space:nowrap;pointer-events:none;">${st.icon} ${escHtml(labelStr)}</div>`,
                             iconSize: [60, 26],
                             iconAnchor: [30, 13]
                         })
@@ -539,6 +546,11 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             if (zoom >= 17) {
                 // (1) 고배율 (Zoom 17 이상): 세부 실내지도 표출
                 if (panel) panel.style.display = 'flex';
+                if (zoom < 19) {
+                    document.getElementById('map').classList.add('indoor-zoom-low');
+                } else {
+                    document.getElementById('map').classList.remove('indoor-zoom-low');
+                }
 
                 if (window.map.hasLayer(window.technoFootprintLayerGroup)) {
                     window.map.removeLayer(window.technoFootprintLayerGroup);
