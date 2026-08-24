@@ -41,6 +41,9 @@ def load_labeled_in_meters(data: dict, transform_data: dict) -> list[dict]:
                 "points_m": georef.pixels_to_meters(points, origin, px_per_mm),
                 "room_id": record.get("room_id"),
                 "drawing_name": record.get("drawing_name"),
+                "type": record.get("type", "room"),
+                "connects": record.get("connects"),
+                "connects_floors": record.get("connects_floors"),
             }
         )
     return result

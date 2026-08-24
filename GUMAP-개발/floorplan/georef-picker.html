@@ -20,11 +20,14 @@
   .pane + .pane { border-left:2px solid #6366f1; }
   .tag { position:absolute; top:8px; left:8px; z-index:500; background:rgba(10,15,40,.9);
          padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; }
-  .lmap { width:100%; height:100%; background:#111827; }
+  .lmap { width:100%; height:100%; background:#111827; cursor: crosshair !important; }
   #list { height:120px; overflow-y:auto; background:rgba(10,15,40,.95); font-size:12px;
           border-top:1px solid rgba(129,140,248,.3); padding:6px 12px; }
   .cp { padding:2px 0; color:#94a3b8; }
   .cp.done { color:#22c55e; }
+
+  .leaflet-container { cursor: crosshair !important; }
+  .leaflet-interactive { cursor: crosshair !important; }
 </style>
 </head>
 <body>
@@ -113,15 +116,10 @@ const llToPx = ll => { const p = planMap.project(ll, 0); return [Math.round(p.x)
 //    프론트의 4326 TMS 근사 타일 레이어를 쓰면 타일 한 칸만큼 어긋날 수 있어
 //    대응점이 오염된다. 그래서 여기서는 쓰지 않는다.
 const orthoMap = L.map('ortho').setView(TECHNO, 18);
-
-async function loadOrtho() {
-  const res = await fetch('/work/ortho_z16.json?t=' + Date.now());
-  if (!res.ok) { setStat('work/ortho_z16.json 없음 — 03_georef.py init 를 먼저 실행하세요'); return; }
-  const b = await res.json();
-  L.imageOverlay('/work/ortho_z16.png', [[b.south, b.west], [b.north, b.east]]).addTo(orthoMap);
-  orthoMap.setView(TECHNO, 19);
-}
-loadOrtho();
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  maxZoom: 22, maxNativeZoom: 19,
+  attribution: '© OpenStreetMap contributors, © CARTO'
+}).addTo(orthoMap);
 
 async function loadFloor(f) {
   floor = f;

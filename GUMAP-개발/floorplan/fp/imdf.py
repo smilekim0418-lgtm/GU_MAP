@@ -55,6 +55,8 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
     levels, units, occupants, footprints = [], [], [], []
     all_rings = []
 
+    room_id_counter = {}
+
     for floor in config.FLOORS:
         polygons = labeled_by_floor.get(floor)
         if not polygons:
@@ -66,8 +68,12 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
         floor_rings = []
         for item in polygons:
             room_id = item.get("room_id")
+            ptype = item.get("type", "room")
+            if not room_id and ptype != "room":
+                room_id = ptype
             if not room_id:
-                continue  # 번호를 못 붙인 폴리곤은 유닛으로 만들지 않는다
+                continue
+
             room = by_room.get(room_id)
             ring = _ring(item["points_m"], transform)
             floor_rings.append(ring)
@@ -77,33 +83,50 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
             excel_name = room.name if room and room.name else ""
             drawing_name = item.get("drawing_name") or ""
             display_name = excel_name or drawing_name or room_id
-            if excel_name:
-                category = room.category
-            elif drawing_name:
-                category = excel_module.guess_category(drawing_name)
-            else:
-                category = room.category if room else "office"
 
-            unit_id = _stable_id("unit", f"{floor}:{room_id}")
+            if ptype == "corridor": category = "walkway"
+            elif ptype == "door": category = "walkway"
+            elif ptype == "stairs": category = "stairs"
+            elif ptype == "elevator": category = "elevator"
+            else:
+                if excel_name:
+                    category = room.category
+                elif drawing_name:
+                    category = excel_module.guess_category(drawing_name)
+                else:
+                    category = room.category if room else "office"
+
+            # 겹치는 방 번호 처리 (동일 층 내)
+            base_key = f"{floor}:{room_id}"
+            room_id_counter[base_key] = room_id_counter.get(base_key, 0) + 1
+            suffix = f"_{room_id_counter[base_key]}" if room_id_counter[base_key] > 1 else ""
+            unique_id_str = f"{base_key}{suffix}"
+            
+            unit_id = _stable_id("unit", unique_id_str)
+            
+            props = {
+                "level_id": level_id,
+                "category": category,
+                "label": {language: room_id},
+                "name": {language: display_name},
+                "department": (room.dept if room and room.dept else None),
+                "research_tags": list(room.tags) if room else [],
+            }
+            if "connects" in item: props["connects"] = item["connects"]
+            if "connects_floors" in item: props["connects_floors"] = item["connects_floors"]
+
             units.append(
                 _feature(
                     unit_id,
                     "unit",
                     {"type": "Polygon", "coordinates": [ring]},
-                    {
-                        "level_id": level_id,
-                        "category": category,
-                        "label": {language: room_id},
-                        "name": {language: display_name},
-                        "department": (room.dept if room and room.dept else None),
-                        "research_tags": list(room.tags) if room else [],
-                    },
+                    props,
                 )
             )
             if excel_name or drawing_name:
                 occupants.append(
                     _feature(
-                        _stable_id("occupant", f"{floor}:{room_id}"),
+                        _stable_id("occupant", unique_id_str),
                         "occupant",
                         None,
                         {

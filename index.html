@@ -1,4 +1,4 @@
-<!-- 
+﻿<!-- 
 =================================================================================
 📁 파일명: index.html (구 test_map.html)
 📌 역할: G-map 프론트엔드 메인 UI 및 웹 애플리케이션 진입점
@@ -47,6 +47,17 @@
     <link rel="stylesheet" href="GUMAP-프론트/css/components.css">
     <link rel="stylesheet" href="GUMAP-프론트/css/bottom-sheet.css">
     <link rel="stylesheet" href="GUMAP-프론트/css/animations.css">
+
+    <style>
+        .indoor-zoom-low .imdf-unit-label { display: none !important; }
+        .indoor-zoom-low .imdf-unit-label.cat-elevator, 
+        .indoor-zoom-low .imdf-unit-label.cat-stairs, 
+        .indoor-zoom-low .imdf-unit-label.cat-restroom { 
+            display: block !important; 
+            transform: scale(1.5) translateY(-5px); 
+            z-index: 1000 !important;
+        }
+    </style>
 </head>
 
 <body>
@@ -577,13 +588,13 @@
     <script src="GUMAP-프론트/js/map/map-utils.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/ui/GUMAP-리뷰.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/ui/GUMAP-즐겨찾기.js?v=75" defer></script>
-    <script src="GUMAP-프론트/js/map/map-init.js?v=75" defer></script>
+    <script src="GUMAP-프론트/js/map/map-init.js?v=109" defer></script>
     <script src="GUMAP-프론트/js/map/map-layers.js?v=75" defer></script>
-    <script src="GUMAP-프론트/js/map/map-techno-imdf-data.js?v=1" defer></script>
-    <script src="GUMAP-프론트/js/map/map-techno-indoor.js?v=100" defer></script>
+    <script src="GUMAP-프론트/js/map/map-techno-imdf-data.js?v=4" defer></script>
+    <script src="GUMAP-프론트/js/map/map-techno-indoor.js?v=110" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-보행로.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/map/map-search.js?v=75" defer></script>
-    <script src="GUMAP-프론트/js/map/map-click.js?v=75" defer></script>
+    <script src="GUMAP-프론트/js/map/map-click.js?v=106" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-길찾기.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-정류장정보.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-연구탭.js?v=75" defer></script>

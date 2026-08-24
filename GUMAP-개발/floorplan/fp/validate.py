@@ -153,6 +153,8 @@ def run_all(bundle: dict, rooms_by_floor: dict) -> list[ValidationIssue]:
     #    안 걸려도) 한 방이 지도에서 조용히 사라진다.
     room_counts: dict[tuple[str, str], int] = {}
     for unit in units:
+        if unit["properties"]["category"] in ["walkway", "stairs", "elevator"]:
+            continue
         floor = level_short.get(unit["properties"]["level_id"], "?")
         room_id = unit["properties"]["label"]["ko-KR"]
         room_counts[(floor, room_id)] = room_counts.get((floor, room_id), 0) + 1
