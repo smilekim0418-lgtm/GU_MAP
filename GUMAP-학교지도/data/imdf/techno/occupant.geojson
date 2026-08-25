@@ -2,6 +2,21 @@
   "type": "FeatureCollection",
   "features": [
     {
+      "id": "355b3eb4-a716-587e-a51b-d6933ee658b9",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "창의재료실험실"
+        },
+        "unit_ids": [
+          "de051f51-e4dd-52fc-9daa-700ac6640427"
+        ],
+        "research_tags": []
+      }
+    },
+    {
       "id": "a2a426b5-44d2-50f8-933c-6d990e797cbc",
       "type": "Feature",
       "feature_type": "occupant",
@@ -17,7 +32,70 @@
       }
     },
     {
-      "id": "f827cdc2-886d-5740-a58f-556c44f52631",
+      "id": "61bc93a8-4486-5eb4-950f-21ca06129102",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "비파괴 검사실험실"
+        },
+        "unit_ids": [
+          "318115cb-c789-5370-bc3a-e9de85dd2142"
+        ],
+        "research_tags": [
+          "CK-1",
+          "지방대학특성화사업"
+        ]
+      }
+    },
+    {
+      "id": "d1a7d921-78b2-5554-9e94-05160362e58e",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "재료혁신실험실"
+        },
+        "unit_ids": [
+          "a27ed9c2-f22a-59ca-9b2a-f27e4e62096a"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "3f1a9bf3-caa6-5dff-b62f-0653e906e1c0",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "재료평가실험실"
+        },
+        "unit_ids": [
+          "726a7d6b-0a2d-53b1-b6d5-9a2f3859b43b"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "a7f1fbea-b675-59c3-ad84-f880d311cf67",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "첨단금속재료연구실"
+        },
+        "unit_ids": [
+          "a2b8bd28-f5c7-59cc-9eef-beb9d2d0c7ad"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "f4869dfa-a7c1-5b94-af9c-2f4ac7415fa0",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
@@ -26,7 +104,86 @@
           "ko-KR": "준비실"
         },
         "unit_ids": [
-          "7e899f74-e138-58ee-9b0c-6b55b155fda5"
+          "5868ea30-a2b7-5117-8cbe-736924d934b7"
+        ],
+        "research_tags": [
+          "산학융합연구실"
+        ]
+      }
+    },
+    {
+      "id": "24d3db18-9f14-5449-9d60-cec3fdfab8d6",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원연구실"
+        },
+        "unit_ids": [
+          "a4b31f83-ad11-501a-a6ac-8995154a527d"
+        ],
+        "research_tags": [
+          "BK21"
+        ]
+      }
+    },
+    {
+      "id": "319463e8-2bbb-5e2b-bb13-e9dc87eeeb12",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "독서실"
+        },
+        "unit_ids": [
+          "b10a70d3-e599-5036-a145-1b934705a696"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "183fbf38-aff0-51d7-ab8c-bac910137d6f",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "전기실"
+        },
+        "unit_ids": [
+          "d8686804-5757-5b4f-83a5-ab52ed662502"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "e9629966-ffcc-579b-b88d-808c2f438dc9",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원연구실"
+        },
+        "unit_ids": [
+          "228703d1-4221-5fdb-bccc-91bbf2a3f239"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "11f8c17c-4e40-5a97-9ee1-331e127e1a91",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원연구실"
+        },
+        "unit_ids": [
+          "4aa245c3-ef6e-5c55-b844-e02c8da8d48c"
         ],
         "research_tags": []
       }
@@ -57,6 +214,51 @@
         },
         "unit_ids": [
           "1639ebd6-335b-5c36-a268-c8459ea07eaf"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "fb23a658-e854-5074-9300-415406eedec8",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "김지형"
+        },
+        "unit_ids": [
+          "6e93f752-6639-590e-8979-bb47a2e960be"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "40ecb5fd-72c1-5f26-93ae-94ca9ca7b4a9",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "교육행정연구실"
+        },
+        "unit_ids": [
+          "ab849168-d3cd-50cb-8dc9-167cb7b66c04"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "6718aa90-d6a7-5add-ab8d-2e8be8a974ed",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "국어교육연구실"
+        },
+        "unit_ids": [
+          "72fcd2f0-7d0d-517b-8237-bdb994b0d6f5"
         ],
         "research_tags": []
       }
@@ -102,6 +304,443 @@
         },
         "unit_ids": [
           "e955fec4-1859-5b21-951e-221642848428"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "0644720b-1e40-5d7a-b8c2-bae46da47c32",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원연구실"
+        },
+        "unit_ids": [
+          "accf384e-a028-58a5-a176-1c4d5dc7cf7d"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "f827cdc2-886d-5740-a58f-556c44f52631",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "준비실"
+        },
+        "unit_ids": [
+          "7e899f74-e138-58ee-9b0c-6b55b155fda5"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "47495992-4a81-5049-81e6-fa9c81d64c4f",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "재료가공연구실"
+        },
+        "unit_ids": [
+          "a45b5c23-c2eb-5e9e-81e7-c8dfb28ef83e"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "ea70e3d5-8c53-56ef-b7d3-feda2decc85b",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "준비실"
+        },
+        "unit_ids": [
+          "706cc65d-cda6-5d27-8e1b-d3f2d4265332"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "2b536a87-d9fe-5103-99c7-989b6909a592",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "재료제조연구실"
+        },
+        "unit_ids": [
+          "d109b555-fdd2-54e5-836f-d5a13366b480"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "5bb14059-0645-56db-ada4-843eac9e25a8",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "재료소결연구실"
+        },
+        "unit_ids": [
+          "55c55754-7298-5042-ae1d-85eb57a11079"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "f6b37a74-7b7f-5c52-a707-4d996bec2fb5",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대강의실"
+        },
+        "unit_ids": [
+          "3d18bb9d-e4e9-5e50-8e95-2c82a0d506af"
+        ],
+        "research_tags": [
+          "지방대학특성화사업"
+        ]
+      }
+    },
+    {
+      "id": "2825e8b8-d107-582d-af40-99381cc713e7",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "환경-에너지 재료 실험실"
+        },
+        "unit_ids": [
+          "5dcbad95-01c2-522a-9e2b-328b9aa1f748"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "104f6ed1-7d9c-557a-854c-07bc41024fbb",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "관리실"
+        },
+        "unit_ids": [
+          "a7a35b9b-3aa7-5e8b-9b66-f55a6a44c8f5"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "585d0e8c-6013-5a75-9275-5dabeea87317",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "테크노 관학사 지원실"
+        },
+        "unit_ids": [
+          "9d8b1ffe-7406-5e72-b3e7-e0dedcbffd0d"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "bb79b3ae-77b6-5780-9a7c-03b8655737f2",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "다용도실"
+        },
+        "unit_ids": [
+          "6e084820-4440-5913-8005-b3c533a57db8"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "3c1ba020-65a7-52b5-a542-d47ec76bee25",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "미화원실(휴계실)"
+        },
+        "unit_ids": [
+          "42a47bfa-2736-5a26-8a40-37d3185941ae"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "296fd82a-af8c-5c55-8159-fd139bbf34c0",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "교수휴계실 및 보관함실"
+        },
+        "unit_ids": [
+          "01f2caad-6223-5bbd-9bca-f553718dd7f1"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "3b632524-280f-539e-ba10-6081aef7bd6f",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "소회의실"
+        },
+        "unit_ids": [
+          "b622d61a-4829-522b-a235-6dc4e1f20c68"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "401208a3-fe90-5b26-b824-cfa090b53cc8",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대 회의실"
+        },
+        "unit_ids": [
+          "8278d4e5-863a-51a8-a442-fe2ae6f6de82"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "de41a5cf-b77b-525c-9cef-4436481b5f95",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "기자재보관실"
+        },
+        "unit_ids": [
+          "032e0248-fe71-536b-90c4-49f3b41f635e"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "326ef331-245f-5f15-b024-9e13b47610bb",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원연구실"
+        },
+        "unit_ids": [
+          "c59dbb30-1583-5576-ac04-ea21b5d2ba72"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "b4362587-c219-551e-adb8-0d03d5d22eb9",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "이현권"
+        },
+        "unit_ids": [
+          "a03f9160-b8cd-59aa-af87-946bec2bdea0"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "91e93b74-6af7-5d56-b62a-5bdc098d054e",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "김경식"
+        },
+        "unit_ids": [
+          "3ee63f3f-8a87-5d09-8a48-ddbe13ab3122"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "6ee46d1b-2fc0-5631-8a58-7636444c4c71",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "양비룡"
+        },
+        "unit_ids": [
+          "5e24dfb6-8c01-56f4-aba0-340677eaa833"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "a04ce725-95ba-55e4-a0d3-9dee30c8addc",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "박정한"
+        },
+        "unit_ids": [
+          "a368a29e-0402-5dd8-bf22-ac57b09b84f8"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "17515f21-35bc-597d-969a-bc263026b23a",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원연구실"
+        },
+        "unit_ids": [
+          "4add08b2-eb2d-5d7f-992f-145791bc2c3a"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "eb781513-09e5-5faa-b496-5e1bcd0e337e",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "정지훈"
+        },
+        "unit_ids": [
+          "31d6e842-8a95-56e4-951e-c46b5d9f0e42"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "3692d975-ac44-5e71-a6c4-20604d3506ce",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원연구실"
+        },
+        "unit_ids": [
+          "2e0729db-a26a-56ae-ae02-1e562d0d685d"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "12409a91-fbec-5f30-940a-9dc2d103ddd6",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "첨단표면소자 연구실"
+        },
+        "unit_ids": [
+          "6f79216d-bf8d-53e3-bdda-8798c27788d9"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "2109bc27-d2f4-52fc-854b-d74f161aa94c",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "광 기반 초정밀 가공실험실"
+        },
+        "unit_ids": [
+          "71fb3778-9357-5b99-99f6-dafbe82621c2"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "814aeab3-e3c8-56ee-8568-bc1e0b9ac511",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "준비실"
+        },
+        "unit_ids": [
+          "a030d655-181a-5939-a726-9c6474b75cb8"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "451e980d-6048-5c3b-9b77-0a2f3a61fadc",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "학생휴계실"
+        },
+        "unit_ids": [
+          "09189572-04bf-5a4c-96ec-9e2e499a2a7d"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "27e45a4a-9ae4-5c5b-a8d5-e1184d1b4b1a",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "일반물리학 실험실 2"
+        },
+        "unit_ids": [
+          "341c3bee-2500-56d7-9b0d-a6562bb5bbbd"
         ],
         "research_tags": []
       }
@@ -242,290 +881,46 @@
       }
     },
     {
-      "id": "451e980d-6048-5c3b-9b77-0a2f3a61fadc",
+      "id": "68be1d8f-3864-5572-a94a-6d70ba778c50",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "학생휴계실"
+          "ko-KR": "공학실험실"
         },
         "unit_ids": [
-          "09189572-04bf-5a4c-96ec-9e2e499a2a7d"
+          "a4c78026-0d87-5d5a-9d83-cfe1aeb3235a"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "97b1b4ce-dbd7-5388-8025-69c4c9186789",
+      "id": "d5cd54c3-54b1-5399-a105-4392f879ad5a",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "일반물리실험 기자재 관리실"
+          "ko-KR": "계측및 제어실험실"
         },
         "unit_ids": [
-          "9e40f822-8c51-5169-b603-11ba160ff4a3"
+          "d39ee737-ebf6-59ab-b4e2-b7e69acbfb8c"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "bd70a780-eb66-5eb7-93a6-dec9929167d7",
+      "id": "38e80ad6-0e7a-5007-ac35-18c7dcf4d1b7",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "일반물리학 실험 준비실"
+          "ko-KR": "일반물리실험 기자재실1"
         },
         "unit_ids": [
-          "f092360a-4f81-5ede-a30e-fafac887d506"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "2a85745f-81d4-5307-ab12-fb4863bc5a50",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "나노 반도체 응용 연구실"
-        },
-        "unit_ids": [
-          "1076307e-a884-51a3-b5ca-2ecb6ce39b81"
-        ],
-        "research_tags": [
-          "LAB30"
-        ]
-      }
-    },
-    {
-      "id": "f3b440b2-b7e6-5779-8e3a-39977a69fdff",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "박연태"
-        },
-        "unit_ids": [
-          "bc1b75b9-744c-5f92-8099-21bab10ed499"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "41a8ab78-5625-5a74-b417-8d87ea0bb225",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "김민석"
-        },
-        "unit_ids": [
-          "e04c8d90-1363-50b8-8d6d-3a8d94c3ad35"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "07b1d2fd-e5c5-5637-b54a-120edca01ba0",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "대학원연구실"
-        },
-        "unit_ids": [
-          "fe14feb5-2905-5bdb-9d87-5aff6709c46c"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "cb01c0f5-4b01-54d0-83d5-96963c7da9ea",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "대학원연구실"
-        },
-        "unit_ids": [
-          "2282ec5d-93f4-5d8f-892b-3a88b17f6247"
-        ],
-        "research_tags": [
-          "BK21"
-        ]
-      }
-    },
-    {
-      "id": "d57825b4-ec81-5343-bb18-8a76d64af1f9",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "강창호"
-        },
-        "unit_ids": [
-          "a6c03c50-d8a7-5ea2-a76d-fae088e25105"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "48ef761b-2792-57fe-a940-a0fc6de9d56a",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "일반 물리실험 기자재실2"
-        },
-        "unit_ids": [
-          "8b650eb7-9226-5d5a-9229-a435a2d1e7b6"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "296fd82a-af8c-5c55-8159-fd139bbf34c0",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "교수휴계실 및 보관함실"
-        },
-        "unit_ids": [
-          "01f2caad-6223-5bbd-9bca-f553718dd7f1"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "bb79b3ae-77b6-5780-9a7c-03b8655737f2",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "다용도실"
-        },
-        "unit_ids": [
-          "6e084820-4440-5913-8005-b3c533a57db8"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "326ef331-245f-5f15-b024-9e13b47610bb",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "대학원연구실"
-        },
-        "unit_ids": [
-          "c59dbb30-1583-5576-ac04-ea21b5d2ba72"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "b4362587-c219-551e-adb8-0d03d5d22eb9",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "이현권"
-        },
-        "unit_ids": [
-          "a03f9160-b8cd-59aa-af87-946bec2bdea0"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "91e93b74-6af7-5d56-b62a-5bdc098d054e",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "김경식"
-        },
-        "unit_ids": [
-          "3ee63f3f-8a87-5d09-8a48-ddbe13ab3122"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "6ee46d1b-2fc0-5631-8a58-7636444c4c71",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "양비룡"
-        },
-        "unit_ids": [
-          "5e24dfb6-8c01-56f4-aba0-340677eaa833"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "a04ce725-95ba-55e4-a0d3-9dee30c8addc",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "박정한"
-        },
-        "unit_ids": [
-          "a368a29e-0402-5dd8-bf22-ac57b09b84f8"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "17515f21-35bc-597d-969a-bc263026b23a",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "대학원연구실"
-        },
-        "unit_ids": [
-          "4add08b2-eb2d-5d7f-992f-145791bc2c3a"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "3692d975-ac44-5e71-a6c4-20604d3506ce",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "대학원연구실"
-        },
-        "unit_ids": [
-          "2e0729db-a26a-56ae-ae02-1e562d0d685d"
+          "aed22c9b-1d7c-5b03-a41d-9d131c2e369f"
         ],
         "research_tags": []
       }
@@ -1471,136 +1866,288 @@
       }
     },
     {
-      "id": "51b0207f-944d-5400-9994-3fbd3a4f4f3f",
+      "id": "ebec1388-5761-5e09-8eda-dd3d77e0a10d",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "AI터보기계 및 에너지 시스템 연구실"
+          "ko-KR": "강의실"
         },
         "unit_ids": [
-          "c491dc99-2bd6-5c68-993c-35f80b525ad9"
+          "e51488eb-3c23-5552-b386-1d7225a736d8"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "c7fe1d5b-4fc4-5f5f-be1e-1b9eb49e56e8",
+      "id": "6450a42e-2d2b-50d0-b28e-5ca05951484e",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "유동제어 연구실"
+          "ko-KR": "기능성재료 및 지능시스템 연구실"
         },
         "unit_ids": [
-          "ee81b030-5414-591f-bec6-bca52be0cae5"
+          "8dc0d093-7919-5eb0-9332-36327add833f"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "d585a1f2-fc1e-56e5-808e-7d097be1ae43",
+      "id": "a0276553-336b-561c-904e-df8f81a8c54c",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "전산유체역할연구실"
+          "ko-KR": "메카트로닉스 기초/응용실험실"
         },
         "unit_ids": [
-          "66e151bc-e707-5e26-aa47-c129011ca68c"
+          "7d1b3043-dd67-57f4-b346-dd4320952609"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "ca261f26-9105-51a8-8658-3e392d1ec739",
+      "id": "41ef9cf1-4543-5435-9f6f-1282d2fb604a",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "열 전달 시스템 연구실"
+          "ko-KR": "강의실"
         },
         "unit_ids": [
-          "207a7ed0-1dcc-5041-b8d4-5730513aa98a"
+          "4805dbfa-6b07-5f70-a695-9717f7b656c3"
+        ],
+        "research_tags": [
+          "CK-1"
+        ]
+      }
+    },
+    {
+      "id": "8d94679f-b660-5308-beab-4859b3bafe34",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "강의실"
+        },
+        "unit_ids": [
+          "ac0bb387-28e6-5bfd-ab51-ebd0355405c3"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "83c97e63-a9bf-5b51-854a-9e326e9f4638",
+      "id": "acf8a4a2-d320-5d98-bc04-8f8bc6e24b51",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "김경진"
+          "ko-KR": "환경&바이오 유체 유체공학 연구실"
         },
         "unit_ids": [
-          "bcc21f38-5ef3-55c5-a544-535808305b3f"
+          "aed25dc0-db8e-5b64-b76f-a950529f0f39"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "4f122580-392f-5403-9fd6-5d3a1211a76d",
+      "id": "99603e30-e842-5021-9f6d-e2b1351a6da9",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "곽호상"
+          "ko-KR": "권순조"
         },
         "unit_ids": [
-          "f0b31a61-8bb2-507f-b3f5-33d9fe9ce8aa"
+          "0346e0d0-dcfb-5615-bec3-7857960cd9e0"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "8aff08b5-241f-5c6b-beee-a51dafc2a703",
+      "id": "95db52f3-2f42-576e-9015-c91f959b1ce2",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "김기환"
+          "ko-KR": "서영진"
         },
         "unit_ids": [
-          "1710835d-a04d-5758-a880-0ab2cec3da1a"
+          "1027da5b-7681-5c07-a56d-4a865b231d02"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "aa1a0109-5841-5f4f-83e8-decd601cc9c0",
+      "id": "0cd3cb03-d2fa-5760-bde2-ff8be0475557",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "김준형"
+          "ko-KR": "곽윤상"
         },
         "unit_ids": [
-          "8c03547b-bc52-5adb-a42f-f1454f0f2754"
+          "00d7d4b1-0a57-5d56-bcfc-78ed806483d1"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "5a604daf-3d0d-5f11-85e0-fcd3ffead517",
+      "id": "b3ba59be-b1b5-5c96-9a5f-81e12f82f327",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "김동주"
+          "ko-KR": "양종인"
         },
         "unit_ids": [
-          "d91ef366-5a93-5a2b-a33f-0979d29acd95"
+          "977d7f7e-ade8-5477-82e0-d48d18137c6e"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "d9d5fec4-4426-5eec-870f-1be2a9888c25",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원 연구실"
+        },
+        "unit_ids": [
+          "0bc508fc-2796-55c4-8649-018fed5fb713"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "03a51aaa-2ece-53de-9abc-e3642c13013a",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "박예슬"
+        },
+        "unit_ids": [
+          "e8efd6c7-e707-5449-a7af-167ada315a5e"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "71078210-454e-5392-8d20-bff0f012fd93",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "장일훈"
+        },
+        "unit_ids": [
+          "707eb98a-c02a-5642-83fc-41260c521180"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "2a40c6ba-3149-5764-b9d0-6ac7e5947e15",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "송화섭"
+        },
+        "unit_ids": [
+          "7c029152-c7aa-5175-938c-b8cee5a269ea"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "e4db1c0c-1738-59ab-9b65-13435341bb83",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "최시혁"
+        },
+        "unit_ids": [
+          "7abda335-69ec-5924-a62c-31c216fb918e"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "e89dbe14-b435-5485-8758-50e9b5a4f315",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "김현찬"
+        },
+        "unit_ids": [
+          "f2747357-8e7c-53eb-b016-e3c562b67f9c"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "19dee108-0d58-5483-bfe2-7ec1112ff3b4",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원 연구실"
+        },
+        "unit_ids": [
+          "13877c6d-9bcd-50ea-8476-fbd125d27ab6"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "f9237f26-a188-54d3-bbec-f6a275454e5c",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "안장우"
+        },
+        "unit_ids": [
+          "4b1fcd9b-479f-5c41-a559-99dd156b84d5"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "d21375e6-52e7-55d9-806e-e03afa9f921c",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "이상효"
+        },
+        "unit_ids": [
+          "edff5034-1453-5ac9-8b32-aa5589cdc9ae"
         ],
         "research_tags": []
       }
@@ -1621,7 +2168,7 @@
       }
     },
     {
-      "id": "1331c695-a184-5a9b-b43c-a2ad97bab51c",
+      "id": "2aea171d-1498-5da9-843e-f32740fc7088",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
@@ -1630,22 +2177,7 @@
           "ko-KR": "강의실"
         },
         "unit_ids": [
-          "3c997b75-201b-5969-86ec-d2f7cd05d33e"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "bce8a328-08f7-5621-b7a7-216bfdbd2383",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "강의실"
-        },
-        "unit_ids": [
-          "3773e68a-9804-5db8-bb40-c93c9abac3da"
+          "645ec50d-5713-59cf-af95-146e9abab71f"
         ],
         "research_tags": [
           "CK-1"
@@ -1653,39 +2185,118 @@
       }
     },
     {
-      "id": "5a0f1d32-3e75-5e27-a7ac-fbfe49923a93",
+      "id": "e3d50b9d-494b-590a-b049-e7966d2ee8e5",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "기계시스템 융합 설계실"
+          "ko-KR": "시뮬레이션 센터 실험실"
         },
         "unit_ids": [
-          "d8502af4-cc3e-58ec-b198-2f99cbca5632"
-        ],
-        "research_tags": [
-          "CK-1"
-        ]
-      }
-    },
-    {
-      "id": "dcbb8b91-d724-538a-90ad-36a3efe37ece",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "시스템 및 비젼실험실2"
-        },
-        "unit_ids": [
-          "10c18cef-b99f-5d30-85de-9e2611f2e540"
+          "f73715ea-b333-5d8e-b74e-683b41175525"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "8d94679f-b660-5308-beab-4859b3bafe34",
+      "id": "61e197af-c6aa-5033-8279-27333bd7ce50",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "응용진동-파동 전파연구실"
+        },
+        "unit_ids": [
+          "e3df6332-2edc-5d73-a3fe-c50d2ac283e8"
+        ],
+        "research_tags": [
+          "산학융합연구실"
+        ]
+      }
+    },
+    {
+      "id": "d05b45f2-76f9-598c-91a9-cbc327efb12f",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "준비실"
+        },
+        "unit_ids": [
+          "049494a5-d1f1-5df4-a81a-f6e65cdaf089"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "31ed5f9a-67a0-573c-9a56-215154fa4250",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "지속가능 재료 및 공정설계 실험실"
+        },
+        "unit_ids": [
+          "20f56628-425b-531d-ab49-01771f63b943"
+        ],
+        "research_tags": [
+          "LAB30"
+        ]
+      }
+    },
+    {
+      "id": "3b6e93f8-d921-5817-bf76-cbcb37978513",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "준비실"
+        },
+        "unit_ids": [
+          "78542219-144a-542a-a0a1-b7ff04c5472d"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "d36d3aec-6571-5138-b537-cc6ac48e087e",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "복합소재 구조설계/3D프린팅 연구실"
+        },
+        "unit_ids": [
+          "f38c74b3-be0a-570f-827c-d9d906319081"
+        ],
+        "research_tags": [
+          "LAB30"
+        ]
+      }
+    },
+    {
+      "id": "4cfd7559-ea2a-5df3-905e-787eb9517fad",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "피로해석실험실"
+        },
+        "unit_ids": [
+          "11cb5c98-da80-5842-92ff-7a1073fdc3d9"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "0d64360e-cb8a-5ad0-8004-6357cf1883a9",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
@@ -1694,7 +2305,22 @@
           "ko-KR": "강의실"
         },
         "unit_ids": [
-          "ac0bb387-28e6-5bfd-ab51-ebd0355405c3"
+          "11c399b7-3e8d-5ec8-94f6-c5bb29619214"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "571e1aba-1464-59a4-8758-77dc424e0610",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "강의실"
+        },
+        "unit_ids": [
+          "bfadf9cf-67c2-531c-b21f-927c8b8548c8"
         ],
         "research_tags": []
       }
@@ -1837,46 +2463,16 @@
       }
     },
     {
-      "id": "f93531ab-fb03-527d-afec-bb5830bffe89",
+      "id": "5a0f1d32-3e75-5e27-a7ac-fbfe49923a93",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "화장실"
+          "ko-KR": "기계시스템 융합 설계실"
         },
         "unit_ids": [
-          "013f1cd4-75e7-5b3d-88b6-1212eaa2a1b7"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "0d64360e-cb8a-5ad0-8004-6357cf1883a9",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "강의실"
-        },
-        "unit_ids": [
-          "11c399b7-3e8d-5ec8-94f6-c5bb29619214"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "2aea171d-1498-5da9-843e-f32740fc7088",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "강의실"
-        },
-        "unit_ids": [
-          "645ec50d-5713-59cf-af95-146e9abab71f"
+          "d8502af4-cc3e-58ec-b198-2f99cbca5632"
         ],
         "research_tags": [
           "CK-1"
@@ -1884,7 +2480,114 @@
       }
     },
     {
-      "id": "571e1aba-1464-59a4-8758-77dc424e0610",
+      "id": "dcbb8b91-d724-538a-90ad-36a3efe37ece",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "시스템 및 비젼실험실2"
+        },
+        "unit_ids": [
+          "10c18cef-b99f-5d30-85de-9e2611f2e540"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "fea3b5cf-4b99-54ce-acda-1ff321981ff5",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "지능제조시스템 연구실"
+        },
+        "unit_ids": [
+          "0e7bc926-3787-5e2b-9266-cfbbeb070577"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "b135b6c8-0855-5c3a-96c1-ceaa54c2d30a",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "동역학시스템 실험실1"
+        },
+        "unit_ids": [
+          "389e3b5a-e9a0-5d0a-a6f2-c983ee8fb4c7"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "d5f45eea-1550-5abe-bc85-c316a3300fde",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "토론식 강의실"
+        },
+        "unit_ids": [
+          "c6369aaa-68c7-58f0-96f9-9f06982c1350"
+        ],
+        "research_tags": [
+          "CK-1"
+        ]
+      }
+    },
+    {
+      "id": "6dfb0210-0a19-5a69-b80a-8377b37ef0f6",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "시스템메카트로닉스 실험실2"
+        },
+        "unit_ids": [
+          "b0b284e6-792e-5aab-8b50-7ca62af9328a"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "3c657a0a-9f96-512f-b82a-9e37b030b47b",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "에너지 재료 및 시스템 연구실"
+        },
+        "unit_ids": [
+          "ead81dbf-1457-5d57-9c4e-87f3b89a9651"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "51b0207f-944d-5400-9994-3fbd3a4f4f3f",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "AI터보기계 및 에너지 시스템 연구실"
+        },
+        "unit_ids": [
+          "c491dc99-2bd6-5c68-993c-35f80b525ad9"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "bce8a328-08f7-5621-b7a7-216bfdbd2383",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
@@ -1893,150 +2596,180 @@
           "ko-KR": "강의실"
         },
         "unit_ids": [
-          "bfadf9cf-67c2-531c-b21f-927c8b8548c8"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "e3d50b9d-494b-590a-b049-e7966d2ee8e5",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "시뮬레이션 센터 실험실"
-        },
-        "unit_ids": [
-          "f73715ea-b333-5d8e-b74e-683b41175525"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "61e197af-c6aa-5033-8279-27333bd7ce50",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "응용진동-파동 전파연구실"
-        },
-        "unit_ids": [
-          "e3df6332-2edc-5d73-a3fe-c50d2ac283e8"
+          "3773e68a-9804-5db8-bb40-c93c9abac3da"
         ],
         "research_tags": [
-          "산학융합연구실"
+          "CK-1"
         ]
       }
     },
     {
-      "id": "b1ef73ec-8e43-5e24-8aa2-ac8770e81016",
+      "id": "1331c695-a184-5a9b-b43c-a2ad97bab51c",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "준비실"
+          "ko-KR": "강의실"
         },
         "unit_ids": [
-          "d1eab078-e284-530d-97f9-7f636c29b8b8"
+          "3c997b75-201b-5969-86ec-d2f7cd05d33e"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "acf8a4a2-d320-5d98-bc04-8f8bc6e24b51",
+      "id": "c7fe1d5b-4fc4-5f5f-be1e-1b9eb49e56e8",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "환경&바이오 유체 유체공학 연구실"
+          "ko-KR": "유동제어 연구실"
         },
         "unit_ids": [
-          "aed25dc0-db8e-5b64-b76f-a950529f0f39"
+          "ee81b030-5414-591f-bec6-bca52be0cae5"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "99603e30-e842-5021-9f6d-e2b1351a6da9",
+      "id": "d585a1f2-fc1e-56e5-808e-7d097be1ae43",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "권순조"
+          "ko-KR": "전산유체역할연구실"
         },
         "unit_ids": [
-          "0346e0d0-dcfb-5615-bec3-7857960cd9e0"
+          "66e151bc-e707-5e26-aa47-c129011ca68c"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "95db52f3-2f42-576e-9015-c91f959b1ce2",
+      "id": "227b266f-8cb8-5d83-b6d4-133b7eb2891e",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "서영진"
+          "ko-KR": "전산역학 및 지능형 설계 연구실"
         },
         "unit_ids": [
-          "1027da5b-7681-5c07-a56d-4a865b231d02"
+          "7f6548ed-83c0-5d0a-83b7-58334c2ea0ca"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "0cd3cb03-d2fa-5760-bde2-ff8be0475557",
+      "id": "c439b2f8-6dfd-5296-8338-d3553a5d73af",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "곽윤상"
+          "ko-KR": "터보기계 연구실"
         },
         "unit_ids": [
-          "00d7d4b1-0a57-5d56-bcfc-78ed806483d1"
+          "530d40e2-2400-5ec8-a01a-bdc1e6035b75"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "b3ba59be-b1b5-5c96-9a5f-81e12f82f327",
+      "id": "ca261f26-9105-51a8-8658-3e392d1ec739",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "양종인"
+          "ko-KR": "열 전달 시스템 연구실"
         },
         "unit_ids": [
-          "977d7f7e-ade8-5477-82e0-d48d18137c6e"
+          "207a7ed0-1dcc-5041-b8d4-5730513aa98a"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "03a51aaa-2ece-53de-9abc-e3642c13013a",
+      "id": "83c97e63-a9bf-5b51-854a-9e326e9f4638",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "박예슬"
+          "ko-KR": "김경진"
         },
         "unit_ids": [
-          "e8efd6c7-e707-5449-a7af-167ada315a5e"
+          "bcc21f38-5ef3-55c5-a544-535808305b3f"
         ],
         "research_tags": []
       }
     },
     {
-      "id": "d9d5fec4-4426-5eec-870f-1be2a9888c25",
+      "id": "4f122580-392f-5403-9fd6-5d3a1211a76d",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "곽호상"
+        },
+        "unit_ids": [
+          "f0b31a61-8bb2-507f-b3f5-33d9fe9ce8aa"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "8aff08b5-241f-5c6b-beee-a51dafc2a703",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "김기환"
+        },
+        "unit_ids": [
+          "1710835d-a04d-5758-a880-0ab2cec3da1a"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "aa1a0109-5841-5f4f-83e8-decd601cc9c0",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "김준형"
+        },
+        "unit_ids": [
+          "8c03547b-bc52-5adb-a42f-f1454f0f2754"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "5a604daf-3d0d-5f11-85e0-fcd3ffead517",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "김동주"
+        },
+        "unit_ids": [
+          "d91ef366-5a93-5a2b-a33f-0979d29acd95"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "e629ce41-fa1d-5236-89ab-b106626ea846",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
@@ -2045,112 +2778,7 @@
           "ko-KR": "대학원 연구실"
         },
         "unit_ids": [
-          "0bc508fc-2796-55c4-8649-018fed5fb713"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "71078210-454e-5392-8d20-bff0f012fd93",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "장일훈"
-        },
-        "unit_ids": [
-          "707eb98a-c02a-5642-83fc-41260c521180"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "2a40c6ba-3149-5764-b9d0-6ac7e5947e15",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "송화섭"
-        },
-        "unit_ids": [
-          "7c029152-c7aa-5175-938c-b8cee5a269ea"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "e4db1c0c-1738-59ab-9b65-13435341bb83",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "최시혁"
-        },
-        "unit_ids": [
-          "7abda335-69ec-5924-a62c-31c216fb918e"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "e89dbe14-b435-5485-8758-50e9b5a4f315",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "김현찬"
-        },
-        "unit_ids": [
-          "f2747357-8e7c-53eb-b016-e3c562b67f9c"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "19dee108-0d58-5483-bfe2-7ec1112ff3b4",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "대학원 연구실"
-        },
-        "unit_ids": [
-          "13877c6d-9bcd-50ea-8476-fbd125d27ab6"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "f9237f26-a188-54d3-bbec-f6a275454e5c",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "안장우"
-        },
-        "unit_ids": [
-          "4b1fcd9b-479f-5c41-a559-99dd156b84d5"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "d21375e6-52e7-55d9-806e-e03afa9f921c",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "이상효"
-        },
-        "unit_ids": [
-          "edff5034-1453-5ac9-8b32-aa5589cdc9ae"
+          "1810afd1-a63d-5dfc-a2f8-2b6996eaaa50"
         ],
         "research_tags": []
       }
@@ -2612,21 +3240,6 @@
       }
     },
     {
-      "id": "10032e63-f814-5522-bb5e-e97d94671cd0",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "화장실"
-        },
-        "unit_ids": [
-          "142e0ddb-1fe9-532b-93da-cfe01284c241"
-        ],
-        "research_tags": []
-      }
-    },
-    {
       "id": "bb20fb9f-ebc9-5b31-aeee-ea852068f963",
       "type": "Feature",
       "feature_type": "occupant",
@@ -2669,38 +3282,6 @@
         },
         "unit_ids": [
           "5d6021f2-646b-531f-9c55-349ee1a8110f"
-        ],
-        "research_tags": []
-      }
-    },
-    {
-      "id": "72da0783-5b83-53d2-b52f-29007db7ce52",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "AI로봇 스페이스"
-        },
-        "unit_ids": [
-          "12ea4197-a59e-5c67-aa27-2ee7a995bbc5"
-        ],
-        "research_tags": [
-          "CK-1"
-        ]
-      }
-    },
-    {
-      "id": "f0417ecc-3391-51c9-9a36-46124aee96b1",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "준비실"
-        },
-        "unit_ids": [
-          "910e851e-5848-5aeb-8b03-4520d87aba5b"
         ],
         "research_tags": []
       }
@@ -2924,24 +3505,55 @@
       }
     },
     {
-      "id": "08516bed-13ea-5d6b-985a-b3136764e0ff",
+      "id": "78087805-24a3-5ae5-9e8f-e9cf3853e737",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "세미나실"
+          "ko-KR": "나노시스템 강의실"
         },
         "unit_ids": [
-          "407ffb13-4d01-56f4-ae84-edb51715b979"
+          "9ef736c6-5b43-5ba9-96e2-cb2c9ae54985"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "b1a34daf-4750-5097-8305-014cb3dfeef3",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "메카트로닉스 계측실"
+        },
+        "unit_ids": [
+          "ddb8c08f-caec-5373-baef-3840c3bd74f5"
         ],
         "research_tags": [
-          "LAB30"
+          "CK-1",
+          "산학융합연구실"
         ]
       }
     },
     {
-      "id": "4b00f367-9560-5eaf-bb5f-94d5ae38604d",
+      "id": "630f68a0-7d0d-5130-923d-83d8958622eb",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원 강의실"
+        },
+        "unit_ids": [
+          "7db4be98-5338-5d2b-a390-8bd01d0a4b8c"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "58198bbe-808d-54aa-9701-94d3a2e71721",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
@@ -2950,7 +3562,7 @@
           "ko-KR": "강의실"
         },
         "unit_ids": [
-          "a13d697a-b721-5a7c-b4f3-70cfbe92fd8c"
+          "1d39517c-5e42-599f-ac3a-5595a37702ef"
         ],
         "research_tags": [
           "CK-1"
@@ -2958,16 +3570,206 @@
       }
     },
     {
-      "id": "7ab0d138-08c5-5f50-92b3-c1e168580811",
+      "id": "72da0783-5b83-53d2-b52f-29007db7ce52",
       "type": "Feature",
       "feature_type": "occupant",
       "geometry": null,
       "properties": {
         "name": {
-          "ko-KR": "화장실"
+          "ko-KR": "AI로봇 스페이스"
         },
         "unit_ids": [
-          "127cd314-6929-58ed-958a-cd9ac9327f39"
+          "12ea4197-a59e-5c67-aa27-2ee7a995bbc5"
+        ],
+        "research_tags": [
+          "CK-1"
+        ]
+      }
+    },
+    {
+      "id": "9ce5ca51-73b0-5bdf-a4c4-364299536aeb",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "나노분체공학실험실"
+        },
+        "unit_ids": [
+          "9804c4a8-d642-5966-8aeb-613e83afdcbb"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "1e94fe3b-a6bd-5239-b96f-33a488b8645f",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "지능시스템 및 제어실험실"
+        },
+        "unit_ids": [
+          "f59fbb46-162d-5e0f-b2ae-fd00706a7625"
+        ],
+        "research_tags": [
+          "LAB30"
+        ]
+      }
+    },
+    {
+      "id": "95491a23-cc2d-5ec8-9b02-19f12cc3c008",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "준비실"
+        },
+        "unit_ids": [
+          "c1124224-dd7f-5037-944f-b3830c8b5bb8"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "97abf1ca-81de-5e39-8269-1f45005c7ee5",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "멀티스케일 나노/마이크로 유체연구실"
+        },
+        "unit_ids": [
+          "6d59c07e-c376-50c6-8ff4-8bac4a17d31c"
+        ],
+        "research_tags": [
+          "BK21"
+        ]
+      }
+    },
+    {
+      "id": "ee8ad25d-733c-55a2-817c-4439ed0e0e44",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "준비실"
+        },
+        "unit_ids": [
+          "89b544aa-c3df-5d15-a693-d5d2c35cafa3"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "5c757d53-297a-55a2-9a39-45f6b7649cbb",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "종합설계 강의실"
+        },
+        "unit_ids": [
+          "09fd3c89-6b5a-5cdf-94bf-3fd0bf3becec"
+        ],
+        "research_tags": [
+          "CK-1"
+        ]
+      }
+    },
+    {
+      "id": "bdd0d5aa-e360-5137-88a5-8305a5034914",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "시스템 메카트로닉스 실험실"
+        },
+        "unit_ids": [
+          "8edea104-c821-50fd-93d6-1792895be208"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "9eb939a6-b9fd-5292-9d84-de33963e63de",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원 연구실"
+        },
+        "unit_ids": [
+          "8092d4f8-fbb3-5a9b-aad2-ecdfda380943"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "9e129476-5a6b-5ed1-878b-5be657a053d0",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "자율주행실습실"
+        },
+        "unit_ids": [
+          "b7a03634-17f4-559d-8ec6-1b341c64e16b"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "c7bc92c6-5241-5066-87de-cf32fee979e7",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "일반물리 실험실"
+        },
+        "unit_ids": [
+          "9ec9bf56-7ce2-5672-9c2d-b7b1354c3e8e"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "c07d0f7c-3e1f-5584-933a-4a70e02e6cb2",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "강의실"
+        },
+        "unit_ids": [
+          "19f2c374-8c7a-5775-b14f-e4935cfcb907"
+        ],
+        "research_tags": [
+          "CK-1"
+        ]
+      }
+    },
+    {
+      "id": "be73f5e0-9c22-55fe-8388-e88c55bccb15",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원연구실"
+        },
+        "unit_ids": [
+          "d1b145d3-b8de-5ba6-971a-7e084069270f"
         ],
         "research_tags": []
       }
@@ -3067,21 +3869,6 @@
       }
     },
     {
-      "id": "2e8e9ba0-4a4f-560d-9475-46ec167dbdf9",
-      "type": "Feature",
-      "feature_type": "occupant",
-      "geometry": null,
-      "properties": {
-        "name": {
-          "ko-KR": "메카트로닉스 재료연구실/자동차 재표 물성 실험실"
-        },
-        "unit_ids": [
-          "45705332-8892-5a4e-bf69-b0d1f9200569"
-        ],
-        "research_tags": []
-      }
-    },
-    {
       "id": "c8c72e8b-e025-50a0-8ac0-bfa8e965ec74",
       "type": "Feature",
       "feature_type": "occupant",
@@ -3174,6 +3961,162 @@
       }
     },
     {
+      "id": "db2f368b-512e-5ef1-b2d5-79d8c3fc9d09",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "국방신뢰성 M&S실"
+        },
+        "unit_ids": [
+          "4b7cf461-9e3b-5c9b-94bc-c7a997922809"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "08516bed-13ea-5d6b-985a-b3136764e0ff",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "세미나실"
+        },
+        "unit_ids": [
+          "407ffb13-4d01-56f4-ae84-edb51715b979"
+        ],
+        "research_tags": [
+          "LAB30"
+        ]
+      }
+    },
+    {
+      "id": "25af002c-3d53-5d4c-9629-9c333d2d3336",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "강의실"
+        },
+        "unit_ids": [
+          "c77bfaaa-5e31-5d82-98f0-6c866015f9f5"
+        ],
+        "research_tags": [
+          "CK-1"
+        ]
+      }
+    },
+    {
+      "id": "4b00f367-9560-5eaf-bb5f-94d5ae38604d",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "강의실"
+        },
+        "unit_ids": [
+          "a13d697a-b721-5a7c-b4f3-70cfbe92fd8c"
+        ],
+        "research_tags": [
+          "CK-1"
+        ]
+      }
+    },
+    {
+      "id": "6054d552-1b2a-5c08-95dd-a764838737a8",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "진동 및 측정실험실"
+        },
+        "unit_ids": [
+          "ff36ab34-a0f8-5548-8e15-187d02fe95e8"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "ebeed1ae-6431-5a8b-ab14-9e1460770b5a",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "강의실"
+        },
+        "unit_ids": [
+          "b575d28e-299b-57af-8162-6ae2ca1ae904"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "4ea370a5-e338-5ace-bfb2-e1c9dc5bcd8d",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원 강의실"
+        },
+        "unit_ids": [
+          "020464fe-a97f-5cc9-a901-a8aa155c2871"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "a3bd3ddd-a3ae-55c9-895d-c73a0760b802",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "김종봉"
+        },
+        "unit_ids": [
+          "cdd8ae00-f4a8-5de9-bb65-d7b5bda1e6c0"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "8216e62a-1145-5d6e-9b00-b02d6653f697",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "대학원 연구실"
+        },
+        "unit_ids": [
+          "18a540d1-c028-579b-a4fd-cb38bf1d5864"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "2e8e9ba0-4a4f-560d-9475-46ec167dbdf9",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "메카트로닉스 재료연구실/자동차 재표 물성 실험실"
+        },
+        "unit_ids": [
+          "45705332-8892-5a4e-bf69-b0d1f9200569"
+        ],
+        "research_tags": []
+      }
+    },
+    {
       "id": "708bbaaf-5570-55d2-a5ee-8f6b5a81f89f",
       "type": "Feature",
       "feature_type": "occupant",
@@ -3184,6 +4127,96 @@
         },
         "unit_ids": [
           "870bc6ea-435b-5429-80df-5dd6aecdd381"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "dddd3e42-a680-582f-bdf1-98ed85043e69",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "컴퓨터실"
+        },
+        "unit_ids": [
+          "8498412f-4f7d-5e7c-8e60-95c564ac6417"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "0d39b40b-19c6-59c2-8a67-d4d4e9df0d2d",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "컴퓨터실"
+        },
+        "unit_ids": [
+          "0b45bd35-4741-531d-a0fe-9590f1bb82a2"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "af04b17b-9e87-52b3-a1a0-25b20f1e0157",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "응용레이저 기술 실험실2"
+        },
+        "unit_ids": [
+          "38921822-afd3-58cc-ab73-a70a4bf5e936"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "29f6e864-6809-5af6-b5c8-0b3b0aaf5102",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "강의실"
+        },
+        "unit_ids": [
+          "564e843a-35e3-59ce-84ca-73b3f7b582fa"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "1928541c-98e8-5c12-813c-b1d9afd1f606",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "취업어학 강의실"
+        },
+        "unit_ids": [
+          "2bc669ee-ffda-5fc0-91dd-1fa94f35ff0f"
+        ],
+        "research_tags": []
+      }
+    },
+    {
+      "id": "3638750e-2da9-517b-ae86-4788913e7d87",
+      "type": "Feature",
+      "feature_type": "occupant",
+      "geometry": null,
+      "properties": {
+        "name": {
+          "ko-KR": "취업어학 강의실"
+        },
+        "unit_ids": [
+          "44aa9db0-3b63-5dbc-b47f-425333d246f6"
         ],
         "research_tags": []
       }

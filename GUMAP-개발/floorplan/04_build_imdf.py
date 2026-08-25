@@ -35,7 +35,11 @@ def load_labeled_in_meters(data: dict, transform_data: dict) -> list[dict]:
     px_per_mm = transform_data["floor_px_per_mm"][floor]
     result = []
     for record in data["polygons"]:
-        points = [(float(x), float(y)) for x, y in record["points"]]
+        if len(record["points"]) > 0 and isinstance(record["points"][0][0], list):
+            pts = record["points"][0]
+            points = [(float(x), float(y)) for x, y in pts]
+        else:
+            points = [(float(x), float(y)) for x, y in record["points"]]
         result.append(
             {
                 "points_m": georef.pixels_to_meters(points, origin, px_per_mm),

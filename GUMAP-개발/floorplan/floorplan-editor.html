@@ -65,6 +65,7 @@
     <option value="elevator">🛗 엘리베이터</option>
   </select>
   <button id="draw">그리기 (D)</button>
+        <button id="drawPoly">다각형 (P)</button>
   <div class="sep"></div>
   <button id="del">삭제 (Del)</button>
   <button id="edit">속성편집 (E)</button>
@@ -101,6 +102,7 @@
 </div>
 
 <script>
+
 const API = '';
 const FLOORS = ["B1F","1F","2F","3F","4F","5F","6F"];
 
@@ -169,16 +171,7 @@ async function loadFloor(floor) {
   if (!res.ok) { setStat(`work/${floor}_labeled.json 없음`); return; }
   state.data = await res.json();
 
-  let normalized = 0;
-  state.data.polygons.forEach(rec => {
-    if (!isAlreadyRect(rec.points)) {
-      rec.points = toBoundingRect(rec.points);
-      rec.centroid = centroidOf(rec.points);
-      const xs = rec.points.map(p=>p[0]), ys = rec.points.map(p=>p[1]);
-      rec.area_px = Math.abs((Math.max(...xs)-Math.min(...xs))*(Math.max(...ys)-Math.min(...ys)));
-      normalized++;
-    }
-  });
+  let normalized = 0; // Removed auto-normalization
 
   const [w, h] = state.data.size;
   if (imageLayer) map.removeLayer(imageLayer);
@@ -210,8 +203,10 @@ function normalizeAllToRects() {
   if (!confirm(`${nonRect.length}개를 직사각형으로 변환? (되돌리기 가능)`)) return;
   snapshot(`직사각형 정규화 ${nonRect.length}개`);
   nonRect.forEach(rec => {
-    rec.points = toBoundingRect(rec.points);
-    rec.centroid = centroidOf(rec.points);
+    if (rec.points.length > 0 && Array.isArray(rec.points[0][0])) return; // Skip holes
+        rec.points = toBoundingRect(rec.points);
+    if (rec.points.length > 0 && Array.isArray(rec.points[0][0])) return; // Skip holes
+        rec.centroid = centroidOf(rec.points);
     const xs = rec.points.map(p=>p[0]), ys = rec.points.map(p=>p[1]);
     rec.area_px = Math.abs((Math.max(...xs)-Math.min(...xs))*(Math.max(...ys)-Math.min(...ys)));
   });
@@ -278,9 +273,14 @@ function renderPolygons() {
   state.layers.forEach(l => map.removeLayer(l.poly));
   state.layers = [];
   state.data.polygons.forEach(rec => {
-    const latlngs = rec.points.map(p => pxToLatLng(p[0], p[1]));
+    let latlngs;
+    if (rec.points.length > 0 && Array.isArray(rec.points[0][0])) {
+      latlngs = rec.points.map(ring => ring.map(p => pxToLatLng(p[0], p[1])));
+    } else {
+      latlngs = rec.points.map(p => pxToLatLng(p[0], p[1]));
+    }
     const poly = L.polygon(latlngs, styleFor(rec)).addTo(map);
-    poly.on('click', e => { L.DomEvent.stop(e); select(rec); });
+    poly.on('click', e => { L.DomEvent.stop(e); select(rec, e); });
     const lbl = labelFor(rec);
     if (lbl) poly.bindTooltip(lbl, { permanent:true, direction:'center', className:'lbl' });
     state.layers.push({ poly, rec });
@@ -294,66 +294,167 @@ function clearHandles() {
   state.handles = [];
 }
 
-function select(rec) {
+function select(rec, e) {
   if (state.drawing) return;
-  state.selected = rec;
+  if (!state.multiSelected) state.multiSelected = [];
+  
+  const isShift = e && e.originalEvent && e.originalEvent.shiftKey;
+  if (isShift) {
+    if (state.multiSelected.includes(rec)) state.multiSelected = state.multiSelected.filter(r => r !== rec);
+    else state.multiSelected.push(rec);
+  } else {
+    state.multiSelected = [rec];
+  }
+  
+  state.selected = state.multiSelected.length > 0 ? state.multiSelected[state.multiSelected.length - 1] : null;
+
   state.layers.forEach(l => l.poly.setStyle(
-    l.rec === rec ? { color:'#facc15', weight:4, fillOpacity:0.35 } : styleFor(l.rec)
+    state.multiSelected.includes(l.rec) ? { color:'#facc15', weight:4, fillOpacity:0.35 } : styleFor(l.rec)
   ));
-  // 상태바에 상세 정보 표시
-  const t = typeOf(rec);
-  const parts = [`[${TYPES[t]?.label}]`];
-  if (rec.room_id) parts.push(rec.room_id);
-  if (rec.connects) parts.push(`연결: ${rec.connects.join('↔')}`);
-  if (rec.connects_floors) parts.push(`층: ${rec.connects_floors.join('↔')}`);
-  setStat(`선택: ${parts.join(' · ')}`);
-  showHandles(rec);
+  
+  if (state.multiSelected.length === 1) {
+    const t = typeOf(state.selected);
+    const parts = [`[${TYPES[t]?.label}]`];
+    if (state.selected.room_id) parts.push(state.selected.room_id);
+    if (state.selected.connects) parts.push(`연결: ${state.selected.connects.join('↔')}`);
+    if (state.selected.connects_floors) parts.push(`층: ${state.selected.connects_floors.join('↔')}`);
+    setStat(`선택: ${parts.join(' · ')}`);
+    showHandles(state.selected);
+  } else if (state.multiSelected.length > 1) {
+    setStat(`다중 선택: ${state.multiSelected.length}개 (Delete 키로 일괄 삭제)`);
+    clearHandles();
+  } else {
+    setStat('선택 해제됨');
+    clearHandles();
+  }
 }
 
 function deselect() {
   state.selected = null;
+  state.multiSelected = [];
   clearHandles();
   if (state.data) state.layers.forEach(l => l.poly.setStyle(styleFor(l.rec)));
 }
 
 function showHandles(rec) {
   clearHandles();
-  const xs = rec.points.map(p => p[0]), ys = rec.points.map(p => p[1]);
-  const x1 = Math.min(...xs), y1 = Math.min(...ys);
-  const x2 = Math.max(...xs), y2 = Math.max(...ys);
-  const mx = (x1+x2)/2, my = (y1+y2)/2;
-  const defs = [
-    { px:[x1,y1], adjX:'x1', adjY:'y1', cls:'handle-corner handle-nwse', sz:14 },
-    { px:[x2,y1], adjX:'x2', adjY:'y1', cls:'handle-corner handle-nesw', sz:14 },
-    { px:[x2,y2], adjX:'x2', adjY:'y2', cls:'handle-corner handle-nwse', sz:14 },
-    { px:[x1,y2], adjX:'x1', adjY:'y2', cls:'handle-corner handle-nesw', sz:14 },
-    { px:[mx,y1], adjX:null, adjY:'y1', cls:'handle-edge handle-ns', sz:12 },
-    { px:[x2,my], adjX:'x2', adjY:null, cls:'handle-edge handle-ew', sz:12 },
-    { px:[mx,y2], adjX:null, adjY:'y2', cls:'handle-edge handle-ns', sz:12 },
-    { px:[x1,my], adjX:'x1', adjY:null, cls:'handle-edge handle-ew', sz:12 },
-  ];
-  defs.forEach(def => {
-    const half = def.sz/2;
-    const marker = L.marker(pxToLatLng(def.px[0], def.px[1]), {
-      draggable: true,
-      icon: L.divIcon({ className: def.cls, iconSize:[def.sz,def.sz], iconAnchor:[half,half] })
-    }).addTo(map);
-    marker.on('dragstart', () => { snapshot(`${rec.room_id||typeOf(rec)} 크기 조절`); });
-    marker.on('drag', e => {
-      const [nx,ny] = latLngToPx(e.target.getLatLng());
-      const cxs = rec.points.map(p=>p[0]), cys = rec.points.map(p=>p[1]);
-      let cx1=Math.min(...cxs), cy1=Math.min(...cys), cx2=Math.max(...cxs), cy2=Math.max(...cys);
-      if (def.adjX==='x1') cx1=Math.round(nx); if (def.adjX==='x2') cx2=Math.round(nx);
-      if (def.adjY==='y1') cy1=Math.round(ny); if (def.adjY==='y2') cy2=Math.round(ny);
-      if (Math.abs(cx2-cx1)<5||Math.abs(cy2-cy1)<5) return;
-      rec.points=[[cx1,cy1],[cx2,cy1],[cx2,cy2],[cx1,cy2]];
-      rec.centroid=centroidOf(rec.points);
-      rec.area_px=Math.abs((cx2-cx1)*(cy2-cy1));
-      const layer=state.layers.find(l=>l.rec===rec);
-      if(layer) layer.poly.setLatLngs(rec.points.map(p=>pxToLatLng(p[0],p[1])));
+
+  const isNested = rec.points.length > 0 && Array.isArray(rec.points[0][0]);
+  const rings = isNested ? rec.points : [rec.points];
+
+  rings.forEach((ring, ringIdx) => {
+    // Create Vertex Handles
+    ring.forEach((pt, i) => {
+      const sz = 14;
+      const marker = L.marker(pxToLatLng(pt[0], pt[1]), {
+        draggable: true,
+        icon: L.divIcon({ className: 'handle-corner handle-nwse', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2] })
+      }).addTo(map);
+
+      let origPt, origPrev, origNext, prevSharedX, nextSharedX;
+      const prevI = (i - 1 + ring.length) % ring.length;
+      const nextI = (i + 1) % ring.length;
+
+      marker.on('dragstart', () => {
+        snapshot(`${rec.room_id||typeOf(rec)} 꼭짓점 변경`);
+        origPt = [...ring[i]];
+        origPrev = [...ring[prevI]];
+        origNext = [...ring[nextI]];
+        prevSharedX = Math.abs(origPt[0] - origPrev[0]) < Math.abs(origPt[1] - origPrev[1]);
+        nextSharedX = Math.abs(origPt[0] - origNext[0]) < Math.abs(origPt[1] - origNext[1]);
+      });
+
+      marker.on('drag', e => {
+        const [nx, ny] = latLngToPx(e.target.getLatLng());
+        const rnx = Math.round(nx), rny = Math.round(ny);
+
+        ring[i] = [rnx, rny];
+        if (prevSharedX) ring[prevI][0] = rnx; else ring[prevI][1] = rny;
+        if (nextSharedX) ring[nextI][0] = rnx; else ring[nextI][1] = rny;
+
+        if (!isNested) {
+          rec.centroid = centroidOf(ring);
+          let area = 0;
+          for (let k = 0; k < ring.length; k++) {
+            const j = (k + 1) % ring.length;
+            area += ring[k][0] * ring[j][1];
+            area -= ring[j][0] * ring[k][1];
+          }
+          rec.area_px = Math.abs(area) / 2.0;
+        }
+
+        const layer = state.layers.find(l=>l.rec===rec);
+        if(layer) {
+          let latlngs;
+          if (isNested) latlngs = rec.points.map(r => r.map(p => pxToLatLng(p[0], p[1])));
+          else latlngs = rec.points.map(p => pxToLatLng(p[0], p[1]));
+          layer.poly.setLatLngs(latlngs);
+        }
+      });
+      marker.on('dragend', () => { showHandles(rec); });
+      state.handles.push(marker);
     });
-    marker.on('dragend', () => { showHandles(rec); });
-    state.handles.push(marker);
+
+    // Create Edge Handles
+    ring.forEach((pt1, i) => {
+      const nextI = (i + 1) % ring.length;
+      const pt2 = ring[nextI];
+      const mx = (pt1[0] + pt2[0]) / 2;
+      const my = (pt1[1] + pt2[1]) / 2;
+
+      const sz = 12;
+      const isHoriz = Math.abs(pt1[0] - pt2[0]) > Math.abs(pt1[1] - pt2[1]);
+      const cls = isHoriz ? 'handle-edge handle-ns' : 'handle-edge handle-ew';
+
+      const marker = L.marker(pxToLatLng(mx, my), {
+        draggable: true,
+        icon: L.divIcon({ className: cls, iconSize:[sz,sz], iconAnchor:[sz/2,sz/2] })
+      }).addTo(map);
+
+      let startP1, startP2, startMouse;
+
+      marker.on('dragstart', e => {
+        snapshot(`${rec.room_id||typeOf(rec)} 벽면 이동`);
+        startP1 = [...ring[i]];
+        startP2 = [...ring[nextI]];
+        startMouse = latLngToPx(e.target.getLatLng());
+      });
+
+      marker.on('drag', e => {
+        const currentMouse = latLngToPx(e.target.getLatLng());
+        const dx = Math.round(currentMouse[0] - startMouse[0]);
+        const dy = Math.round(currentMouse[1] - startMouse[1]);
+
+        if (isHoriz) {
+          ring[i][1] = startP1[1] + dy;
+          ring[nextI][1] = startP2[1] + dy;
+        } else {
+          ring[i][0] = startP1[0] + dx;
+          ring[nextI][0] = startP2[0] + dx;
+        }
+
+        if (!isNested) {
+          rec.centroid = centroidOf(ring);
+          let area = 0;
+          for (let k = 0; k < ring.length; k++) {
+            const j = (k + 1) % ring.length;
+            area += ring[k][0] * ring[j][1];
+            area -= ring[j][0] * ring[k][1];
+          }
+          rec.area_px = Math.abs(area) / 2.0;
+        }
+
+        const layer = state.layers.find(l=>l.rec===rec);
+        if(layer) {
+          let latlngs;
+          if (isNested) latlngs = rec.points.map(r => r.map(p => pxToLatLng(p[0], p[1])));
+          else latlngs = rec.points.map(p => pxToLatLng(p[0], p[1]));
+          layer.poly.setLatLngs(latlngs);
+        }
+      });
+      marker.on('dragend', () => { showHandles(rec); });
+      state.handles.push(marker);
+    });
   });
 }
 
@@ -361,6 +462,7 @@ function showHandles(rec) {
 function renderTodo() {
   const box = document.getElementById('todo');
   const missing = (state.data.report && state.data.report.missing) || [];
+  missing.sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric: true}));
   const counts = {}; TYPE_KEYS.forEach(k => counts[k]=0);
   state.data.polygons.forEach(rec => { counts[typeOf(rec)]=(counts[typeOf(rec)]||0)+1; });
 
@@ -459,6 +561,7 @@ function snapValue(val, edges) {
   return best!==null ? {val:best,snapped:true} : {val,snapped:false};
 }
 function snapPoint(x, y, edges) {
+  if (state.drawing && state.drawing.type === 'corridor') return {x, y, snappedX: false, snappedY: false};
   const sx=snapValue(x,edges.xs), sy=snapValue(y,edges.ys);
   return {x:sx.val, y:sy.val, snappedX:sx.snapped, snappedY:sy.snapped};
 }
@@ -489,10 +592,58 @@ function startDraw() {
 
 function clearPreview() {
   if (previewRect) { map.removeLayer(previewRect); previewRect=null; }
+  if (state.drawing && state.drawing.previewLine) { map.removeLayer(state.drawing.previewLine); state.drawing.previewLine=null; }
   clearSnapGuides();
 }
 
 // ── 그리기 후 속성 입력 프롬프트 ─────────────────────────
+
+function finishPolyDraw() {
+  if (!state.drawing || state.drawing.mode !== 'poly' || state.drawing.points.length < 3) return;
+  const dt = state.drawing.type;
+  const rectPoints = state.drawing.points.slice(); // Copy points
+  
+  // Calculate area roughly using Shoelace formula
+  let area = 0;
+  for (let i = 0; i < rectPoints.length; i++) {
+    const j = (i + 1) % rectPoints.length;
+    area += rectPoints[i][0] * rectPoints[j][1];
+    area -= rectPoints[j][0] * rectPoints[i][1];
+  }
+  area = Math.abs(area) / 2.0;
+
+  const rec = {
+    points: rectPoints,
+    area_px: area,
+    centroid: centroidOf(rectPoints),
+    room_id: dt === 'room' ? state.selectedRoomId : null,
+    type: dt,
+    candidates: []
+  };
+
+  state.drawing.markers.forEach(m => map.removeLayer(m));
+  if (state.drawing.polyline) map.removeLayer(state.drawing.polyline);
+  clearPreview();
+  setDrawingCursor(false);
+  state.drawing = null;
+
+  if (dt !== 'room') promptForType(dt, rec);
+
+  const label = rec.room_id || (rec.connects ? rec.connects.join('↔') : '') || TYPES[dt].label;
+  snapshot(`${label} 다각형 그리기`);
+  state.data.polygons.push(rec);
+
+  if (dt === 'room' && state.selectedRoomId) {
+    const missing = (state.data.report && state.data.report.missing) || [];
+  missing.sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric: true}));
+    const idx = missing.indexOf(state.selectedRoomId);
+    if (idx >= 0) missing.splice(idx, 1);
+  }
+
+  state.selectedRoomId = null;
+  renderPolygons(); renderTodo();
+}
+
 function promptForType(dt, rec) {
   switch (dt) {
     case 'corridor': {
@@ -559,13 +710,40 @@ function promptForType(dt, rec) {
 
 map.on('click', e => {
   if (!state.drawing) return;
-  const [rx,ry] = latLngToPx(e.latlng);
-  const snapped = snapPoint(Math.round(rx), Math.round(ry), state.drawing.edges);
+    const [rx,ry] = latLngToPx(e.latlng);
+  let tx = Math.round(rx), ty = Math.round(ry);
+  let snapped = snapPoint(tx, ty, state.drawing.edges);
+  
+  if (state.drawing && state.drawing.mode === 'poly' && state.drawing.points.length > 0) {
+    const prev = state.drawing.points[state.drawing.points.length - 1];
+    const isHoriz = Math.abs(tx - prev[0]) > Math.abs(ty - prev[1]);
+    if (isHoriz) ty = prev[1]; else tx = prev[0];
+    snapped = snapPoint(tx, ty, state.drawing.edges);
+    if (isHoriz) snapped.y = prev[1]; else snapped.x = prev[0];
+  }
+  
   const px = [snapped.x, snapped.y];
   const dt = state.drawing.type;
   const previewColor = TYPES[dt].color;
 
+  if (state.drawing.mode === 'poly') {
+        const p0 = state.drawing.points[0];
+    if (state.drawing.points.length >= 3 && Math.abs(rx - p0[0]) <= 10 && Math.abs(ry - p0[1]) <= 10) {
+      finishPolyDraw();
+      return;
+    }
+    state.drawing.points.push(px);
+    state.drawing.markers.push(
+      L.circleMarker(pxToLatLng(px[0],px[1]), {radius:5,color:previewColor,fillColor:previewColor,fillOpacity:1}).addTo(map)
+    );
+    if (state.drawing.polyline) map.removeLayer(state.drawing.polyline);
+    const latlngs = state.drawing.points.map(p => pxToLatLng(p[0], p[1]));
+    state.drawing.polyline = L.polyline(latlngs, {color:previewColor, weight:2, dashArray:'4'}).addTo(map);
+    return;
+  }
+  
   if (state.drawing.points.length === 0) {
+
     state.drawing.points.push(px);
     state.drawing.markers.push(
       L.circleMarker(pxToLatLng(px[0],px[1]), {radius:5,color:previewColor,fillColor:previewColor,fillOpacity:1}).addTo(map)
@@ -602,6 +780,7 @@ map.on('click', e => {
 
     if (dt === 'room' && state.selectedRoomId) {
       const missing = (state.data.report && state.data.report.missing) || [];
+  missing.sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric: true}));
       const idx = missing.indexOf(state.selectedRoomId);
       if (idx >= 0) missing.splice(idx, 1);
     }
@@ -612,10 +791,40 @@ map.on('click', e => {
 });
 
 map.on('mousemove', e => {
-  if (!state.drawing || state.drawing.points.length !== 1) return;
-  const [x1,y1] = state.drawing.points[0];
+  if (!state.drawing) return;
   const [rx,ry] = latLngToPx(e.latlng);
+  
+  if (state.drawing.mode === 'poly') {
+    if (state.drawing.points.length === 0) return;
+    let tx = Math.round(rx), ty = Math.round(ry);
+    let snapped = snapPoint(tx, ty, state.drawing.edges);
+    
+    const prev = state.drawing.points[state.drawing.points.length - 1];
+    const isHoriz = Math.abs(tx - prev[0]) > Math.abs(ty - prev[1]);
+    if (isHoriz) ty = prev[1]; else tx = prev[0];
+    
+    snapped = snapPoint(tx, ty, state.drawing.edges);
+    if (isHoriz) snapped.y = prev[1]; else snapped.x = prev[0];
+    
+    const previewColor = TYPES[state.drawing.type].color;
+    if (previewRect) { map.removeLayer(previewRect); previewRect = null; }
+    if (state.drawing && state.drawing.previewLine) { map.removeLayer(state.drawing.previewLine); state.drawing.previewLine = null; }
+    
+    const latlngs = state.drawing.points.map(p => pxToLatLng(p[0], p[1]));
+    latlngs.push(pxToLatLng(snapped.x, snapped.y));
+    
+    const dist = isHoriz ? Math.abs(snapped.x - prev[0]) : Math.abs(snapped.y - prev[1]);
+    setStat(`[${TYPES[state.drawing.type].label}] 길이: ${dist}px (클릭 확정 / 시작점 클릭 시 완료)`);
+    
+    state.drawing.previewLine = L.polyline(latlngs, {color:previewColor, weight:2, dashArray:'4'}).addTo(map);
+    return;
+  }
+  
+  // Rectangle mode
+  if (state.drawing.points.length !== 1) return;
+  const [x1, y1] = state.drawing.points[0];
   const snapped = snapPoint(Math.round(rx), Math.round(ry), state.drawing.edges);
+  
   const previewColor = TYPES[state.drawing.type].color;
   const bounds = [pxToLatLng(x1,y1), pxToLatLng(snapped.x, snapped.y)];
   if (previewRect) {
@@ -625,7 +834,6 @@ map.on('mousemove', e => {
       color:previewColor, weight:2, fillColor:previewColor, fillOpacity:0.15, dashArray:'6 4'
     }).addTo(map);
   }
-  showSnapGuides(snapped);
 });
 
 function centroidOf(pts) {
@@ -734,19 +942,41 @@ function changeTypeSelected() {
 
 // ── 삭제 ─────────────────────────────────────────────────
 function deleteSelected() {
-  if (!state.selected) { setStat('삭제할 폴리곤을 먼저 클릭하세요'); return; }
-  const t = typeOf(state.selected);
-  const label = state.selected.room_id || state.selected.connects?.join('↔') || TYPES[t]?.label || '무번호';
-  if (state.selected.room_id && !confirm(`${label} 삭제? (되돌리기 가능)`)) return;
-  snapshot(`${label} 삭제`);
-  const i = state.data.polygons.indexOf(state.selected);
-  if (i >= 0) state.data.polygons.splice(i, 1);
-  if (state.selected.room_id && t === 'room' && state.data.report?.missing)
-    state.data.report.missing.push(state.selected.room_id);
-  state.selected = null; clearHandles();
+  const targets = (state.multiSelected && state.multiSelected.length > 0) ? state.multiSelected : (state.selected ? [state.selected] : []);
+  if (targets.length === 0) { setStat('삭제할 대상을 먼저 클릭하세요'); return; }
+  
+  if (targets.length > 1) {
+    if (!confirm(`선택한 ${targets.length}개를 삭제하시겠습니까? (되돌리기 가능)`)) return;
+    snapshot(`${targets.length}개 일괄 삭제`);
+    targets.forEach(rec => {
+      const i = state.data.polygons.indexOf(rec);
+      if (i >= 0) state.data.polygons.splice(i, 1);
+      if (rec.room_id && typeOf(rec) === 'room' && state.data.report?.missing) {
+        state.data.report.missing.push(rec.room_id);
+      }
+    });
+    setStat(`${targets.length}개 삭제 완료 — Ctrl+Z 되돌리기`);
+  } else {
+    const rec = targets[0];
+    const t = typeOf(rec);
+    const label = rec.room_id || rec.connects?.join('↔') || TYPES[t]?.label || '무번호';
+    if (rec.room_id && !confirm(`${label} 삭제? (되돌리기 가능)`)) return;
+    snapshot(`${label} 삭제`);
+    const i = state.data.polygons.indexOf(rec);
+    if (i >= 0) state.data.polygons.splice(i, 1);
+    if (rec.room_id && t === 'room' && state.data.report?.missing)
+      state.data.report.missing.push(rec.room_id);
+    setStat(`${label} 삭제 — Ctrl+Z 되돌리기`);
+  }
+  
+  state.data.report?.missing?.sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric: true}));
+  
+  state.selected = null; 
+  state.multiSelected = [];
+  clearHandles();
   renderPolygons(); renderTodo();
-  setStat(`${label} 삭제 — Ctrl+Z 되돌리기`);
 }
+
 
 // ── 저장 ─────────────────────────────────────────────────
 async function save() {
@@ -773,6 +1003,20 @@ const drawTypeSel = document.getElementById('drawType');
 drawTypeSel.onchange = () => { state.drawType = drawTypeSel.value; };
 
 document.getElementById('draw').onclick = startDraw;
+
+function startDrawPoly() {
+  const dt = state.drawType;
+  if (dt === 'room' && !state.selectedRoomId) {
+    setStat('먼저 할당할 방 번호를 우측에서 선택하세요.'); return;
+  }
+  deselect();
+  state.drawing = { points:[], markers:[], edges:collectEdges(), type:dt, mode:'poly' };
+  setDrawingCursor(true);
+  setStat(`[${TYPES[dt].label}] 다각형 그리기 (끝낼 땐 시작점 클릭 또는 Enter)`);
+}
+
+document.getElementById('drawPoly').onclick = startDrawPoly;
+
 document.getElementById('del').onclick = deleteSelected;
 document.getElementById('edit').onclick = editSelected;
 document.getElementById('chtype').onclick = changeTypeSelected;
@@ -783,8 +1027,37 @@ document.getElementById('save').onclick = save;
 
 document.addEventListener('keydown', ev => {
   if (ev.target.tagName==='INPUT'||ev.target.tagName==='TEXTAREA'||ev.target.tagName==='SELECT') return;
-  if (ev.ctrlKey && (ev.key==='z'||ev.key==='Z')) { ev.preventDefault(); undo(); return; }
+  if (ev.ctrlKey && (ev.key==='z'||ev.key==='Z')) { 
+      ev.preventDefault();
+      if (state.drawing && state.drawing.mode === 'poly') {
+        if (state.drawing.points.length > 0) {
+          state.drawing.points.pop();
+          const m = state.drawing.markers.pop();
+          if (m) map.removeLayer(m);
+          
+          if (state.drawing.polyline) map.removeLayer(state.drawing.polyline);
+          if (state.drawing.points.length > 0) {
+            const latlngs = state.drawing.points.map(p => pxToLatLng(p[0], p[1]));
+            const previewColor = TYPES[state.drawing.type].color;
+            state.drawing.polyline = L.polyline(latlngs, {color:previewColor, weight:2, dashArray:'4'}).addTo(map);
+          } else {
+            state.drawing.polyline = null;
+          }
+          
+          if (state.drawing.previewLine) {
+            map.removeLayer(state.drawing.previewLine);
+            state.drawing.previewLine = null;
+          }
+          
+          setStat(`[${TYPES[state.drawing.type].label}] 점 취소됨 (현재 ${state.drawing.points.length}개)`);
+        }
+      } else {
+        undo();
+      }
+      return; 
+    }
   if (ev.key==='Delete') deleteSelected();
+  if (ev.key==='Enter' && state.drawing && state.drawing.mode==='poly') finishPolyDraw();
   if (ev.key==='Escape') {
     if (state.drawing) {
       state.drawing.markers.forEach(m=>map.removeLayer(m));
@@ -794,6 +1067,7 @@ document.addEventListener('keydown', ev => {
     return;
   }
   if (!ev.ctrlKey && (ev.key==='d'||ev.key==='D')) startDraw();
+  if (!ev.ctrlKey && (ev.key==='p'||ev.key==='P')) startDrawPoly();
   if (!ev.ctrlKey && (ev.key==='e'||ev.key==='E')) editSelected();
   if (!ev.ctrlKey && (ev.key==='t'||ev.key==='T')) changeTypeSelected();
 });
@@ -802,7 +1076,9 @@ window.addEventListener('beforeunload', ev => {
   if (!state.dirty) return; ev.preventDefault(); ev.returnValue='';
 });
 map.doubleClickZoom.disable();
+map.boxZoom.disable(); // 쉬프트+드래그(또는 클릭 시 미세 이동)로 인한 원치 않는 확대 방지
 loadFloor('2F');
+
 </script>
 </body>
 </html>
