@@ -242,15 +242,15 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
     <span style="background:${st.color};color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:800;">
       ${st.icon} ${escHtml(labelStr || st.name)}
     </span>
-    <span style="font-size:10px;color:#94a3b8;font-weight:700;">
+    <span style="font-size:10px;color:var(--text-muted);font-weight:700;">
       테크노관 ${escHtml(targetLevelInfo.name)}
     </span>
   </div>
-  <h4 style="margin:4px 0 6px;font-size:15px;color:#f8fafc;font-weight:800;line-height:1.3;">
+  <h4 style="margin:4px 0 6px;font-size:15px;color:var(--text-main);font-weight:800;line-height:1.3;">
     ${escHtml(displayName)}
   </h4>
   ${tagBadges ? `<div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:2px;">${tagBadges}</div>` : ''}
-  <div style="font-size:11px;color:#94a3b8;line-height:1.6;margin-bottom:10px;padding:8px;background:rgba(255,255,255,.05);border-radius:8px;border:1px solid rgba(255,255,255,.08);">
+  <div style="font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:10px;padding:8px;background:var(--bg-input);border-radius:8px;border:1px solid var(--border-panel);">
     <div>🏛️ <b>구분:</b> <span style="color:#e2e8f0">${escHtml(st.name)}</span></div>
     ${props.department ? `<div>🏫 <b>소속:</b> <span style="color:#e2e8f0">${escHtml(props.department)}</span></div>` : ''}
     <div>🌐 <b>표준ID:</b> <span style="color:#64748b;font-family:monospace;font-size:9px">${unit.id.slice(0,18)}…</span></div>
@@ -350,7 +350,7 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         panel.innerHTML = `
 <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px;">
   <div>
-    <div style="font-size:13px;font-weight:800;color:#f8fafc;display:flex;align-items:center;gap:6px;">
+    <div style="font-size:13px;font-weight:800;color:var(--text-main);display:flex;align-items:center;gap:6px;">
       🏫 테크노관 실내지도
       <span style="font-size:9px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:1px 6px;border-radius:10px;font-weight:700;">OGC IMDF</span>
     </div>
@@ -363,7 +363,7 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 <div style="position:relative;">
   <input id="ti-search" type="text" placeholder="🔍 호실, 연구실, 교수명 검색..."
     style="width:100%;padding:7px 10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
-           border-radius:8px;color:#f8fafc;font-size:11px;outline:none;box-sizing:border-box;">
+           border-radius:8px;color:var(--text-main);font-size:11px;outline:none;box-sizing:border-box;">
   <div id="ti-results" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:10;
        background:#0f172a;border:1px solid rgba(255,255,255,.15);border-radius:8px;
        margin-top:4px;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.6);padding:4px;"></div>
