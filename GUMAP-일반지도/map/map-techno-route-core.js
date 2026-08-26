@@ -13,7 +13,7 @@
 (function (global) {
   'use strict';
 
-  var TURN_DEGREES = 25.0;       // 안내문: 이 각도 넘어야 "꺾어"
+  var TURN_DEGREES = 25.0;       // 안내문: 이 각도 넘어야 "방향 전환"
   var UTURN_DEGREES = 140.0;
   var EPS = 1e-9;
 
@@ -543,9 +543,9 @@
     var angle = Math.atan2(ax * by - ay * bx, ax * bx + ay * by) * 180 / Math.PI;
     var size = Math.abs(angle);
     if (size < TURN_DEGREES) return null;
-    if (size >= UTURN_DEGREES) return '뒤로 돌아';
+    if (size >= UTURN_DEGREES) return '뒤로 방향 전환';
     // 도면 픽셀은 y 가 아래로 증가한다. 진행방향 기준 +y 쪽이 걷는 사람의 오른쪽.
-    return (size >= 100 ? '크게 ' : '') + (angle > 0 ? '오른쪽' : '왼쪽') + '으로 꺾어';
+    return (size >= 100 ? '크게 ' : '') + (angle > 0 ? '오른쪽' : '왼쪽') + '으로 방향 전환';
   }
 
   function polylineLength(points) {
