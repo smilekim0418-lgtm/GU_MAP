@@ -70,18 +70,6 @@ class MemoryCache:
         self.cache[key] = (time.time() + ttl_seconds, content, status_code, media_type)
 
 
-    def get(self, key):
-        if key in self.cache:
-            expiry, content, status_code, media_type = self.cache[key]
-            if time.time() < expiry:
-                return content, status_code, media_type
-            else:
-                del self.cache[key]
-        return None
-
-    def set(self, key, content, status_code, media_type, ttl_seconds):
-        self.cache[key] = (time.time() + ttl_seconds, content, status_code, media_type)
-
 global_cache = MemoryCache()
 
 # Global HTTP client for connection pooling

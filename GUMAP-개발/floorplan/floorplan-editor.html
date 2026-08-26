@@ -5,6 +5,8 @@
 <title>테크노관 도면 보정 도구</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- 본서버와 동일한 길찾기 엔진. 05_build_nav.py 가 프론트로도 그대로 복사한다. -->
+<script src="techno-route-core.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:#0a0f28; color:#e2e8f0; font-family:system-ui,-apple-system,sans-serif;
@@ -65,6 +67,27 @@
   .leaflet-tooltip.lbl::before {
     display: none; /* Hide the little triangle pointer if any */
   }
+
+  /* ── 길찾기 패널 ── */
+  #routeMode.on { background:#0ea5e9; color:#fff; border-color:#0ea5e9; }
+  #routeAvoidWrap { font-size:12px; display:inline-flex; align-items:center; gap:4px; }
+  #routeBox { margin-bottom:12px; font-size:12px; }
+  #routeBox .sum { background:#0f172a; border:1px solid #1e3a5f; border-radius:6px;
+                   padding:8px 10px; margin-bottom:8px; }
+  #routeBox .big { font-size:18px; font-weight:700; color:#38bdf8; }
+  #routeBox .sub { color:#94a3b8; margin-top:2px; }
+  #routeBox ol { margin:0; padding-left:18px; line-height:1.7; }
+  #routeBox li.turn { color:#e2e8f0; }
+  #routeBox li.vert { color:#fbbf24; font-weight:600; }
+  #routeBox .warn-line { color:#fca5a5; margin-top:8px; }
+  #routeBox .floors { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px; }
+  #routeBox .floors button { font-size:11px; padding:2px 8px; }
+  #routeBox .floors button.now { background:#0ea5e9; color:#fff; border-color:#0ea5e9; }
+  /* 길찾기 중에는 도면 라벨을 감춘다. 방 번호 수백 개가 경로선을 덮어버린다. */
+  body.routing .leaflet-tooltip.lbl { display:none; }
+  .leaflet-tooltip.route-lbl { background:#0ea5e9; color:#fff; border:none;
+    font-weight:700; font-size:11px; padding:2px 7px; border-radius:4px; }
+  .leaflet-tooltip.route-lbl::before { display:none; }
 </style>
 </head>
 <body>
@@ -90,6 +113,10 @@
   <button id="purge">잡음 제거</button>
   <button id="undo">되돌리기 (Ctrl+Z)</button>
   <button id="save" class="primary">저장</button>
+  <div class="sep"></div>
+  <button id="routeMode">🧭 길찾기 (R)</button>
+  <select id="routeDest" title="목적지"><option value="">목적지 선택…</option></select>
+  <label id="routeAvoidWrap" title="계단을 쓰지 않는 경로"><input type="checkbox" id="routeAvoid"> 계단 회피</label>
   <span id="stat">로딩 중…</span>
 </div>
 
@@ -103,6 +130,7 @@
       <div class="legend-item"><div class="legend-color" style="background:#38bdf8"></div>계단</div>
       <div class="legend-item"><div class="legend-color" style="background:#f472b6"></div>엘베</div>
     </div>
+    <div id="routeBox" style="display:none"></div>
     <h3 id="side-title">미배치 방</h3>
     <div id="todo"></div>
     <div id="help">
@@ -576,7 +604,7 @@ function snapValue(val, edges) {
   return best!==null ? {val:best,snapped:true} : {val,snapped:false};
 }
 function snapPoint(x, y, edges) {
-  if (state.drawing && state.drawing.type === 'corridor') return {x, y, snappedX: false, snappedY: false};
+  if (state.drawing && (state.drawing.type === 'corridor' || state.drawing.type === 'door')) return {x, y, snappedX: false, snappedY: false};
   const sx=snapValue(x,edges.xs), sy=snapValue(y,edges.ys);
   return {x:sx.val, y:sy.val, snappedX:sx.snapped, snappedY:sy.snapped};
 }
@@ -1093,6 +1121,238 @@ window.addEventListener('beforeunload', ev => {
 map.doubleClickZoom.disable();
 map.boxZoom.disable(); // 쉬프트+드래그(또는 클릭 시 미세 이동)로 인한 원치 않는 확대 방지
 loadFloor('2F');
+
+/* ══════════════════════════════════════════════════════════
+   길찾기 테스트 모드
+   ──────────────────────────────────────────────────────────
+   본서버(map-techno-route.js)와 똑같은 엔진(techno-route-core.js)과
+   똑같은 그래프(work/techno_nav.json)를 쓴다. 여기서 확인한 경로가
+   곧 서비스 경로다. 박스를 고쳤으면 05_build_nav.py --write 로 그래프를
+   다시 구운 뒤 새로고침하면 된다.
+   ══════════════════════════════════════════════════════════ */
+const routeState = {
+  engine: null,
+  on: false,
+  start: null,          // {floor, x, y}
+  result: null,
+  layers: [],
+  startMarker: null
+};
+
+async function initRouting() {
+  try {
+    const res = await fetch(`${API}/work/techno_nav.json?t=${Date.now()}`);
+    if (!res.ok) throw new Error('techno_nav.json 없음 — 05_build_nav.py --write 를 먼저 실행');
+    routeState.engine = TechnoRoute.load(await res.json());
+    fillDestinations();
+  } catch (err) {
+    document.getElementById('routeMode').disabled = true;
+    document.getElementById('routeMode').title = err.message;
+  }
+}
+
+function fillDestinations() {
+  const select = document.getElementById('routeDest');
+  const rooms = routeState.engine.rooms();
+  select.innerHTML = '<option value="">목적지 선택…</option>' +
+    FLOORS.filter(f => rooms.some(r => r.floor === f)).map(floor =>
+      `<optgroup label="${floor}">` +
+      rooms.filter(r => r.floor === floor).map(r =>
+        `<option value="${floor}|${r.room_id}">${r.room_id}` +
+        `${r.corridor_doors === 0 ? ' (문 없음·추정)' : ''}</option>`
+      ).join('') + '</optgroup>'
+    ).join('');
+}
+
+function clearRouteLayers() {
+  routeState.layers.forEach(layer => map.removeLayer(layer));
+  routeState.layers = [];
+}
+
+/** 길찾기 중에는 도면 폴리곤을 흐리게 눌러 경로선이 보이게 한다. */
+function dimPlan(on) {
+  state.layers.forEach(item => {
+    const base = styleFor(item.rec);
+    item.poly.setStyle(on
+      ? { opacity: 0.22, fillOpacity: 0.05, weight: 1 }
+      : base);
+  });
+}
+
+function toggleRouteMode(force) {
+  routeState.on = force === undefined ? !routeState.on : force;
+  const button = document.getElementById('routeMode');
+  button.classList.toggle('on', routeState.on);
+  document.body.classList.toggle('routing', routeState.on);
+  document.getElementById('routeBox').style.display = routeState.on ? '' : 'none';
+  document.getElementById('side-title').style.display = routeState.on ? 'none' : '';
+  document.getElementById('todo').style.display = routeState.on ? 'none' : '';
+  dimPlan(routeState.on);
+  if (routeState.on) {
+    setStat('길찾기: 지도를 클릭해 출발 위치를 찍으세요');
+    deselect();
+    renderRouteBox();
+  } else {
+    clearRouteLayers();
+    if (routeState.startMarker) { map.removeLayer(routeState.startMarker); routeState.startMarker = null; }
+    setStat('길찾기 종료');
+  }
+}
+
+function setRouteStart(x, y) {
+  routeState.start = { floor: state.floor, x: x, y: y };
+  runRoute();
+}
+
+function drawStartMarker() {
+  if (routeState.startMarker) { map.removeLayer(routeState.startMarker); routeState.startMarker = null; }
+  const start = routeState.start;
+  if (!start || start.floor !== state.floor) return;
+  const spot = routeState.engine ? routeState.engine.locate(start.floor, start.x, start.y) : null;
+  const where = spot ? ({ corridor: '복도', room: spot.room_id, outside: '건물 밖' })[spot.where] : '';
+  routeState.startMarker = L.circleMarker(pxToLatLng(start.x, start.y), {
+    radius: 7, color: '#22c55e', fillColor: '#22c55e', fillOpacity: 0.9, weight: 3
+  }).addTo(map).bindTooltip(`출발${where ? ' · ' + where : ''}`,
+    { permanent: true, direction: 'top', className: 'route-lbl' });
+}
+
+function runRoute() {
+  const value = document.getElementById('routeDest').value;
+  if (!routeState.engine || !routeState.start || !value) { renderRouteBox(); return; }
+  const [floor, roomId] = value.split('|');
+  const started = performance.now();
+  try {
+    routeState.result = routeState.engine.route(
+      routeState.start,
+      { room_id: roomId, floor: floor },
+      { avoidStairs: document.getElementById('routeAvoid').checked }
+    );
+    routeState.result.elapsed_ms = performance.now() - started;
+  } catch (err) {
+    routeState.result = { error: err.message };
+  }
+  drawRoute();
+  renderRouteBox();
+}
+
+function drawRoute() {
+  clearRouteLayers();
+  drawStartMarker();
+  const result = routeState.result;
+  if (!result || result.error) return;
+
+  result.legs.forEach(leg => {
+    if (leg.mode !== 'walk' || leg.floor !== state.floor) return;
+    const latlngs = leg.points.map(p => pxToLatLng(p[0], p[1]));
+    routeState.layers.push(
+      L.polyline(latlngs, { color: '#111827', weight: 9, opacity: 0.35 }).addTo(map));
+    routeState.layers.push(
+      L.polyline(latlngs, { color: '#38bdf8', weight: 4, opacity: 1 }).addTo(map));
+  });
+
+  // 층간 이동 지점 표시
+  result.legs.forEach(leg => {
+    if (leg.mode === 'walk') return;
+    if (leg.floor === state.floor) {
+      routeState.layers.push(L.circleMarker(pxToLatLng(leg.points[0][0], leg.points[0][1]), {
+        radius: 8, color: '#fbbf24', fillColor: '#fbbf24', fillOpacity: 0.9, weight: 2
+      }).addTo(map).bindTooltip(
+        `${leg.name} ${leg.mode === 'stairs' ? '계단' : '엘베'} → ${leg.to_floor}`,
+        { permanent: true, direction: 'right', className: 'route-lbl' }));
+    }
+    if (leg.to_floor === state.floor) {
+      routeState.layers.push(L.circleMarker(pxToLatLng(leg.points[1][0], leg.points[1][1]), {
+        radius: 8, color: '#fbbf24', fillColor: '#fbbf24', fillOpacity: 0.9, weight: 2
+      }).addTo(map).bindTooltip(`${leg.name} 에서 내림`,
+        { permanent: true, direction: 'right', className: 'route-lbl' }));
+    }
+  });
+
+  if (result.destination.floor === state.floor) {
+    routeState.layers.push(L.circleMarker(
+      pxToLatLng(result.destination.point[0], result.destination.point[1]), {
+        radius: 8, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.9, weight: 3
+      }).addTo(map).bindTooltip(
+        `${result.destination.room_id} 문` +
+        (result.destination.kind === 'estimated' ? ' (추정)' : ''),
+        { permanent: true, direction: 'top', className: 'route-lbl' }));
+  }
+}
+
+function renderRouteBox() {
+  const box = document.getElementById('routeBox');
+  const result = routeState.result;
+  if (!routeState.start) {
+    box.innerHTML = '<div class="sum">지도를 클릭해 <b>출발 위치</b>를 찍고, 위에서 목적지를 고르세요.</div>';
+    return;
+  }
+  if (!result) {
+    box.innerHTML = '<div class="sum">목적지를 고르세요.</div>';
+    return;
+  }
+  if (result.error) {
+    box.innerHTML = `<div class="sum" style="border-color:#7f1d1d"><b>경로 없음</b><div class="sub">${result.error}</div></div>`;
+    return;
+  }
+
+  const minutes = Math.max(1, Math.round(result.duration_s / 60));
+  const floorsUsed = [];
+  result.legs.forEach(leg => {
+    if (!floorsUsed.includes(leg.floor)) floorsUsed.push(leg.floor);
+    if (leg.to_floor && !floorsUsed.includes(leg.to_floor)) floorsUsed.push(leg.to_floor);
+  });
+
+  box.innerHTML =
+    `<div class="sum">
+       <div class="big">${result.distance_m.toFixed(0)}m · 약 ${minutes}분</div>
+       <div class="sub">보행 ${result.walk_distance_m.toFixed(0)}m` +
+       (result.vertical_m ? ` · 수직 ${result.vertical_m.toFixed(0)}m` : '') +
+       ` · ${result.duration_s.toFixed(0)}초 · 계산 ${result.elapsed_ms.toFixed(1)}ms</div>
+       <div class="sub">도착: ${result.destination.floor} ${result.destination.room_id} ` +
+       `${result.destination.kind === 'estimated' ? '추정 진입점' : '문 중앙'}</div>
+     </div>
+     <div class="floors">` +
+       floorsUsed.map(floor =>
+         `<button data-floor="${floor}" class="${floor === state.floor ? 'now' : ''}">${floor}</button>`
+       ).join('') +
+     `</div>
+     <ol>` + result.steps.map(step => {
+       const vertical = step.includes('계단 이용') || step.includes('엘리베이터 이용');
+       return `<li class="${vertical ? 'vert' : 'turn'}">${step}</li>`;
+     }).join('') + `</ol>` +
+     (result.warnings.length
+       ? `<div class="warn-line">⚠ ${result.warnings.join('<br>⚠ ')}</div>` : '');
+
+  box.querySelectorAll('.floors button').forEach(button => {
+    button.onclick = async () => {
+      document.getElementById('floor').value = button.dataset.floor;
+      await loadFloor(button.dataset.floor);
+    };
+  });
+}
+
+// 층을 바꾸면 그 층에 해당하는 구간만 다시 그린다.
+const loadFloorWithoutRoute = loadFloor;
+loadFloor = async function (floor) {
+  await loadFloorWithoutRoute(floor);
+  if (routeState.on) { dimPlan(true); drawRoute(); renderRouteBox(); }
+};
+
+map.on('click', e => {
+  if (!routeState.on || state.drawing) return;
+  const [x, y] = latLngToPx(e.latlng);
+  setRouteStart(x, y);
+});
+
+document.getElementById('routeMode').onclick = () => toggleRouteMode();
+document.getElementById('routeDest').onchange = runRoute;
+document.getElementById('routeAvoid').onchange = runRoute;
+document.addEventListener('keydown', ev => {
+  if (ev.target.tagName === 'INPUT' || ev.target.tagName === 'SELECT') return;
+  if (!ev.ctrlKey && (ev.key === 'r' || ev.key === 'R')) toggleRouteMode();
+});
+
+initRouting();
 
 </script>
 </body>
