@@ -251,9 +251,9 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
   </h4>
   ${tagBadges ? `<div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:2px;">${tagBadges}</div>` : ''}
   <div style="font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:10px;padding:8px;background:var(--bg-input);border-radius:8px;border:1px solid var(--border-panel);">
-    <div>🏛️ <b>구분:</b> <span style="color:#e2e8f0">${escHtml(st.name)}</span></div>
-    ${props.department ? `<div>🏫 <b>소속:</b> <span style="color:#e2e8f0">${escHtml(props.department)}</span></div>` : ''}
-    <div>🌐 <b>표준ID:</b> <span style="color:#64748b;font-family:monospace;font-size:9px">${unit.id.slice(0,18)}…</span></div>
+    <div>🏛️ <b>구분:</b> <span style="color:var(--text-main)">${escHtml(st.name)}</span></div>
+    ${props.department ? `<div>🏫 <b>소속:</b> <span style="color:var(--text-main)">${escHtml(props.department)}</span></div>` : ''}
+    <div>🌐 <b>표준ID:</b> <span style="color:var(--text-muted);font-family:monospace;font-size:9px">${unit.id.slice(0,18)}…</span></div>
   </div>
   <div style="display:flex;gap:6px;">
     <button onclick="window.routeToTechnoRoom('${escHtml(labelStr || displayName)}', '${unit.id}')"
@@ -354,9 +354,9 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       🏫 테크노관 실내지도
       <span style="font-size:9px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:1px 6px;border-radius:10px;font-weight:700;">OGC IMDF</span>
     </div>
-    <div style="font-size:10px;color:#64748b;margin-top:2px;">국제표준(B1F~6F) 366개 실내공간</div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">국제표준(B1F~6F) 366개 실내공간</div>
   </div>
-  <button id="ti-close" style="background:none;border:none;color:#64748b;font-size:16px;cursor:pointer;padding:2px;">✕</button>
+  <button id="ti-close" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:2px;">✕</button>
 </div>
 
 <!-- 실내 검색창 -->
@@ -371,12 +371,12 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
 <!-- 층 선택 버튼 그리드 -->
 <div>
-  <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:6px;">층 선택 (LEVEL)</div>
+  <div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-bottom:6px;">층 선택 (LEVEL)</div>
   <div id="ti-floor-btns" style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;"></div>
 </div>
 
 <!-- 범주 범례 -->
-<div style="font-size:9px;color:#64748b;display:flex;flex-wrap:wrap;gap:6px;padding-top:4px;border-top:1px solid rgba(255,255,255,.06);">
+<div style="font-size:9px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:6px;padding-top:4px;border-top:1px solid rgba(255,255,255,.06);">
   <span>🔬 연구실</span>
   <span>📚 강의실</span>
   <span>💼 교수실</span>
@@ -450,14 +450,14 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
             if (!hits.length) {
                 sr.style.display = 'block';
-                sr.innerHTML = '<div style="padding:8px;font-size:11px;color:#64748b;text-align:center;">검색 결과가 없습니다.</div>';
+                sr.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">검색 결과가 없습니다.</div>';
                 return;
             }
 
             sr.style.display = 'block';
             sr.innerHTML = hits.slice(0, 10).map(h => `
 <div onclick="window._focusTechnoImdfUnit('${h.unit.id}', '${h.levelShort}')"
-  style="padding:6px 8px;font-size:11px;color:#e2e8f0;cursor:pointer;border-radius:6px;
+  style="padding:6px 8px;font-size:11px;color:var(--text-main);cursor:pointer;border-radius:6px;
          display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"
   onmouseover="this.style.background='rgba(255,255,255,.1)'"
   onmouseout="this.style.background='transparent'">
