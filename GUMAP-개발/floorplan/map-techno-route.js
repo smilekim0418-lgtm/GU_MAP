@@ -97,6 +97,9 @@
 
     window.getTechnoRouteResult = function () { return result; };
 
+    /** 실내 출발점을 찍는 중인지. 실외 클릭 팝업이 끼어들지 않게 쓴다. */
+    window.isTechnoRoutePicking = function () { return pickingStart; };
+
     /* ───────────────────── 렌더링 ───────────────────── */
 
     function render() {
