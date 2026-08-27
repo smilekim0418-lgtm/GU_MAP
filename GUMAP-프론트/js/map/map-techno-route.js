@@ -48,12 +48,17 @@
         var pixels = engine.latLngToPx(floor, lat, lng);
         if (!pixels) return null;
         start = { floor: floor, x: pixels[0], y: pixels[1] };
+        outdoorStart = null;
         var spot = engine.locate(floor, pixels[0], pixels[1]);
         if (spot.where === 'unknown' || spot.where === 'outside') {
             if (window.showToast) window.showToast('⚠ 테크노관 ' + floor + ' 안쪽을 눌러 주세요');
         }
         pickingStart = false;
         paintPickButton();
+        // 실외 패널의 출발지 칸·핀도 같은 곳을 가리키게 한다
+        mirrorStartOutdoors(lat, lng, floor + ' ' +
+            (spot.where === 'room' ? spot.room_id : '복도'));
+        resetPlayback();
 
         // 목적지가 이미 정해져 있으면 바로 길을 찾는다.
         // "여기까지 길찾기" → "지도를 클릭하세요" → 클릭 순서로 오면 여기서
@@ -89,6 +94,7 @@
     };
 
     window.clearTechnoRoute = function () {
+        outdoorStart = null;
         resetPlayback();
         if (play.group && window.map && window.map.hasLayer(play.group)) {
             window.map.removeLayer(play.group);
@@ -104,6 +110,86 @@
 
     /** 실내 출발점을 찍는 중인지. 실외 클릭 팝업이 끼어들지 않게 쓴다. */
     window.isTechnoRoutePicking = function () { return pickingStart; };
+
+    window.getTechnoRouteStart = function () {
+        return start ? { floor: start.floor, x: start.x, y: start.y, where: 'indoor' }
+                     : (outdoorStart ? { where: 'outdoor', lat: outdoorStart.lat,
+                                         lng: outdoorStart.lng, name: outdoorStart.name }
+                                     : null);
+    };
+
+    /* ─────────────── 실외 출발지/도착지와 하나로 묶기 ───────────────
+     *
+     * 실외 팝업의 "🛫 출발지"(setRoutingPoint)와 실내 길찾기의 출발점은 서로를
+     * 몰라서 따로 놀았다. 허공을 눌러 출발지를 찍고 방 박스에서 "여기까지
+     * 길찾기"를 눌러도 아무 일이 없었던 이유다.
+     *
+     * 이제 출발지는 한 곳에서 관리한다. 어디를 눌렀든:
+     *   건물 안  → 실내 출발점으로 잡고, 목적지가 정해져 있으면 바로 길찾기
+     *   건물 밖  → 실외 출발지로 두고, 방을 고르면 그 방을 실외 도착지로 잡는다
+     *              (외부 출입문이 아직 그래프에 없어 실내 구간은 못 잇는다)
+     */
+
+    var outdoorStart = null;      // 건물 밖 출발지 {lat, lng, name}
+    var syncing = false;          // setRoutingPoint ↔ setTechnoRouteStart 재귀 방지
+    var nativeSetRoutingPoint = null;
+
+    /** 건물 외곽 폴리곤 안인가. IMDF building 링은 [lon, lat] 순서다. */
+    function insideBuilding(lat, lng) {
+        var bundle = window.IMDF_TECHNO_DATA;
+        if (!bundle || !window.TechnoRoute) return false;
+        var features = (bundle.building && bundle.building.features) || [];
+        if (!features.length || !features[0].geometry) return false;
+        var rings = features[0].geometry.coordinates;
+        return window.TechnoRoute._geometry.pointInRings(rings, lng, lat);
+    }
+
+    /** 실외에서 찍은 출발지를 실내 쪽으로 받아들인다. */
+    function adoptStart(lat, lng, name) {
+        if (!engine) return;
+        if (!insideBuilding(lat, lng)) {
+            outdoorStart = { lat: lat, lng: lng, name: name || '지정한 위치' };
+            start = null;
+            resetPlayback();
+            render();
+            return;
+        }
+        outdoorStart = null;
+        // 여러 층이 같은 좌표에 겹쳐 있으므로 "지금 보고 있는 층"으로 본다.
+        var floor = window.technoActiveFloor || '1F';
+        syncing = true;
+        try {
+            window.setTechnoRouteStart(lat, lng, floor);
+        } finally {
+            syncing = false;
+        }
+    }
+
+    /** 실외 setRoutingPoint 를 감싸 출발지를 공유한다. map-click.js 가 나중에
+     *  로드되므로 존재를 확인한 뒤 한 번만 감싼다. */
+    function wrapRoutingPoint() {
+        if (typeof window.setRoutingPoint !== 'function') return;
+        if (window.setRoutingPoint.__gumapWrapped) return;
+        nativeSetRoutingPoint = window.setRoutingPoint;
+        var wrapped = function (type, lat, lng, name) {
+            var outcome = nativeSetRoutingPoint.apply(this, arguments);
+            if (type === 'START' && !syncing) adoptStart(lat, lng, name);
+            return outcome;
+        };
+        wrapped.__gumapWrapped = true;
+        window.setRoutingPoint = wrapped;
+    }
+
+    /** 실내 출발점을 실외 패널에도 반영한다 (핀 · 출발지 칸). */
+    function mirrorStartOutdoors(lat, lng, label) {
+        if (syncing || typeof nativeSetRoutingPoint !== 'function') return;
+        syncing = true;
+        try {
+            nativeSetRoutingPoint('START', lat, lng, label);
+        } finally {
+            syncing = false;
+        }
+    }
 
     /* ───────────────────── 렌더링 ───────────────────── */
 
@@ -567,14 +653,26 @@
         if (!box) return;
 
         if (!result || result.error) {
+            var idle;
+            if (result && result.error) {
+                idle = '<span style="color:#b91c1c;">경로 없음 · ' +
+                       escapeHtml(result.error) + '</span>';
+            } else if (pickingStart) {
+                idle = '<span style="color:#b45309;">🧭 출발 위치를 지도에서 눌러 주세요</span>';
+            } else if (outdoorStart) {
+                // 실외 출발지는 실내 그래프에 붙일 데가 없다. 외부 출입문을
+                // 등록하기 전까지는 이 상태를 숨기지 말고 그대로 알린다.
+                idle = '<span style="color:#b45309;">🚧 출발지가 건물 밖입니다 (' +
+                       escapeHtml(outdoorStart.name) + ')<br>' +
+                       '외부 출입문이 등록되면 실내까지 이어집니다. ' +
+                       '지금은 건물 안에서 출발지를 다시 찍어 주세요.</span>';
+            } else {
+                idle = '<span style="color:var(--text-muted);">' +
+                       '실내 길찾기: 출발 지점을 찍고 방을 고르세요</span>';
+            }
             box.innerHTML =
                 '<div style="padding:8px;border-top:1px solid rgba(255,255,255,.1);">' +
-                (result && result.error
-                    ? '<span style="color:#b91c1c;">경로 없음 · ' + escapeHtml(result.error) + '</span>'
-                    : (pickingStart
-                        ? '<span style="color:#b45309;">🧭 출발 위치를 지도에서 눌러 주세요</span>'
-                        : '<span style="color:var(--text-muted);">실내 길찾기: 출발 지점을 찍고 방을 고르세요</span>')) +
-                '</div>';
+                idle + '</div>';
             return;
         }
 
@@ -655,9 +753,26 @@
         window.routeToTechnoRoom = function (roomName, unitId) {
             var floor = floorOfUnit(unitId) || window.technoActiveFloor;
             var room = findRoom(roomName, floor);
-            if (!engine || !room) {
-                if (typeof fallback === 'function') return fallback.apply(this, arguments);
-                return;
+
+            if (engine && !room) {
+                // 복도·계단·엘리베이터처럼 방이 아닌 공간을 누른 경우.
+                // 목적지로 삼을 수 없다고 말해 주고 끝낸다.
+                if (window.showToast) {
+                    window.showToast('🚧 ' + roomName + ' 은(는) 목적지로 지정할 수 없습니다 ' +
+                        '(방만 가능)');
+                }
+                return null;
+            }
+            if (!room) {
+                // 테크노관 방이 아니면 원래 동작으로. 실외 경로 패널은 경로가
+                // 없을 때 터지는 일이 있어 여기서 막는다.
+                if (typeof fallback !== 'function') return null;
+                try {
+                    return fallback.apply(this, arguments);
+                } catch (error) {
+                    console.warn('[실내길찾기] 실외 길찾기 폴백 실패:', error);
+                    return null;
+                }
             }
 
             var host = document.getElementById('techno-indoor-panel');
@@ -669,6 +784,31 @@
                 select.value = room.floor + '|' + room.room_id;
             }
             if (window.map) window.map.closePopup();
+
+            // 건물 밖에서 출발한 경우. 외부 출입문이 그래프에 없어 실내 구간을
+            // 이을 수 없다. 대신 그 방을 실외 도착지로 잡아 건물까지는 안내되게
+            // 하고, 왜 실내 구간이 없는지 분명히 말한다.
+            if (!start && outdoorStart) {
+                if (typeof nativeSetRoutingPoint === 'function') {
+                    var doorway = roomLatLng(room);
+                    if (doorway) {
+                        syncing = true;
+                        try {
+                            nativeSetRoutingPoint('END', doorway[0], doorway[1],
+                                '테크노관 ' + room.floor + ' ' + room.room_id);
+                        } finally {
+                            syncing = false;
+                        }
+                    }
+                }
+                if (window.showToast) {
+                    window.showToast('🚧 건물 밖에서 출발했습니다. 도착지를 테크노관 ' +
+                        room.floor + ' ' + room.room_id + ' 로 잡았지만, 외부 출입문이 ' +
+                        '아직 등록되지 않아 실내 구간은 잇지 못합니다');
+                }
+                renderPanel();
+                return null;
+            }
 
             if (!start) {
                 pickingStart = true;
@@ -684,6 +824,18 @@
                 avoidStairs: !!(document.getElementById('tr-avoid') || {}).checked
             });
         };
+    }
+
+    /** 방의 대표 위경도. 복도 문이 있으면 그 문, 없으면 방 중심. */
+    function roomLatLng(room) {
+        if (!engine) return null;
+        var doors = engine.corridorDoors(room.floor, room.room_id);
+        if (doors.length) {
+            var node = engine.nodes[doors[0]];
+            return engine.pxToLatLng(room.floor, node.x, node.y);
+        }
+        var centre = room.centroid;
+        return centre ? engine.pxToLatLng(room.floor, centre[0], centre[1]) : null;
     }
 
     /** IMDF 유닛 id → 층 짧은 이름 (예: "3F"). */
@@ -726,6 +878,7 @@
         if (!window.map || !engine) return;
 
         hookRoomButton();
+        wrapRoutingPoint();
 
         window.map.on('click', function (event) {
             if (!pickingStart) return;
@@ -736,6 +889,7 @@
         // 실내지도 패널은 건물에 충분히 가까워졌을 때 비로소 만들어진다.
         // 그때 조작부를 끼워 넣고, 층 전환도 함께 지켜본다.
         setInterval(function () {
+            wrapRoutingPoint();
             var host = document.getElementById('techno-indoor-panel');
             if (host && !document.getElementById('techno-route-controls')) {
                 ensureControls(host);
