@@ -267,32 +267,54 @@ window.onload = function() {
                     iconAnchor: [6, 6]
                 });
                 let marker = L.marker([s.lat, s.lng], { icon: icon });
-                if (window.map.getZoom() >= 16) marker.addTo(window.map);
-                
+
                 marker.on('click', function() {
                     if (typeof openStopInfo === 'function') {
                         openStopInfo(s.name, s.lat, s.lng);
                     }
                 });
-                
+
                 window.stationMarkers.push(marker);
             }
         }
     }
 
-    // 줌 레벨에 따른 정류장 마커 숨김 처리
-    window.map.on('zoomend', function() {
-        let level = window.map.getZoom();
-        let shouldShow = level >= 16;
-        
+    // 정류장 마커는 **보이는 범위만** 지도에 올린다.
+    //
+    // 예전에는 zoom 16 이상이면 구미시 전역 2,178개를 전부 지도에 올렸다.
+    // 건물 하나를 보는 zoom 19 에서도 2,178개가 그대로 DOM 에 남아, 화면에
+    // 하나도 안 보이면서 매 프레임 레이아웃·페인트 비용을 만들었다
+    // (측정: 지도 이동 중 30fps, 화면 밖 마커를 걷어내면 60fps).
+    // zoomend 마다 2,178개를 전부 addTo/remove 하던 것도 같은 이유로 없앴다.
+    window.MIN_STATION_ZOOM = 16;
+
+    window.syncStationMarkers = function () {
+        if (!window.map || !window.stationMarkers.length) return;
+
+        const visible = window.map.getZoom() >= window.MIN_STATION_ZOOM;
+        // 가장자리에서 마커가 늦게 뜨는 느낌을 막으려고 화면보다 조금 넓게 잡는다.
+        const bounds = visible ? window.map.getBounds().pad(0.25) : null;
+
+        let shown = 0;
         window.stationMarkers.forEach(marker => {
-            if (shouldShow) {
+            const want = visible && bounds.contains(marker.getLatLng());
+            if (want === !!marker._gumapOnMap) {
+                if (want) shown++;
+                return;                    // 상태가 그대로면 DOM 을 건드리지 않는다
+            }
+            if (want) {
                 marker.addTo(window.map);
+                shown++;
             } else {
                 marker.remove();
             }
+            marker._gumapOnMap = want;
         });
-    });
+        return shown;
+    };
+
+    window.map.on('moveend zoomend', window.syncStationMarkers);
+    window.syncStationMarkers();
 
     // 즐겨찾기 초기 렌더링
     if (typeof window.renderFavorites === 'function') {

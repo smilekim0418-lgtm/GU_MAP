@@ -49,15 +49,40 @@
     filter: brightness(1.05);
 }
 
+/* 정류장 마커.
+ *
+ * 예전에는 markerPulse 로 box-shadow 를 무한 애니메이션했다. box-shadow 는
+ * GPU 합성이 안 되는 페인트 속성이라, 마커 하나하나를 매 프레임 다시 그려야
+ * 한다. 정류장이 2,178개라 그 비용이 브라우저 전체를 30fps 로 끌어내렸다.
+ *
+ * 지금은 퍼지는 링을 ::after 로 분리해 transform 과 opacity 만 애니메이션한다.
+ * 둘 다 합성 전용 속성이라 레이아웃도 페인트도 다시 하지 않는다. 겉모습은
+ * 그대로다 (가운데 점 + 퍼지며 사라지는 링). */
 .bus-stop-glow-marker {
+    position: relative;
     width: 12px;
     height: 12px;
     background: #10b981;
     border: 2px solid #ffffff;
     border-radius: 50%;
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.4);
-    animation: markerPulse 2.2s infinite ease-in-out;
     box-sizing: border-box;
+}
+
+.bus-stop-glow-marker::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 2px solid rgba(16, 185, 129, 0.7);
+    animation: markerPulseRing 2.2s infinite ease-out;
+    will-change: transform, opacity;
+    pointer-events: none;
+}
+
+/* 사용자가 모션 최소화를 켰으면 펄스를 끈다 */
+@media (prefers-reduced-motion: reduce) {
+    .bus-stop-glow-marker::after { animation: none; opacity: 0; }
 }
 
 .bus-stop-glow-marker-inner {

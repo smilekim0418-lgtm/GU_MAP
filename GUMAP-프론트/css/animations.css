@@ -1,16 +1,21 @@
-/* 버스 정류장 맥박 애니메이션 */
-@keyframes markerPulse {
+/* 버스 정류장 맥박 애니메이션.
+ *
+ * transform 과 opacity 만 쓴다. 둘 다 GPU 합성 전용이라 레이아웃도 페인트도
+ * 다시 하지 않는다. 예전 markerPulse 는 box-shadow 를 애니메이션했는데,
+ * box-shadow 는 페인트 속성이라 마커마다 매 프레임 재래스터화가 필요했고
+ * 정류장 2,178개에 걸리자 브라우저 전체가 30fps 로 떨어졌다. */
+@keyframes markerPulseRing {
     0% {
-        transform: scale(0.9);
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        transform: scale(1);
+        opacity: 0.7;
     }
     70% {
-        transform: scale(1.1);
-        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+        transform: scale(2.3);
+        opacity: 0;
     }
     100% {
-        transform: scale(0.9);
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        transform: scale(2.3);
+        opacity: 0;
     }
 }
 
