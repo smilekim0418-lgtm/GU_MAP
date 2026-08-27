@@ -21,6 +21,12 @@ MAX_FRAME_MS = 20.0        # 60fps 예산 16.7ms + 여유
 MAX_DOM_MARKERS = 300      # 건물 하나 화면에서 이 이상이면 컬링이 안 되는 것
 MAX_PAINT_ANIMATIONS = 300  # 페인트 유발 무한 애니메이션 요소 수
 
+# 프레임 판정은 머신 상태를 탄다. 테스트를 여러 개 동시에 돌리면 빈 페이지도
+# 30fps 로 떨어져 멀쩡한 코드가 실패했다. 그래서 같은 실행 안에서 빈 페이지를
+# 대조군으로 재고, 그보다 이만큼 넘게 나쁘면 그때 실패로 본다.
+# 마커 개수와 페인트 애니메이션 개수는 부하와 무관하므로 그대로 엄격히 본다.
+CONTROL_TOLERANCE = 1.3
+
 PAN_PROBE = """
 () => new Promise(resolve => {
   const frames = [];
@@ -67,10 +73,35 @@ COUNT_PAINT_ANIMATIONS = """() => {
 }"""
 
 
+CONTROL_PROBE = """
+() => new Promise(resolve => {
+  const frames = [];
+  let last = performance.now();
+  let count = 0;
+  function tick(now) {
+    frames.push(now - last);
+    last = now;
+    if (++count < 90) requestAnimationFrame(tick);
+    else { frames.sort((a, b) => a - b); resolve(frames[Math.floor(frames.length / 2)]); }
+  }
+  requestAnimationFrame(tick);
+})
+"""
+
+
 def main() -> int:
     failures = []
     with sync_playwright() as play:
         browser = play.chromium.launch()
+
+        # 이 머신이 지금 낼 수 있는 최선을 먼저 잰다
+        control_page = browser.new_page()
+        control_page.set_content("<h1>control</h1>")
+        control = control_page.evaluate(CONTROL_PROBE)
+        budget = max(MAX_FRAME_MS, control * CONTROL_TOLERANCE)
+        print(f"대조군(빈 페이지) 프레임 중앙값 {control:.1f}ms "
+              f"({round(1000 / control)}fps) → 이번 판정 기준 {budget:.1f}ms")
+
         page = browser.new_page(viewport={"width": 1500, "height": 900})
         page.goto(URL, wait_until="load", timeout=60000)
         page.wait_for_function("() => window.map", timeout=60000)
@@ -94,8 +125,8 @@ def main() -> int:
         frames = page.evaluate(PAN_PROBE)
         print(f"지도 이동 중 프레임 중앙값 {frames['median']:.1f}ms "
               f"({round(1000 / frames['median'])}fps) · p95 {frames['p95']:.1f}ms")
-        if frames["median"] > MAX_FRAME_MS:
-            failures.append(f"프레임 중앙값 {frames['median']:.1f}ms (기준 {MAX_FRAME_MS}ms 이하)")
+        if frames["median"] > budget:
+            failures.append(f"프레임 중앙값 {frames['median']:.1f}ms (기준 {budget:.1f}ms 이하)")
 
         # 시야에 정류장이 실제로 많은 축척에서도 예산을 지키는지
         page.evaluate("() => window.map.setView([36.1195, 128.3446], 16)")
@@ -105,9 +136,9 @@ def main() -> int:
         wide = page.evaluate(PAN_PROBE)
         print(f"구미 시내 zoom 16: DOM 마커 {wide_markers}개 · "
               f"프레임 중앙값 {wide['median']:.1f}ms ({round(1000 / wide['median'])}fps)")
-        if wide["median"] > MAX_FRAME_MS:
+        if wide["median"] > budget:
             failures.append(f"zoom 16 프레임 중앙값 {wide['median']:.1f}ms "
-                            f"(기준 {MAX_FRAME_MS}ms 이하)")
+                            f"(기준 {budget:.1f}ms 이하)")
 
         browser.close()
 

@@ -54,6 +54,15 @@
         }
         pickingStart = false;
         paintPickButton();
+
+        // 목적지가 이미 정해져 있으면 바로 길을 찾는다.
+        // "여기까지 길찾기" → "지도를 클릭하세요" → 클릭 순서로 오면 여기서
+        // 이어 주지 않는 한 아무 일도 일어나지 않는다.
+        var select = document.getElementById('tr-dest');
+        if (select && select.value) {
+            runFromControls();
+            return spot;
+        }
         render();
         return spot;
     };
@@ -165,6 +174,18 @@
 
     /** 실내지도 패널 안에 길찾기 조작부를 한 번만 만든다. */
     function ensureControls(host) {
+        // 패널은 높이 제한이 없어서, 경로 안내가 길어지면 화면 아래로 잘려
+        // 나갔다 (예: "출발 · 2F 지정 위치" 아래가 통째로 안 보임).
+        // 뷰포트를 넘지 않게 잡고 넘치면 스크롤시킨다.
+        host.style.maxHeight = 'calc(100vh - 95px)';
+        host.style.overflowY = 'auto';
+        host.style.overscrollBehavior = 'contain';
+        // 패널 위에서 굴린 휠이 지도 줌으로 새지 않게 한다
+        if (!host.__gumapWheelGuard && window.L && L.DomEvent) {
+            L.DomEvent.disableScrollPropagation(host);
+            host.__gumapWheelGuard = true;
+        }
+
         if (document.getElementById('techno-route-controls')) return;
 
         var block = document.createElement('div');
@@ -316,7 +337,7 @@
                            '">' + escapeHtml(step) + '</li>';
                 }).join('') +
               '</ol>' +
-              (false
+              (result.warnings.length
                 ? '<div style="color:#b91c1c;margin-top:6px;">⚠ ' +
                   result.warnings.map(escapeHtml).join('<br>⚠ ') + '</div>' : '') +
               '<button onclick="window.clearTechnoRoute()" style="margin-top:8px;width:100%;' +
@@ -334,8 +355,89 @@
 
     /* ───────────────────── 지도 연결 ───────────────────── */
 
+    /** 방 팝업의 "🧭 여기까지 길찾기" 를 실내 길찾기로 연결한다.
+     *
+     * map-techno-indoor.js 의 원래 구현은 실외 검색창을 채우고 실외 경로
+     * 패널을 여는 게 전부라, 실내에서 누르면 아무 일도 일어나지 않는 것처럼
+     * 보였다. 그 모듈을 고치는 대신 여기서 감싼다 (로드 순서상 indoor.js 가
+     * 먼저 뜨므로 안전하다). 테크노관 방이 아니면 원래 동작으로 넘긴다.
+     */
+    function hookRoomButton() {
+        var fallback = window.routeToTechnoRoom;
+        window.routeToTechnoRoom = function (roomName, unitId) {
+            var floor = floorOfUnit(unitId) || window.technoActiveFloor;
+            var room = findRoom(roomName, floor);
+            if (!engine || !room) {
+                if (typeof fallback === 'function') return fallback.apply(this, arguments);
+                return;
+            }
+
+            var host = document.getElementById('techno-indoor-panel');
+            if (host) ensureControls(host);
+            var select = document.getElementById('tr-dest');
+            if (select) {
+                var filter = document.getElementById('tr-filter');
+                if (filter) { filter.value = ''; fillDestinations(); }
+                select.value = room.floor + '|' + room.room_id;
+            }
+            if (window.map) window.map.closePopup();
+
+            if (!start) {
+                pickingStart = true;
+                paintPickButton();
+                renderPanel();
+                if (window.showToast) {
+                    window.showToast('🧭 목적지 ' + room.floor + ' ' + room.room_id +
+                        ' · 이제 출발 위치를 지도에서 눌러 주세요');
+                }
+                return null;
+            }
+            return window.routeInsideTechno(room.room_id, room.floor, {
+                avoidStairs: !!(document.getElementById('tr-avoid') || {}).checked
+            });
+        };
+    }
+
+    /** IMDF 유닛 id → 층 짧은 이름 (예: "3F"). */
+    function floorOfUnit(unitId) {
+        var bundle = window.IMDF_TECHNO_DATA;
+        if (!bundle || !unitId) return null;
+        var unit = (bundle.units.features || []).find(function (u) { return u.id === unitId; });
+        if (!unit) return null;
+        var level = (bundle.levels.features || []).find(function (l) {
+            return l.id === unit.properties.level_id;
+        });
+        if (!level) return null;
+        var name = level.properties.short_name;
+        return name ? (name['ko-KR'] || name.en || null) : null;
+    }
+
+    /** 팝업이 넘겨준 이름으로 그래프의 방을 찾는다. 방 번호가 우선이다. */
+    function findRoom(roomName, floor) {
+        if (!engine || !roomName) return null;
+        var label = String(roomName).trim();
+        var rooms = engine.rooms();
+        var exact = rooms.filter(function (row) { return row.room_id === label; });
+        if (exact.length === 1) return exact[0];
+        if (exact.length > 1 && floor) {
+            var onFloor = exact.filter(function (row) { return row.floor === floor; });
+            if (onFloor.length) return onFloor[0];
+        }
+        if (exact.length) return exact[0];
+        // 이름이 방 번호가 아니면(예: "전자공학실") 층 안에서 번호가 섞여 있는지 본다
+        if (floor) {
+            var guess = rooms.filter(function (row) {
+                return row.floor === floor && label.indexOf(row.room_id) >= 0;
+            });
+            if (guess.length === 1) return guess[0];
+        }
+        return null;
+    }
+
     function attach() {
         if (!window.map || !engine) return;
+
+        hookRoomButton();
 
         window.map.on('click', function (event) {
             if (!pickingStart) return;
