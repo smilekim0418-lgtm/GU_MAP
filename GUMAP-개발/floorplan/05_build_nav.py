@@ -97,12 +97,36 @@ def build_payload(graph: nav.NavGraph, transform_data: dict) -> dict:
         if node.kind == "entry"
     }
 
+    # 건물 밖에서 들어오는 출입구. 실외 출발지를 여기에 붙인다.
+    # 위경도까지 실어 보내야 브라우저가 좌표 변환 없이 가장 가까운 곳을 고른다.
+    transform = georef.transform_from(transform_data)
+    origins = transform_data.get("floor_origin_px") or {}
+    per_mm = transform_data.get("floor_px_per_mm") or {}
+    entrances = []
+    for index, node_id in enumerate(graph.entrances):
+        node = graph.nodes[node_id]
+        origin = origins.get(node.floor)
+        scale = per_mm.get(node.floor)
+        if not origin or not scale:
+            continue
+        x_m = (node.x - origin[0]) / scale / 1000.0
+        y_m = -(node.y - origin[1]) / scale / 1000.0
+        lon, lat = georef.apply(transform, x_m, y_m)
+        entrances.append({
+            "node": order[node_id],
+            "floor": node.floor,
+            "name": node.name or f"출입구 {index + 1}",
+            "lat": round(lat, 8),
+            "lon": round(lon, 8),
+        })
+
     return {
         "meta": {
             "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "building": "테크노관",
             "floors": [floor for floor in config.FLOORS if floor in graph.floors],
-            "counts": {"nodes": len(nodes), "edges": len(edges)},
+            "counts": {"nodes": len(nodes), "edges": len(edges),
+                       "entrances": len(entrances)},
             "cost": {
                 "walk_speed_mps": route.WALK_SPEED_MPS,
                 "stair_seconds_per_floor": route.STAIR_SECONDS_PER_FLOOR,
@@ -125,6 +149,7 @@ def build_payload(graph: nav.NavGraph, transform_data: dict) -> dict:
         "edges": edges,
         "doors_by_room": doors_by_room,
         "entries_by_room": entries_by_room,
+        "entrances": entrances,
         "rooms": route.room_index(graph),
     }
 

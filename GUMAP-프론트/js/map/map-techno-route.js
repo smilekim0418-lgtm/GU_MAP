@@ -22,7 +22,9 @@
     var STYLE = {
         halo:  { color: '#0f172a', weight: 11, opacity: 0.35, lineCap: 'round', lineJoin: 'round' },
         line:  { color: '#22d3ee', weight: 5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' },
-        ghost: { color: '#64748b', weight: 3, opacity: 0.35, dashArray: '6,8' }
+        ghost: { color: '#64748b', weight: 3, opacity: 0.35, dashArray: '6,8' },
+        outdoor: { color: '#16a34a', weight: 5, opacity: 0.9, dashArray: '10,6',
+                   lineCap: 'round' }
     };
 
     function init() {
@@ -211,6 +213,14 @@
         if (!result || result.error) { renderPanel(); return; }
 
         result.legs.forEach(function (leg) {
+            if (leg.mode === 'outdoor') {
+                // 건물 밖 구간은 어느 층에서 보든 그린다
+                var outdoorLine = leg.latlngs.filter(Boolean);
+                if (outdoorLine.length >= 2) {
+                    group.addLayer(L.polyline(outdoorLine, STYLE.outdoor));
+                }
+                return;
+            }
             if (leg.mode !== 'walk') return;
             var latlngs = leg.latlngs.filter(Boolean);
             if (latlngs.length < 2) return;
@@ -659,13 +669,17 @@
                        escapeHtml(result.error) + '</span>';
             } else if (pickingStart) {
                 idle = '<span style="color:#b45309;">🧭 출발 위치를 지도에서 눌러 주세요</span>';
+            } else if (outdoorStart && engine && engine.hasEntrances()) {
+                idle = '<span style="color:var(--text-muted);">🚶 출발지가 건물 밖입니다 (' +
+                       escapeHtml(outdoorStart.name) + ')<br>' +
+                       '방을 고르면 가장 가까운 출입구로 들어가는 경로를 만듭니다.</span>';
             } else if (outdoorStart) {
-                // 실외 출발지는 실내 그래프에 붙일 데가 없다. 외부 출입문을
-                // 등록하기 전까지는 이 상태를 숨기지 말고 그대로 알린다.
+                // 출입구가 아직 하나도 없으면 실내로 이을 방법이 없다.
+                // 이 상태를 숨기지 말고 무엇을 하면 되는지까지 알린다.
                 idle = '<span style="color:#b45309;">🚧 출발지가 건물 밖입니다 (' +
                        escapeHtml(outdoorStart.name) + ')<br>' +
-                       '외부 출입문이 등록되면 실내까지 이어집니다. ' +
-                       '지금은 건물 안에서 출발지를 다시 찍어 주세요.</span>';
+                       '아직 등록된 건물 출입구가 없습니다. 에디터에서 문을 그리고 ' +
+                       '연결을 <b>복도, 외부</b> 로 지정하면 여기까지 이어집니다.</span>';
             } else {
                 idle = '<span style="color:var(--text-muted);">' +
                        '실내 길찾기: 출발 지점을 찍고 방을 고르세요</span>';
@@ -689,6 +703,10 @@
                 result.steps.map(function (step) {
                     var vertical = step.indexOf('계단 이용') >= 0 ||
                                    step.indexOf('엘리베이터 이용') >= 0;
+                    if (step.indexOf('건물 밖에서') === 0) {
+                        return '<li style="color:#15803d;font-weight:700;">' +
+                               escapeHtml(step) + '</li>';
+                    }
                     return '<li style="' + (vertical ? 'color:#b45309;font-weight:700;' : '') +
                            '">' + escapeHtml(step) + '</li>';
                 }).join('') +
@@ -788,6 +806,10 @@
             // 건물 밖에서 출발한 경우. 외부 출입문이 그래프에 없어 실내 구간을
             // 이을 수 없다. 대신 그 방을 실외 도착지로 잡아 건물까지는 안내되게
             // 하고, 왜 실내 구간이 없는지 분명히 말한다.
+            if (!start && outdoorStart && engine.hasEntrances()) {
+                return runOutdoorRoute(room);
+            }
+
             if (!start && outdoorStart) {
                 if (typeof nativeSetRoutingPoint === 'function') {
                     var doorway = roomLatLng(room);
@@ -824,6 +846,25 @@
                 avoidStairs: !!(document.getElementById('tr-avoid') || {}).checked
             });
         };
+    }
+
+    /** 건물 밖 출발지 → 가장 가까운 출입구 → 방. 출입구가 등록돼야 쓸 수 있다. */
+    function runOutdoorRoute(room) {
+        try {
+            result = engine.route(
+                { outdoor: true, lat: outdoorStart.lat, lng: outdoorStart.lng },
+                { room_id: room.room_id, floor: room.floor },
+                { avoidStairs: !!(document.getElementById('tr-avoid') || {}).checked });
+        } catch (error) {
+            result = { error: error.message };
+        }
+        resetPlayback();
+        // 들어간 출입구가 있는 층을 먼저 보여 준다
+        if (result && !result.error && result.entrance) {
+            switchFloor(result.entrance.floor);
+        }
+        render();
+        return result;
     }
 
     /** 방의 대표 위경도. 복도 문이 있으면 그 문, 없으면 방 중심. */

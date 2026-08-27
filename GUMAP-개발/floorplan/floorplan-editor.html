@@ -137,6 +137,7 @@
       · <b>방</b>: 목록에서 선택 → 그리기(D)<br>
       · <b>복도</b>: 바로 그리기 (자동으로 '복도' 지정)<br>
       · <b>문</b>: 그리기 위치 기반 자동 연결 (불확실할 때만 팝업)<br>
+      · <b>건물 출입구</b>: 문을 그리고 연결을 <b>복도, 외부</b> 로<br>
       · <b>계단/엘베</b>: 그리기 후 ID + 연결 층 입력<br>
       · <b>E</b>: 속성 편집 · <b>T</b>: 타입 변경<br>
       · ESC: 취소 / 선택 해제<br>
@@ -285,10 +286,16 @@ function labelFor(rec) {
       return rec.room_id || null;
     case 'corridor':
       return rec.room_id ? `복도:${rec.room_id}` : '복도';
-    case 'door':
+    case 'door': {
+      const OUTSIDE = ['외부','밖','EXT','EXTERIOR','OUTSIDE','외부출입구'];
+      const isExterior = (rec.connects || []).some(
+        v => OUTSIDE.includes(String(v).trim().toUpperCase()) ||
+             OUTSIDE.includes(String(v).trim()));
+      if (isExterior) return `🚪🌳 출입구${rec.room_id ? ':' + rec.room_id : ''}`;
       if (rec.connects && rec.connects.length === 2)
         return `🚪${rec.connects[0]}↔${rec.connects[1]}`;
       return rec.room_id ? `🚪${rec.room_id}` : '🚪';
+    }
     case 'stairs':
       return rec.room_id
         ? `계단:${rec.room_id}` + (rec.connects_floors ? `(${rec.connects_floors.join('↔')})` : '')
@@ -722,9 +729,15 @@ function promptForType(dt, rec) {
         rec.connects = [suggested[0], suggested[1]];
         setStat(`자동 연결: ${suggested[0]} ↔ ${suggested[1]}`);
       } else {
-        const cur = suggested.join(', ');
+        // 닿은 공간이 복도 하나뿐이면 건물 밖으로 나가는 출입구일 가능성이 높다.
+        // 규칙: connects 에 '외부' 를 넣으면 그 문이 건물 출입구가 된다.
+        const guessOutside = suggested.length === 1 && suggested[0] === '복도';
+        const cur = guessOutside ? '복도, 외부' : suggested.join(', ');
         const input = prompt(
-          `이 문이 연결하는 2개 공간을 쉼표로 구분하여 입력하세요\n(위치 자동 추론 결과가 불확실하여 직접 입력 필요)\n\n추론된 공간: ${cur || '없음'}`, cur
+          `이 문이 연결하는 2개 공간을 쉼표로 구분하여 입력하세요\n` +
+          `건물 밖으로 나가는 출입구면 '복도, 외부' 로 적으세요\n` +
+          `(출입구 이름은 속성편집 E 에서 ID 로 넣을 수 있습니다)\n\n` +
+          `추론된 공간: ${suggested.join(', ') || '없음'}`, cur
         );
         if (input) {
           const parts = input.split(',').map(s => s.trim()).filter(Boolean);

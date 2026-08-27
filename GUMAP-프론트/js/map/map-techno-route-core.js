@@ -244,6 +244,43 @@
     return null;
   };
 
+  /* ───────────────── 건물 밖에서 들어오기 ─────────────────
+   *
+   * connects 에 "외부" 가 들어 있는 문이 출입구다. 빌드 때 위경도까지 실어
+   * 두었으므로, 실외 출발지는 가장 가까운 출입구에 직선으로 붙인다.
+   * 실외 구간은 아직 직선거리다 - 보행로 네트워크를 쓰려면 여기만 바꾸면 된다.
+   */
+
+  Engine.prototype.entrances = function () {
+    return this.data.entrances || [];
+  };
+
+  Engine.prototype.hasEntrances = function () {
+    return (this.data.entrances || []).length > 0;
+  };
+
+  /** 위경도 두 점 사이 거리(m). 실내 축척이 아니라 지구 위 거리다. */
+  Engine.prototype.metersBetween = function (lat1, lon1, lat2, lon2) {
+    var geo = this.data.geo;
+    var perLat = geo.meters_per_deg_lat;
+    var perLon = geo.meters_per_deg_lon_at_equator *
+      Math.cos(geo.reference_latitude * Math.PI / 180);
+    var dy = (lat2 - lat1) * perLat;
+    var dx = (lon2 - lon1) * perLon;
+    return Math.hypot(dx, dy);
+  };
+
+  /** 실외 지점에서 가장 가까운 출입구. */
+  Engine.prototype.nearestEntrance = function (lat, lng) {
+    var self = this;
+    var best = null;
+    (this.data.entrances || []).forEach(function (entrance) {
+      var meters = self.metersBetween(lat, lng, entrance.lat, entrance.lon);
+      if (!best || meters < best.meters) best = { entrance: entrance, meters: meters };
+    });
+    return best;
+  };
+
   Engine.prototype.corridorDoors = function (floor, roomId) {
     var self = this;
     var doors = this.data.doors_by_room[floor + '|' + roomId] || [];
@@ -263,6 +300,27 @@
   Engine.prototype.route = function (start, destination, options) {
     options = options || {};
     var warnings = [];
+
+    // 실외 출발지: {outdoor:true, lat, lng} 로 들어온다.
+    // 가장 가까운 출입구를 찾아 그 문에서 출발하는 것으로 바꾼다.
+    var approach = null;
+    if (start && start.outdoor) {
+      if (!this.hasEntrances()) {
+        throw new Error('건물 밖에서 들어오는 출입구가 아직 등록되지 않았습니다 ' +
+                        '(문 박스의 connects 에 "외부" 를 넣어 주세요)');
+      }
+      var pick = this.nearestEntrance(start.lat, start.lng);
+      var doorNode = this.nodes[pick.entrance.node];
+      approach = {
+        entrance: pick.entrance,
+        meters: pick.meters,
+        from: [start.lat, start.lng]
+      };
+      start = { floor: pick.entrance.floor, x: doorNode.x, y: doorNode.y };
+      warnings.push('건물 밖 ' + pick.meters.toFixed(0) + 'm 지점에서 ' +
+                    pick.entrance.name + ' 을(를) 통해 들어갑니다');
+    }
+
     var floor = start.floor;
     var info = this.data.floors[floor];
     if (!info) throw new Error('모르는 층: ' + floor);
@@ -282,7 +340,9 @@
         (options.avoidStairs ? ' (계단 회피 옵션 때문일 수 있다)' : ''));
     }
 
-    return this.assemble(search, origin, goal, goalFloor, destination.room_id, warnings);
+    var built = this.assemble(search, origin, goal, goalFloor, destination.room_id, warnings);
+    if (approach) this.prependOutdoorLeg(built, approach);
+    return built;
   };
 
   Engine.prototype.floorOfRoom = function (roomId) {
@@ -503,6 +563,41 @@
       origin: origin,
       warnings: warnings
     };
+  };
+
+  /** 건물 밖 출발지 → 출입구 구간을 결과 맨 앞에 붙인다. */
+  Engine.prototype.prependOutdoorLeg = function (built, approach) {
+    var entrance = approach.entrance;
+    var doorNode = this.nodes[entrance.node];
+    var doorLatLng = this.pxToLatLng(entrance.floor, doorNode.x, doorNode.y);
+    var seconds = approach.meters / this.cost.walk_speed_mps;
+
+    built.legs.unshift({
+      floor: entrance.floor,
+      mode: 'outdoor',
+      points: [],                       // 실외 구간은 도면 픽셀이 없다
+      latlngs: [approach.from, doorLatLng],
+      distance_m: approach.meters,
+      duration_s: seconds,
+      to_floor: null,
+      name: entrance.name
+    });
+
+    built.distance_m += approach.meters;
+    built.walk_distance_m += approach.meters;
+    built.duration_s += seconds;
+    built.outdoor_distance_m = approach.meters;
+    built.entrance = {
+      name: entrance.name, floor: entrance.floor, latlng: doorLatLng
+    };
+    built.steps.unshift(
+      '건물 밖에서 ' + approach.meters.toFixed(0) + 'm · ' +
+      entrance.name + '(으)로 진입');
+    built.origin = {
+      floor: entrance.floor, where: 'outdoor',
+      point: approach.from, name: '건물 밖'
+    };
+    return built;
   };
 
   Engine.prototype.startMeters = function (origin, index) {

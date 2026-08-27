@@ -27,6 +27,14 @@ from . import config
 
 CORRIDOR_LABEL = "복도"
 
+# 건물 밖과 이어지는 문. connects 에 이 이름 중 하나가 들어 있으면 출입구로 본다.
+# 한글로 적는 것이 기본이고, 나머지는 영문·오타 대비다.
+OUTSIDE_LABELS = frozenset({"외부", "밖", "EXT", "EXTERIOR", "OUTSIDE", "외부출입구"})
+
+
+def is_outside_label(value: str) -> bool:
+    return str(value).strip().upper() in {v.upper() for v in OUTSIDE_LABELS}
+
 # 경로가 벽에 딱 붙지 않게 복도를 안쪽으로 민다. 너무 크게 밀면 좁은 목이
 # 끊어지므로 층마다 끊기지 않는 최대값을 자동으로 고른다.
 INSET_CANDIDATES_M = (0.40, 0.30, 0.20, 0.12, 0.06, 0.0)
@@ -48,6 +56,8 @@ class Node:
     y: float
     ref: str | None = None      # 문이면 붙은 진입점의 주인, 계단·EV 면 그 이름
     connects: list[str] = field(default_factory=list)
+    exterior: bool = False      # 건물 밖과 이어지는 출입구인가
+    name: str | None = None     # 출입구 이름 (예: 정문)
 
 
 @dataclass
@@ -70,6 +80,7 @@ class NavGraph:
     adjacency: dict[str, list[tuple[str, float, str]]]   # id -> [(id, 미터, mode)]
     floors: dict[str, FloorData]
     doors_by_room: dict[tuple[str, str], list[str]]      # (floor, room_id) -> [door node id]
+    entrances: list[str] = field(default_factory=list)   # 건물 밖과 이어지는 문 노드 id
     warnings: list[str] = field(default_factory=list)
 
     def meters(self, a: str, b: str) -> float:
@@ -305,9 +316,15 @@ def _floor_nodes(floor: str, data: dict, px_per_mm: float):
         connects = normalize_tokens(raw)
         if connects != [str(value) for value in raw]:
             warnings.append(f"{floor}: 문 connects 를 {raw} → {connects} 로 고쳐 읽었다")
+        exterior = any(is_outside_label(value) for value in connects)
         door = Node(id=f"{floor}|D{index}", floor=floor, kind="door",
-                    x=float(x), y=float(y), connects=connects)
+                    x=float(x), y=float(y), connects=connects,
+                    exterior=exterior,
+                    name=(record.get("room_id") or None) if exterior else None)
         nodes.append(door)
+        if exterior and CORRIDOR_LABEL not in connects:
+            warnings.append(
+                f"{floor}: 출입구 {connects} 가 복도와 이어지지 않아 그래프에 못 붙였다")
         if CORRIDOR_LABEL not in connects:
             continue
         pushed = push_inside(walkable, door.x, door.y)
@@ -405,6 +422,8 @@ def build(floors: list[str] | None = None, work_dir: Path | None = None,
                 for target in node.connects:
                     if target == CORRIDOR_LABEL:
                         continue
+                    if is_outside_label(target):
+                        continue          # 건물 밖은 방이 아니다
                     peer = vertical_by_name.get(target)
                     if peer is not None:
                         link(node.id, peer.id,
@@ -431,5 +450,13 @@ def build(floors: list[str] | None = None, work_dir: Path | None = None,
             if node.id < peer.id:                     # 한 번만 잇는다
                 link(node.id, peer.id, 0.0, node.kind)
 
+    # 건물 밖과 이어지는 문. 복도까지 실제로 붙은 것만 쓸모가 있다.
+    entrances = [
+        node.id for node in nodes.values()
+        if node.exterior and f"{node.id}a" in nodes
+    ]
+    entrances.sort(key=lambda node_id: (config.FLOORS.index(nodes[node_id].floor), node_id))
+
     return NavGraph(nodes=nodes, adjacency=adjacency, floors=floor_data,
-                    doors_by_room=doors_by_room, warnings=warnings)
+                    doors_by_room=doors_by_room, entrances=entrances,
+                    warnings=warnings)
