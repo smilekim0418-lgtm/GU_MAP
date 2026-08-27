@@ -96,12 +96,16 @@ def start_hidden(cmd, cwd, log_name):
 
 
 def wait_for_port(port, timeout=60):
-    """Wait until port is open."""
+    """Wait until port is open.
+
+    1초 간격으로 보면 서버가 이미 떠 있어도 최대 1초를 더 기다린다.
+    기동이 3초 남짓이라 그 1초가 체감으로 꽤 크다. 촘촘히 본다.
+    """
     deadline = time.time() + timeout
     while time.time() < deadline:
         if is_port_open(port):
             return True
-        time.sleep(1)
+        time.sleep(0.1)
     return False
 
 
@@ -132,7 +136,8 @@ if __name__ == "__main__":
             print(f"       Port {port} SKIP: dir not found")
             print(f"         {directory}")
 
-    print("[4/5] Waiting for port 3000 (AI loading ~25s)...")
+    # G-Route AI 그래프·ONNX 로딩 포함 실측 약 3초. 예전 "~25s" 안내는 낡았다.
+    print("[4/5] Waiting for port 3000 (G-Route AI loading, ~3s)...")
     ok3000 = wait_for_port(3000, timeout=90)
     print(f"       Port 3000: {'READY' if ok3000 else 'TIMEOUT - check G-map-logs/server-3000.log'}")
 
