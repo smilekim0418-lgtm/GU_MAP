@@ -83,11 +83,16 @@
         } catch (error) {
             result = { error: error.message };
         }
+        resetPlayback();
         render();
         return result;
     };
 
     window.clearTechnoRoute = function () {
+        resetPlayback();
+        if (play.group && window.map && window.map.hasLayer(play.group)) {
+            window.map.removeLayer(play.group);
+        }
         start = null;
         result = null;
         pickingStart = false;
@@ -157,6 +162,256 @@
         }
 
         renderPanel();
+    }
+
+    /* ───────────────────── 경로 재생 ───────────────────── */
+    //
+    // 실제 소요시간대로 틀면 2분짜리 경로를 2분 동안 봐야 한다. 대신 지도상
+    // 이동 속도를 보행의 약 10배로 고정해서, 거리에 비례하되 볼 만한 길이가
+    // 되게 한다 (100m ≈ 8초). 계단·엘리베이터 대기는 실제로는 20~30초지만
+    // 재생에서는 짧게 끊는다 - 기다리는 시간을 그대로 보여줄 이유가 없다.
+
+    var PLAY_METERS_PER_SECOND = 12.0;
+    var PLAY_VERTICAL_SECONDS = 1.4;
+    var PLAY_SPEEDS = [1, 2, 4];
+
+    var play = {
+        timeline: null,
+        total: 0,
+        elapsed: 0,
+        running: false,
+        speed: 1,
+        frame: null,
+        lastTick: 0,
+        group: null,
+        marker: null,
+        floor: null
+    };
+
+    /** 경로를 재생용 구간 목록으로 편다. */
+    function buildTimeline(route) {
+        var steps = [];
+        var total = 0;
+        route.legs.forEach(function (leg) {
+            if (leg.mode === 'walk') {
+                var points = (leg.latlngs || []).filter(Boolean);
+                if (points.length < 2) return;
+                // 구간별 길이 비율은 픽셀 좌표로 잡는다 (같은 층 안에서는 미터와 비례)
+                var spans = [];
+                var sum = 0;
+                for (var i = 1; i < leg.points.length; i++) {
+                    var dx = leg.points[i][0] - leg.points[i - 1][0];
+                    var dy = leg.points[i][1] - leg.points[i - 1][1];
+                    var d = Math.hypot(dx, dy);
+                    spans.push(d);
+                    sum += d;
+                }
+                if (sum <= 0) return;
+                var duration = Math.max(0.4, leg.distance_m / PLAY_METERS_PER_SECOND);
+                steps.push({
+                    kind: 'walk', floor: leg.floor, points: points, spans: spans,
+                    spanTotal: sum, start: total, duration: duration,
+                    label: leg.floor + ' 복도 이동 ' + leg.distance_m.toFixed(0) + 'm'
+                });
+                total += duration;
+            } else {
+                var at = (leg.latlngs && leg.latlngs[0]) || null;
+                var to = (leg.latlngs && leg.latlngs[1]) || at;
+                steps.push({
+                    kind: 'vertical', floor: leg.floor, toFloor: leg.to_floor,
+                    at: at, to: to, start: total, duration: PLAY_VERTICAL_SECONDS,
+                    label: leg.name + (leg.mode === 'stairs' ? ' 계단' : ' 엘리베이터') +
+                           ' · ' + leg.floor + ' → ' + leg.to_floor
+                });
+                total += PLAY_VERTICAL_SECONDS;
+            }
+        });
+        return { steps: steps, total: total };
+    }
+
+    /** 재생 시각 → 위치·층·설명. */
+    function positionAt(seconds) {
+        var steps = play.timeline.steps;
+        for (var i = 0; i < steps.length; i++) {
+            var step = steps[i];
+            if (seconds > step.start + step.duration && i < steps.length - 1) continue;
+            var ratio = step.duration > 0
+                ? Math.min(1, Math.max(0, (seconds - step.start) / step.duration)) : 1;
+            if (step.kind === 'vertical') {
+                // 절반을 넘기면 도착 층에 있는 것으로 본다
+                return {
+                    latlng: ratio < 0.5 ? step.at : step.to,
+                    floor: ratio < 0.5 ? step.floor : step.toFloor,
+                    label: step.label, index: i
+                };
+            }
+            var want = ratio * step.spanTotal;
+            var run = 0;
+            for (var s = 0; s < step.spans.length; s++) {
+                if (run + step.spans[s] >= want || s === step.spans.length - 1) {
+                    var inner = step.spans[s] > 0 ? (want - run) / step.spans[s] : 0;
+                    inner = Math.min(1, Math.max(0, inner));
+                    var a = step.points[s], b = step.points[s + 1] || step.points[s];
+                    return {
+                        latlng: [a[0] + (b[0] - a[0]) * inner, a[1] + (b[1] - a[1]) * inner],
+                        floor: step.floor, label: step.label, index: i,
+                        trail: step.points.slice(0, s + 1).concat([
+                            [a[0] + (b[0] - a[0]) * inner, a[1] + (b[1] - a[1]) * inner]
+                        ])
+                    };
+                }
+                run += step.spans[s];
+            }
+        }
+        return null;
+    }
+
+    /** 패널의 층 버튼을 눌러 층을 바꾼다 (실내지도 모듈의 로직을 그대로 쓴다). */
+    function switchFloor(floor) {
+        if (!floor || floor === window.technoActiveFloor) return;
+        var button = document.querySelector('.ti-fbtn[data-floor="' + floor + '"]');
+        if (button) {
+            button.click();
+        } else {
+            window.technoActiveFloor = floor;
+            if (window.renderTechnoFloor) window.renderTechnoFloor();
+        }
+    }
+
+    function ensurePlayGroup() {
+        if (!play.group) {
+            play.group = L.layerGroup();
+            window.technoRoutePlayGroup = play.group;
+        }
+        if (window.map && !window.map.hasLayer(play.group)) play.group.addTo(window.map);
+        return play.group;
+    }
+
+    /** 걷는 사람이 화면 밖으로 나가려 할 때만 지도를 옮긴다. */
+    function keepInView(latlng) {
+        if (!window.map) return;
+        var bounds = window.map.getBounds().pad(-0.25);
+        if (!bounds.contains(L.latLng(latlng[0], latlng[1]))) {
+            window.map.panTo(latlng, { animate: true, duration: 0.4 });
+        }
+    }
+
+    function drawPlayback() {
+        if (!play.timeline) return;
+        var spot = positionAt(play.elapsed);
+        if (!spot) return;
+
+        if (spot.floor && spot.floor !== play.floor) {
+            play.floor = spot.floor;
+            switchFloor(spot.floor);
+        }
+
+        var group = ensurePlayGroup();
+        group.clearLayers();
+
+        if (spot.trail && spot.trail.length > 1) {
+            group.addLayer(L.polyline(spot.trail,
+                { color: '#22c55e', weight: 6, opacity: 0.95, lineCap: 'round' }));
+        }
+        if (!play.marker) {
+            play.marker = L.marker(spot.latlng, {
+                icon: L.divIcon({
+                    className: 'techno-route-walker',
+                    html: '<div style="font-size:20px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));">🚶</div>',
+                    iconSize: [22, 22], iconAnchor: [11, 11]
+                }),
+                interactive: false, zIndexOffset: 1000
+            });
+        } else {
+            play.marker.setLatLng(spot.latlng);
+        }
+        group.addLayer(play.marker);
+        keepInView(spot.latlng);
+        renderPlayBar(spot);
+    }
+
+    function renderPlayBar(spot) {
+        var bar = document.getElementById('tr-play-progress');
+        if (bar) {
+            bar.style.width = (play.total > 0 ? (play.elapsed / play.total) * 100 : 0) + '%';
+        }
+        var label = document.getElementById('tr-play-label');
+        if (label && spot) label.textContent = spot.label;
+        var button = document.getElementById('tr-play');
+        if (button) button.textContent = play.running ? '⏸ 일시정지' : '▶ 재생';
+    }
+
+    function tick(now) {
+        if (!play.running) return;
+        var delta = (now - play.lastTick) / 1000;
+        play.lastTick = now;
+        play.elapsed += delta * play.speed;
+        if (play.elapsed >= play.total) {
+            play.elapsed = play.total;
+            play.running = false;
+            drawPlayback();
+            renderPlayBar(positionAt(play.elapsed));
+            return;
+        }
+        drawPlayback();
+        play.frame = requestAnimationFrame(tick);
+    }
+
+    window.playTechnoRoute = function () {
+        if (!result || result.error) return;
+        if (!play.timeline) {
+            play.timeline = buildTimeline(result);
+            play.total = play.timeline.total;
+        }
+        if (play.total <= 0) return;
+        if (play.elapsed >= play.total) play.elapsed = 0;
+        play.running = true;
+        play.lastTick = performance.now();
+        play.frame = requestAnimationFrame(tick);
+        drawPlayback();
+    };
+
+    window.pauseTechnoRoute = function () {
+        play.running = false;
+        if (play.frame) cancelAnimationFrame(play.frame);
+        renderPlayBar(play.timeline ? positionAt(play.elapsed) : null);
+    };
+
+    window.toggleTechnoRoutePlay = function () {
+        if (play.running) window.pauseTechnoRoute();
+        else window.playTechnoRoute();
+    };
+
+    window.restartTechnoRoute = function () {
+        play.elapsed = 0;
+        if (result && !result.error) {
+            play.timeline = buildTimeline(result);
+            play.total = play.timeline.total;
+            if (result.legs.length) switchFloor(result.legs[0].floor);
+            play.floor = result.legs.length ? result.legs[0].floor : null;
+        }
+        window.playTechnoRoute();
+    };
+
+    window.setTechnoRouteSpeed = function (speed) {
+        play.speed = speed;
+        var host = document.getElementById('tr-play-speeds');
+        if (!host) return;
+        Array.prototype.forEach.call(host.querySelectorAll('button'), function (button) {
+            var on = Number(button.dataset.speed) === speed;
+            button.style.background = on ? '#0891b2' : 'rgba(127,127,127,.12)';
+            button.style.color = on ? '#fff' : 'var(--text-main)';
+        });
+    };
+
+    function resetPlayback() {
+        window.pauseTechnoRoute();
+        play.timeline = null;
+        play.total = 0;
+        play.elapsed = 0;
+        play.floor = null;
+        play.marker = null;
+        if (play.group) play.group.clearLayers();
     }
 
     /* ───────────────────── 패널 ───────────────────── */
@@ -343,6 +598,36 @@
               (result.warnings.length
                 ? '<div style="color:#b91c1c;margin-top:6px;">⚠ ' +
                   result.warnings.map(escapeHtml).join('<br>⚠ ') + '</div>' : '') +
+              // 경로 재생
+              '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1);">' +
+                '<div style="display:flex;gap:4px;margin-bottom:5px;">' +
+                  '<button id="tr-play" onclick="window.toggleTechnoRoutePlay()" ' +
+                    'style="flex:2;padding:6px;border-radius:6px;border:none;' +
+                    'background:linear-gradient(135deg,#0891b2,#22d3ee);color:#062a33;' +
+                    'font-weight:800;cursor:pointer;">▶ 재생</button>' +
+                  '<button onclick="window.restartTechnoRoute()" title="처음부터" ' +
+                    'style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(127,127,127,.3);' +
+                    'background:rgba(127,127,127,.12);color:var(--text-main);cursor:pointer;">↺</button>' +
+                '</div>' +
+                '<div style="height:5px;background:rgba(127,127,127,.25);border-radius:3px;overflow:hidden;">' +
+                  '<div id="tr-play-progress" style="height:100%;width:0%;background:#22c55e;' +
+                    'transition:width .1s linear;"></div>' +
+                '</div>' +
+                '<div id="tr-play-label" style="font-size:10px;color:var(--text-muted);margin-top:4px;' +
+                  'min-height:13px;">재생하면 출발지부터 따라갑니다</div>' +
+                '<div id="tr-play-speeds" style="display:flex;gap:4px;margin-top:5px;">' +
+                  PLAY_SPEEDS.map(function (speed) {
+                    return '<button data-speed="' + speed + '" ' +
+                      'onclick="window.setTechnoRouteSpeed(' + speed + ')" ' +
+                      'style="flex:1;padding:3px;font-size:10px;border-radius:5px;' +
+                      'border:1px solid rgba(127,127,127,.3);cursor:pointer;' +
+                      (speed === play.speed
+                        ? 'background:#0891b2;color:#fff;'
+                        : 'background:rgba(127,127,127,.12);color:var(--text-main);') +
+                      '">' + speed + '×</button>';
+                  }).join('') +
+                '</div>' +
+              '</div>' +
               '<button onclick="window.clearTechnoRoute()" style="margin-top:8px;width:100%;' +
                 'padding:5px;border-radius:6px;border:1px solid rgba(255,255,255,.15);' +
                 'background:rgba(127,127,127,.12);color:var(--text-main);cursor:pointer;">경로 지우기</button>' +
