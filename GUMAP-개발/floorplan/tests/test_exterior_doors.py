@@ -176,12 +176,9 @@ def test_모든_출입구에서_아무_방이나_갈_수_있다(real_graph):
 
 @pytest.fixture(scope="module")
 def name_entrances():
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "build_nav", config.TOOL_DIR / "05_build_nav.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.name_entrances
+    """이름 규칙은 길찾기와 실내지도가 공유한다 (fp/entrances.py)."""
+    from fp import entrances as entrances_module
+    return entrances_module.name_entrances
 
 
 CENTER = (36.1465, 128.3942)
@@ -243,3 +240,97 @@ def test_실제_출입구_이름은_서로_다르다(name_entrances):
     names = [e["name"] for e in bundle["entrances"]]
     assert len(names) == len(set(names)), f"중복된 출입구 이름: {names}"
     assert all(name for name in names), "이름이 빈 출입구가 있다"
+
+
+# ── 지도와 안내문이 같은 문을 같은 이름으로 부르는가 ──────────────────────
+
+@pytest.fixture(scope="module")
+def both_bundles():
+    """실내지도(IMDF) 번들과 길찾기 번들을 같은 도면에서 만든다."""
+    import importlib.util
+    import json as json_module
+
+    from fp import excel, georef, imdf
+
+    transform_data = georef.load()
+    transform = georef.transform_from(transform_data)
+
+    spec = importlib.util.spec_from_file_location(
+        "build_imdf", config.TOOL_DIR / "04_build_imdf.py")
+    builder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(builder)
+
+    labeled, rooms = {}, {}
+    excel_rooms = excel.load_rooms()
+    for floor in config.FLOORS:
+        path = config.WORK_DIR / f"{floor}_labeled.json"
+        if not path.exists():
+            continue
+        labeled[floor] = builder.load_labeled_in_meters(
+            json_module.loads(path.read_text(encoding="utf-8")), transform_data)
+        rooms[floor] = excel_rooms.get(floor, [])
+
+    origins = transform_data["floor_origin_px"]
+    per_mm = transform_data["floor_px_per_mm"]
+
+    def to_lonlat(floor, x, y):
+        origin, scale = origins.get(floor), per_mm.get(floor)
+        if not origin or not scale:
+            return None
+        return georef.apply(transform, (x - origin[0]) / scale / 1000.0,
+                            -(y - origin[1]) / scale / 1000.0)
+
+    from fp import entrances as entrances_module
+    centre = entrances_module.center_from_labeled(
+        config.WORK_DIR, config.FLOORS, to_lonlat)
+    bundle = imdf.build_bundle(labeled, rooms, transform, entrance_center=centre)
+
+    nav_bundle = json_module.loads(
+        (config.WORK_DIR / "techno_nav.json").read_text(encoding="utf-8"))
+    return bundle, nav_bundle
+
+
+def test_문은_unit_이_아니라_opening_으로_나간다(both_bundles):
+    """실내지도는 walkway unit 을 일부러 안 그린다. 문이 거기 있으면 안 보인다."""
+    bundle, _ = both_bundles
+    openings = bundle["openings"]["features"]
+    assert openings, "openings 가 비어 있다"
+    assert all(o["geometry"]["type"] == "LineString" for o in openings), \
+        "IMDF opening 의 기하는 문지방 LineString 이다"
+
+    labels = [u["properties"]["label"]["ko-KR"] for u in bundle["units"]["features"]]
+    assert "door" not in labels, "문이 아직 unit 으로도 나가고 있다 (중복)"
+
+
+def test_건물_출입구는_principal_로_구분된다(both_bundles):
+    bundle, nav_bundle = both_bundles
+    principal = [o for o in bundle["openings"]["features"]
+                 if o["properties"]["category"] == "pedestrian.principal"]
+    assert len(principal) == len(nav_bundle["entrances"]), (
+        f"실내지도 출입구 {len(principal)}개 ≠ 길찾기 출입구 "
+        f"{len(nav_bundle['entrances'])}개")
+
+
+def test_지도와_안내문이_같은_문을_같은_이름으로_부른다(both_bundles):
+    """같은 문에 두 이름이 붙으면 사용자는 다른 문을 찾아 헤맨다."""
+    bundle, nav_bundle = both_bundles
+    principal = [o for o in bundle["openings"]["features"]
+                 if o["properties"]["category"] == "pedestrian.principal"]
+
+    def key(lat, lon):
+        return (round(lat, 5), round(lon, 5))
+
+    on_map = {}
+    for opening in principal:
+        lon, lat = opening["properties"]["display_point"]["coordinates"]
+        on_map[key(lat, lon)] = opening["properties"]["name"]["ko-KR"]
+
+    mismatched = []
+    for entrance in nav_bundle["entrances"]:
+        spot = key(entrance["lat"], entrance["lon"])
+        mapped = on_map.get(spot)
+        if mapped is None:
+            mismatched.append(f"{entrance['name']}: 실내지도에 같은 자리 출입구가 없다")
+        elif mapped != entrance["name"]:
+            mismatched.append(f"같은 문인데 지도는 {mapped!r}, 안내문은 {entrance['name']!r}")
+    assert not mismatched, mismatched

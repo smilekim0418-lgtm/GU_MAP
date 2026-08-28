@@ -297,25 +297,36 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
             window.technoIndoorLayerGroup.addLayer(geoLayer);
         });
 
-        // 2. 출입구(Opening) 렌더링 (휠체어 접근성 등)
+        // 2. 출입구(Opening) 렌더링
+        //    한 층에 문이 60~90개다. 전부 그리면 방 번호가 안 보인다.
+        //    건물 밖으로 나가는 문(pedestrian.principal)만 표시한다.
         levelOpenings.forEach(op => {
             const props = op.properties || {};
+            if (props.category !== 'pedestrian.principal') return;
+
             const isWheelchair = props.accessibility?.includes('wheelchair');
-            const geoLayer = L.geoJSON(op, {
-                style: { color: isWheelchair ? '#10b981' : '#f59e0b', weight: 2, dashArray: '2,3' },
-                pointToLayer: function (feature, latlng) {
-                    return L.marker(latlng, {
-                        icon: L.divIcon({
-                            className: 'imdf-opening-icon',
-                            html: `<div style="font-size:14px;">${isWheelchair ? '♿' : '🚪'}</div>`,
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
-                        })
-                    });
-                }
+            const label = props.name?.['ko-KR'] || props.name?.en || '건물 출입구';
+
+            // 문지방 선분
+            window.technoIndoorLayerGroup.addLayer(L.geoJSON(op, {
+                style: { color: '#16a34a', weight: 5, opacity: 0.95, lineCap: 'round' }
+            }));
+
+            // 표식. LineString 이라 pointToLayer 가 안 걸리므로 직접 찍는다.
+            const point = props.display_point?.coordinates;
+            if (!point) return;
+            const marker = L.marker([point[1], point[0]], {
+                icon: L.divIcon({
+                    className: 'imdf-opening-icon',
+                    html: `<div style="font-size:17px;line-height:1;text-shadow:0 0 3px #fff,0 0 6px #fff;">${isWheelchair ? '♿' : '🚪'}</div>`,
+                    iconSize: [22, 22],
+                    iconAnchor: [11, 11]
+                })
             });
-            geoLayer.bindTooltip(isWheelchair ? '♿ 휠체어 접근 가능 출입구' : '🚪 출입문', { direction: 'top' });
-            window.technoIndoorLayerGroup.addLayer(geoLayer);
+            marker.bindTooltip(`🚪 ${label}${isWheelchair ? ' · ♿' : ''}`, {
+                direction: 'top', className: 'imdf-entrance-tip'
+            });
+            window.technoIndoorLayerGroup.addLayer(marker);
         });
 
         console.log(`[IMDF] ${activeShortName} 렌더링 완료 (${levelUnits.length}개 공간)`);

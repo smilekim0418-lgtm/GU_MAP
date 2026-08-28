@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.stdout.reconfigure(encoding="utf-8")
 
-from fp import config, excel, georef, imdf, validate  # noqa: E402
+from fp import config, entrances as entrances_module, excel, georef, imdf, validate  # noqa: E402
 
 BUNDLE_KEY_TO_FILE = {
     "venue": "venue.geojson",
@@ -87,7 +87,24 @@ def main() -> int:
         for floor in floors_present
     }
 
-    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform)
+    # 출입구 이름의 방위 기준점. 길찾기 번들(05)과 같은 함수로 구해야
+    # 같은 문에 같은 이름이 붙는다.
+    origins = transform_data.get("floor_origin_px") or {}
+    per_mm = transform_data.get("floor_px_per_mm") or {}
+
+    def to_lonlat(floor: str, x: float, y: float):
+        origin = origins.get(floor)
+        scale = per_mm.get(floor)
+        if not origin or not scale:
+            return None
+        return georef.apply(transform, (x - origin[0]) / scale / 1000.0,
+                            -(y - origin[1]) / scale / 1000.0)
+
+    entrance_center = entrances_module.center_from_labeled(
+        config.WORK_DIR, config.FLOORS, to_lonlat)
+
+    bundle = imdf.build_bundle(labeled_by_floor, rooms_by_floor, transform,
+                               entrance_center=entrance_center)
     units = len(bundle["units"]["features"])
     expected = sum(len(v) for v in rooms_by_floor.values())
     print(f"유닛 {units}개 / 엑셀 방 {expected}개")

@@ -24,16 +24,15 @@ from shapely.geometry.polygon import orient
 from shapely.ops import nearest_points
 
 from . import config
+from . import entrances as entrances_module
 
 CORRIDOR_LABEL = "복도"
 
 # 건물 밖과 이어지는 문. connects 에 이 이름 중 하나가 들어 있으면 출입구로 본다.
-# 한글로 적는 것이 기본이고, 나머지는 영문·오타 대비다.
-OUTSIDE_LABELS = frozenset({"외부", "밖", "EXT", "EXTERIOR", "OUTSIDE", "외부출입구"})
-
-
-def is_outside_label(value: str) -> bool:
-    return str(value).strip().upper() in {v.upper() for v in OUTSIDE_LABELS}
+# 실내지도 번들(04_build_imdf.py)도 똑같이 판정해야 하므로 정의는
+# fp/entrances.py 한 곳에 두고 여기서는 가져다 쓴다.
+OUTSIDE_LABELS = entrances_module.OUTSIDE_LABELS
+is_outside_label = entrances_module.is_outside_label
 
 # 경로가 벽에 딱 붙지 않게 복도를 안쪽으로 민다. 너무 크게 밀면 좁은 목이
 # 끊어지므로 층마다 끊기지 않는 최대값을 자동으로 고른다.
