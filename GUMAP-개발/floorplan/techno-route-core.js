@@ -281,6 +281,46 @@
     return best;
   };
 
+  /**
+   * 실외 출발지는 문을 하나 고르지 않는다. 출입구 전부를 출발 후보로 깔고
+   * 각자의 실외 도보시간을 초기비용으로 준다. 그러면 탐색이 "가장 빨리
+   * 도착하는 문" 을 스스로 고른다.
+   *
+   * 가까운 문을 고르면 안 된다. 실측(출입구 11개)에서 가까운 문 선택이
+   * 표본의 67% 에서 손해였고 최악은 130초였다. 코앞의 문이 지하 복도로만
+   * 이어져 있으면, 12m 더 걸어 다른 문으로 들어가는 편이 2분 빠르다.
+   */
+  Engine.prototype.attachOutdoorStart = function (lat, lng) {
+    var self = this;
+    var byNode = {};
+    var edges = [];
+    (this.data.entrances || []).forEach(function (entrance) {
+      var meters = self.metersBetween(lat, lng, entrance.lat, entrance.lon);
+      var seen = byNode[entrance.node];
+      if (seen && seen.meters <= meters) return;
+      byNode[entrance.node] = { entrance: entrance, meters: meters };
+      edges.push([entrance.node, meters, 'walk']);
+    });
+    return {
+      point: null, floor: null, where: 'outdoor', outdoor: true,
+      from: [lat, lng], entranceByNode: byNode, edges: edges
+    };
+  };
+
+  /** 탐색이 실제로 들어간 문. 경로 사슬을 거슬러 올라간 뿌리가 그 문이다. */
+  Engine.prototype.resolveEntrance = function (search, origin, from) {
+    var at = search.goal;
+    while (search.previous[at] !== -1) at = search.previous[at];
+    var picked = origin.entranceByNode[at];
+    // 있을 수 없는 경우지만, 조용히 틀린 문을 말하느니 가까운 문으로 되돌린다
+    if (!picked) picked = this.nearestEntrance(from[0], from[1]);
+    var doorNode = this.nodes[picked.entrance.node];
+    return {
+      entrance: picked.entrance, meters: picked.meters,
+      from: from, point: [doorNode.x, doorNode.y]
+    };
+  };
+
   Engine.prototype.corridorDoors = function (floor, roomId) {
     var self = this;
     var doors = this.data.doors_by_room[floor + '|' + roomId] || [];
@@ -302,28 +342,17 @@
     var warnings = [];
 
     // 실외 출발지: {outdoor:true, lat, lng} 로 들어온다.
-    // 가장 가까운 출입구를 찾아 그 문에서 출발하는 것으로 바꾼다.
-    var approach = null;
+    // 어느 문으로 들어갈지는 여기서 정하지 않는다. 탐색이 고른다.
+    var outdoorFrom = null;
     if (start && start.outdoor) {
       if (!this.hasEntrances()) {
         throw new Error('건물 밖에서 들어오는 출입구가 아직 등록되지 않았습니다 ' +
                         '(문 박스의 connects 에 "외부" 를 넣어 주세요)');
       }
-      var pick = this.nearestEntrance(start.lat, start.lng);
-      var doorNode = this.nodes[pick.entrance.node];
-      approach = {
-        entrance: pick.entrance,
-        meters: pick.meters,
-        from: [start.lat, start.lng]
-      };
-      start = { floor: pick.entrance.floor, x: doorNode.x, y: doorNode.y };
-      warnings.push('건물 밖 ' + pick.meters.toFixed(0) + 'm 지점에서 ' +
-                    pick.entrance.name + ' 을(를) 통해 들어갑니다');
+      outdoorFrom = [start.lat, start.lng];
+    } else if (!this.data.floors[start.floor]) {
+      throw new Error('모르는 층: ' + start.floor);
     }
-
-    var floor = start.floor;
-    var info = this.data.floors[floor];
-    if (!info) throw new Error('모르는 층: ' + floor);
 
     var goalFloor = destination.floor || this.floorOfRoom(destination.room_id);
     if (!goalFloor) throw new Error(destination.room_id + ' 방을 찾을 수 없다');
@@ -331,13 +360,25 @@
       throw new Error(goalFloor + ' 에 ' + destination.room_id + ' 방이 없다');
     }
 
-    var origin = this.attachStart(floor, start.x, start.y, warnings);
+    var origin = outdoorFrom
+      ? this.attachOutdoorStart(outdoorFrom[0], outdoorFrom[1])
+      : this.attachStart(start.floor, start.x, start.y, warnings);
     var goal = this.goalTargets(goalFloor, destination.room_id, warnings);
 
     var search = this.dijkstra(origin.edges, goal.targets, !!options.avoidStairs);
     if (search.best === Infinity) {
       throw new Error(goalFloor + ' ' + destination.room_id + ' 까지 가는 길이 없다' +
         (options.avoidStairs ? ' (계단 회피 옵션 때문일 수 있다)' : ''));
+    }
+
+    var approach = null;
+    if (outdoorFrom) {
+      approach = this.resolveEntrance(search, origin, outdoorFrom);
+      origin.floor = approach.entrance.floor;
+      origin.point = approach.point;
+      // 실외 구간 시간은 이미 search.best 안에 들어 있다. assemble 이 실내분만
+      // 내놓도록 빼 주고, prependOutdoorLeg 가 다시 얹는다.
+      origin.seedSeconds = approach.meters / this.cost.walk_speed_mps;
     }
 
     var built = this.assemble(search, origin, goal, goalFloor, destination.room_id, warnings);
@@ -498,8 +539,10 @@
       var point = [node.x, node.y];
       // 출발점에서 첫 노드까지는 항상 걷는다
       var mode = position === 0 ? 'walk' : search.previousMode[index];
+      // 실외 출발이면 첫 노드가 출입구 자신이다. 실외 구간은
+      // prependOutdoorLeg 가 따로 붙이므로 여기서 세면 두 번 센다.
       var meters = position === 0
-        ? self.startMeters(origin, index)
+        ? (origin.outdoor ? 0 : self.startMeters(origin, index))
         : search.previousMeters[index];
 
       if (mode === 'walk') {
@@ -556,7 +599,7 @@
       distance_m: walkTotal + verticalTotal,
       walk_distance_m: walkTotal,
       vertical_m: verticalTotal,
-      duration_s: search.best,
+      duration_s: search.best - (origin.seedSeconds || 0),
       legs: legs,
       steps: buildSteps(legs, destination, origin),
       destination: destination,
@@ -652,7 +695,8 @@
   }
 
   function buildSteps(legs, destination, origin) {
-    var steps = ['출발 · ' + origin.floor + ' ' +
+    // 실외 출발은 prependOutdoorLeg 가 "건물 밖에서 …" 로 첫 줄을 붙인다
+    var steps = origin.outdoor ? [] : ['출발 · ' + origin.floor + ' ' +
       (origin.where === 'corridor' ? '복도' : (origin.room_id || '지정 위치'))];
     legs.forEach(function (leg) {
       if (leg.mode === 'walk') {

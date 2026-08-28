@@ -1,14 +1,12 @@
-"""합성 출입구로 "건물 밖 → 방" 경로를 브라우저 엔진까지 끝단 확인한다.
+"""실제 출입구로 "건물 밖 → 방" 경로를 브라우저 엔진까지 끝단 확인한다.
 
-실제 도면에는 아직 출입구 박스가 없다. 규칙만 정해 두고 나중에 안 되면 늦으니,
-합성 출입구를 넣은 번들을 만들어 techno-route-core.js 가 실외 출발지를 받아
-가장 가까운 출입구로 들어가는지 지금 확인한다.
+핵심은 "어느 문으로 들어가는가" 다. 엔진은 출입구 전부를 출발 후보로 깔고
+탐색이 고르게 한다. 그게 정말 최적인지 확인하려면 믿지 말고 세어 봐야 한다.
+그래서 출입구를 하나만 남긴 엔진으로 전수 비교해 argmin 과 맞는지 본다.
 
   python tests/exterior_route_check.py
 """
-import importlib.util
 import json
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,145 +15,171 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from fp import config, georef, nav  # noqa: E402
+from fp import config  # noqa: E402
 
 TOOL_DIR = Path(__file__).resolve().parents[1]
-
-
-def load_builder():
-    spec = importlib.util.spec_from_file_location(
-        "build_nav", TOOL_DIR / "05_build_nav.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def make_work(tmp: Path, floors=("1F", "2F", "3F", "4F")):
-    """1F 복도 외곽에 합성 출입구 두 개를 심은 작업본."""
-    work = tmp / "work"
-    work.mkdir()
-    for floor in floors:
-        shutil.copy(config.WORK_DIR / f"{floor}_labeled.json",
-                    work / f"{floor}_labeled.json")
-
-    path = work / "1F_labeled.json"
-    data = json.loads(path.read_text(encoding="utf-8"))
-    corridor = next(r for r in data["polygons"] if nav.type_of(r) == "corridor")
-    boundary = nav.polygon_of(corridor).exterior
-
-    for name, ratio in (("정문", 0.20), ("후문", 0.65)):
-        point = boundary.interpolate(boundary.length * ratio)
-        x, y = point.x, point.y
-        data["polygons"].append({
-            "type": "door",
-            "room_id": name,
-            "connects": ["복도", "외부"],
-            "points": [[x - 6, y - 6], [x + 6, y - 6], [x + 6, y + 6], [x - 6, y + 6]],
-            "centroid": [x, y],
-        })
-    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-    return work
-
+BUNDLE = config.WORK_DIR / "techno_nav.json"
 
 NODE_SCRIPT = r"""
 const fs = require('fs');
 const TechnoRoute = require(process.argv[2]);
 const data = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
 const engine = TechnoRoute.load(data);
+const all = engine.entrances().slice();
 
-const out = { entrances: engine.entrances(), cases: [] };
+// 건물을 둘러싼 바깥 지점들. 한 문 앞에만 서 보면 차이가 안 드러난다.
+const lats = all.map(e => e.lat), lons = all.map(e => e.lon);
+const clat = (Math.min(...lats) + Math.max(...lats)) / 2;
+const clon = (Math.min(...lons) + Math.max(...lons)) / 2;
+const spots = [];
+for (let k = 0; k < 12; k++) {
+  const a = k / 12 * 2 * Math.PI;
+  spots.push([clat + 0.00075 * Math.cos(a), clon + 0.00092 * Math.sin(a)]);
+}
+// 각 출입구 코앞도 섞는다 (겹쳐 있는 B1F/1F 문이 문제를 일으키는 자리)
+all.forEach(e => spots.push([e.lat - 0.00012, e.lon]));
 
-// 각 출입구에서 조금 떨어진 바깥 지점을 만들어 출발시킨다
-const room = engine.rooms().filter(r => r.floor === '4F' && r.corridor_doors > 0)[0];
-out.room = room;
+const rooms = engine.rooms().filter(r => r.corridor_doors > 0);
+const pick = n => rooms.filter((_, i) => i % Math.ceil(rooms.length / n) === 0).slice(0, n);
+const targets = pick(24);
 
-for (const entrance of engine.entrances()) {
-  // 출입구에서 남쪽으로 약 40m 떨어진 점
-  const lat = entrance.lat - 0.00036;
-  const lng = entrance.lon;
-  let record;
+function routeVia(entrance, spot, room) {
+  engine.data.entrances = entrance ? [entrance] : all;
   try {
-    const r = engine.route({ outdoor: true, lat: lat, lng: lng },
-                           { room_id: room.room_id, floor: room.floor }, {});
-    record = {
-      from: entrance.name,
-      chosen: r.entrance ? r.entrance.name : null,
-      outdoor_m: r.outdoor_distance_m,
-      total_m: r.distance_m,
-      firstLegMode: r.legs[0].mode,
-      firstStep: r.steps[0],
-      legs: r.legs.length,
-      ok: true
-    };
+    return engine.route({ outdoor: true, lat: spot[0], lng: spot[1] },
+                        { room_id: room.room_id, floor: room.floor }, {});
   } catch (error) {
-    record = { from: entrance.name, ok: false, error: error.message };
+    return null;
+  } finally {
+    engine.data.entrances = all;
   }
-  out.cases.push(record);
+}
+
+const out = { entrances: all, checked: 0, mismatch: [], accounting: [], spread: [] };
+
+for (const spot of spots) {
+  for (const room of targets) {
+    const got = routeVia(null, spot, room);
+    if (!got) continue;
+    out.checked++;
+
+    // 전수 비교: 출입구를 하나만 남긴 엔진으로 각각 재본다
+    let best = null;
+    for (const entrance of all) {
+      const one = routeVia(entrance, spot, room);
+      if (one && (!best || one.duration_s < best.duration_s - 1e-6)) {
+        best = { name: entrance.name, duration_s: one.duration_s };
+      }
+    }
+    if (!best) continue;
+    if (got.duration_s > best.duration_s + 1e-6) {
+      out.mismatch.push({
+        spot: spot, room: room.floor + ' ' + room.room_id,
+        chose: got.entrance.name, chose_s: got.duration_s,
+        best: best.name, best_s: best.duration_s
+      });
+    }
+
+    // 합계 장부: 구간 합 == 총계 (실외 구간을 두 번 세지 않았는가)
+    const legSeconds = got.legs.reduce((a, l) => a + l.duration_s, 0);
+    const legMeters = got.legs.reduce((a, l) => a + l.distance_m, 0);
+    if (Math.abs(legSeconds - got.duration_s) > 0.05 ||
+        Math.abs(legMeters - got.distance_m) > 0.05) {
+      out.accounting.push({
+        room: room.floor + ' ' + room.room_id,
+        legs_s: legSeconds, total_s: got.duration_s,
+        legs_m: legMeters, total_m: got.distance_m
+      });
+    }
+    if (got.legs[0].mode !== 'outdoor') {
+      out.accounting.push({ room: room.room_id, firstLeg: got.legs[0].mode });
+    }
+
+    // 가까운 문만 고르는 옛 방식이었다면 얼마나 손해였나
+    let nearest = all[0], nearD = Infinity;
+    for (const e of all) {
+      const d = engine.metersBetween(spot[0], spot[1], e.lat, e.lon);
+      if (d < nearD) { nearD = d; nearest = e; }
+    }
+    const near = routeVia(nearest, spot, room);
+    if (near) out.spread.push(near.duration_s - got.duration_s);
+  }
 }
 
 // 출입구가 없는 번들에서는 친절한 오류가 나야 한다
-const bare = JSON.parse(JSON.stringify(data));
-bare.entrances = [];
-const bareEngine = TechnoRoute.load(bare);
+const bare = TechnoRoute.load(Object.assign({}, data, { entrances: [] }));
 try {
-  bareEngine.route({ outdoor: true, lat: 36.145, lng: 128.3925 },
-                   { room_id: room.room_id, floor: room.floor }, {});
+  bare.route({ outdoor: true, lat: 36.1465, lng: 128.3942 },
+             { room_id: targets[0].room_id, floor: targets[0].floor }, {});
   out.bare = { threw: false };
 } catch (error) {
   out.bare = { threw: true, message: error.message };
 }
+
+const sample = routeVia(null, spots[0], targets[0]);
+out.sample = { steps: sample.steps.slice(0, 3), entrance: sample.entrance,
+               outdoor_m: sample.outdoor_distance_m, total_m: sample.distance_m };
 
 console.log(JSON.stringify(out));
 """
 
 
 def main() -> int:
+    if not BUNDLE.exists():
+        print("work/techno_nav.json 이 없다. 05_build_nav.py 를 먼저 돌려라")
+        return 1
+
     problems = []
     with tempfile.TemporaryDirectory() as raw:
-        tmp = Path(raw)
-        work = make_work(tmp)
-        transform_data = georef.load()
-        graph = nav.build(floors=["1F", "2F", "3F", "4F"], work_dir=work,
-                          georef_data=transform_data)
-        print(f"합성 그래프: 노드 {len(graph.nodes)} · 출입구 {len(graph.entrances)}")
-        if len(graph.entrances) != 2:
-            problems.append(f"출입구 2개를 기대했는데 {len(graph.entrances)}개")
-
-        builder = load_builder()
-        payload = builder.build_payload(graph, transform_data)
-        bundle = tmp / "nav.json"
-        bundle.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-        print(f"번들 출입구: {[e['name'] for e in payload['entrances']]}")
-
-        script = tmp / "check.js"
+        script = Path(raw) / "check.js"
         script.write_text(NODE_SCRIPT, encoding="utf-8")
         finished = subprocess.run(
-            ["node", str(script), str(TOOL_DIR / "techno-route-core.js"), str(bundle)],
+            ["node", str(script), str(TOOL_DIR / "techno-route-core.js"), str(BUNDLE)],
             capture_output=True, text=True, encoding="utf-8")
-        if finished.returncode != 0:
-            print(finished.stderr[-1500:])
-            print("node 실행 실패")
-            return 1
-        outcome = json.loads(finished.stdout.strip().splitlines()[-1])
+    if finished.returncode != 0:
+        print(finished.stderr[-2000:])
+        print("node 실행 실패")
+        return 1
+    outcome = json.loads(finished.stdout.strip().splitlines()[-1])
 
-    print(f"\n목적지: {outcome['room']['floor']} {outcome['room']['room_id']}")
-    for case in outcome["cases"]:
-        if not case["ok"]:
-            print(f"  {case['from']} 근처 출발 → 실패: {case['error']}")
-            problems.append(f"{case['from']} 에서 경로 실패: {case['error']}")
-            continue
-        print(f"  {case['from']} 근처 출발 → 선택 출입구 {case['chosen']} · "
-              f"실외 {case['outdoor_m']:.0f}m · 총 {case['total_m']:.0f}m · "
-              f"구간 {case['legs']}개")
-        print(f"      첫 안내: {case['firstStep']}")
-        if case["chosen"] != case["from"]:
-            problems.append(f"{case['from']} 근처인데 {case['chosen']} 을 골랐다")
-        if case["firstLegMode"] != "outdoor":
-            problems.append(f"첫 구간이 outdoor 가 아니다: {case['firstLegMode']}")
-        if not (20 <= case["outdoor_m"] <= 80):
-            problems.append(f"실외 거리가 이상하다: {case['outdoor_m']}m")
+    entrances = outcome["entrances"]
+    print(f"출입구 {len(entrances)}개: "
+          + ", ".join(f"{e['name']}({e['floor']})" for e in entrances))
+    if not entrances:
+        problems.append("실제 데이터에 출입구가 하나도 없다")
 
-    print(f"\n출입구 없는 번들: {outcome['bare']}")
+    print(f"\n확인한 조합 {outcome['checked']}건 (바깥 지점 × 목적지)")
+
+    print(f"\n[문 선택] 전수 비교와 어긋난 경우: {len(outcome['mismatch'])}건")
+    for row in outcome["mismatch"][:5]:
+        print(f"  · {row['room']}: {row['chose']}({row['chose_s']:.0f}초) 대신 "
+              f"{row['best']}({row['best_s']:.0f}초) 가 나았다")
+    if outcome["mismatch"]:
+        problems.append(f"최적이 아닌 문을 고른 경우 {len(outcome['mismatch'])}건")
+
+    print(f"[합계 장부] 구간 합과 총계가 어긋난 경우: {len(outcome['accounting'])}건")
+    for row in outcome["accounting"][:5]:
+        print(f"  · {row}")
+    if outcome["accounting"]:
+        problems.append(f"거리·시간 합계가 맞지 않는 경우 {len(outcome['accounting'])}건")
+
+    spread = sorted(outcome["spread"])
+    if spread:
+        worse = [v for v in spread if v > 5]
+        print(f"\n[개선 폭] 옛 방식(가장 가까운 문) 대비: "
+              f"중앙값 {spread[len(spread) // 2]:.0f}초 · 최대 {spread[-1]:.0f}초 단축 "
+              f"({len(worse)}/{len(spread)} 건에서 5초 이상)")
+        if spread[0] < -1e-6:
+            problems.append(f"옛 방식이 더 빠른 경우가 있다: {spread[0]:.1f}초")
+
+    print(f"\n[안내문 예시] {outcome['sample']['entrance']['name']} · "
+          f"실외 {outcome['sample']['outdoor_m']:.0f}m · 총 {outcome['sample']['total_m']:.0f}m")
+    for step in outcome["sample"]["steps"]:
+        print(f"  {step}")
+    if not outcome["sample"]["steps"][0].startswith("건물 밖에서"):
+        problems.append(f"첫 안내가 실외 진입이 아니다: {outcome['sample']['steps'][0]}")
+
+    print(f"\n[출입구 없는 번들] {outcome['bare']}")
     if not outcome["bare"]["threw"]:
         problems.append("출입구가 없는데 오류를 내지 않았다")
     elif "외부" not in outcome["bare"]["message"]:
@@ -166,7 +190,7 @@ def main() -> int:
         for problem in problems:
             print(f"  · {problem}")
         return 1
-    print("\n출입구 규칙 끝단 확인 통과")
+    print("\n출입구 경로 끝단 확인 통과")
     return 0
 
 

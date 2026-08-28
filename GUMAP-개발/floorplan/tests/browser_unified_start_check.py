@@ -4,8 +4,8 @@
 따로 놀아서 아무 일이 없었다.
 
   A. 건물 **안** 을 눌러 출발지 지정 → 여기까지 길찾기 → 실내 경로가 나온다
-  B. 건물 **밖** 을 눌러 출발지 지정 → 여기까지 길찾기 → 실내 경로는 못 만들되
-     조용히 실패하지 말고 이유를 말하고 실외 도착지를 잡는다
+  B. 건물 **밖** 을 눌러 출발지 지정 → 여기까지 길찾기 → 출입구를 골라
+     실외 구간부터 방 문 앞까지 한 번에 이어진다
   C. 실내 패널에서 출발점을 찍으면 실외 출발지 칸도 같은 곳을 가리킨다
 
   python tests/browser_unified_start_check.py
@@ -138,16 +138,48 @@ def main() -> int:
 
         page.evaluate("(t) => window.routeToTechnoRoom(t.label, t.id)", room)
         page.wait_for_timeout(900)
-        after = page.evaluate("""() => ({
-            endCoord: window.endCoord || null,
-            endText: (document.getElementById('end-addr') || {}).textContent || null,
-            result: window.getTechnoRouteResult()
-        })""")
-        print(f"   여기까지 길찾기 → 실외 도착지 {after['endText']}")
-        if not after["endCoord"]:
-            problems.append("건물 밖 출발지에서 방을 골랐는데 실외 도착지가 안 잡힌다")
-        elif room["label"] not in (after["endText"] or ""):
-            problems.append(f"실외 도착지가 그 방이 아니다: {after['endText']}")
+        after = page.evaluate("""() => {
+            const r = window.getTechnoRouteResult();
+            if (!r || r.error) return { error: (r && r.error) || '결과 없음' };
+            return {
+                room: r.destination.room_id, floor: r.destination.floor,
+                entrance: r.entrance, outdoor_m: r.outdoor_distance_m,
+                distance_m: r.distance_m,
+                firstLeg: r.legs[0].mode, firstStep: r.steps[0],
+                legs: r.legs.length,
+                outdoorLatLngs: (r.legs[0].latlngs || []).length
+            };
+        }""")
+        if after.get("error"):
+            problems.append(f"건물 밖 출발지에서 방을 골랐는데 경로가 없다: {after['error']}")
+        else:
+            print(f"   여기까지 길찾기 → {after['entrance']['name']} 로 진입 · "
+                  f"실외 {after['outdoor_m']:.0f}m · 총 {after['distance_m']:.0f}m · "
+                  f"구간 {after['legs']}개")
+            print(f"   첫 안내: {after['firstStep']}")
+            if after["room"] != room["label"]:
+                problems.append(f"목적지가 다르다: {after['room']}")
+            if after["firstLeg"] != "outdoor":
+                problems.append(f"첫 구간이 실외가 아니다: {after['firstLeg']}")
+            if not after["entrance"]:
+                problems.append("어느 출입구로 들어갔는지 알려주지 않는다")
+            if after["outdoorLatLngs"] < 2:
+                problems.append("실외 구간이 지도에 그릴 좌표를 갖고 있지 않다")
+            if not (after["firstStep"] or "").startswith("건물 밖에서"):
+                problems.append(f"첫 안내가 실외 진입이 아니다: {after['firstStep']}")
+
+        # 지도에 실외 구간(초록 점선)이 실제로 그려졌는가
+        drawn = page.evaluate("""() => {
+            let dashed = 0, total = 0;
+            document.querySelectorAll('path.leaflet-interactive').forEach(p => {
+                total++;
+                if ((p.getAttribute('stroke-dasharray') || '').indexOf('10') === 0) dashed++;
+            });
+            return { dashed, total };
+        }""")
+        print(f"   지도 폴리라인 {drawn['total']}개 (실외 점선 {drawn['dashed']}개)")
+        if drawn["dashed"] < 1:
+            problems.append("실외 구간이 지도에 그려지지 않았다")
 
         # ── C. 실내 패널에서 찍은 출발점도 실외와 동기화
         page.evaluate("() => window.clearTechnoRoute()")

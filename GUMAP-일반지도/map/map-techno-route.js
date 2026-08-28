@@ -232,8 +232,19 @@
             }
         });
 
+        // 들어가는 문. 실외 구간 끝에 찍는다.
+        if (result.entrance && result.entrance.floor === floor && result.entrance.latlng) {
+            group.addLayer(L.circleMarker(result.entrance.latlng, {
+                radius: 9, color: '#fff', weight: 3,
+                fillColor: '#16a34a', fillOpacity: 1
+            }).bindTooltip('🚪 ' + result.entrance.name,
+                { permanent: true, direction: 'right', className: 'techno-route-tip' }));
+        }
+
         result.legs.forEach(function (leg) {
-            if (leg.mode === 'walk') return;
+            // outdoor 는 층간 이동이 아니다. 걸러 내지 않으면 to_floor 가 없어
+            // "🛗 서쪽 출입구 (1F) → null" 같은 표가 붙는다.
+            if (leg.mode === 'walk' || leg.mode === 'outdoor') return;
             var icon = leg.mode === 'stairs' ? '🪜' : '🛗';
             if (leg.floor === floor && leg.latlngs[0]) {
                 group.addLayer(L.circleMarker(leg.latlngs[0], {
@@ -289,6 +300,30 @@
         var steps = [];
         var total = 0;
         route.legs.forEach(function (leg) {
+            if (leg.mode === 'outdoor') {
+                // 실외 구간은 도면 픽셀이 없다. 길이 비율을 위경도로 잡는다.
+                // 여기서 걸러 내지 않으면 아래 else 로 떨어져 계단 취급을 받는다.
+                var walked = (leg.latlngs || []).filter(Boolean);
+                if (walked.length < 2) return;
+                var outSpans = [];
+                var outSum = 0;
+                for (var k = 1; k < walked.length; k++) {
+                    var span = Math.hypot(walked[k][0] - walked[k - 1][0],
+                                          walked[k][1] - walked[k - 1][1]);
+                    outSpans.push(span);
+                    outSum += span;
+                }
+                if (outSum <= 0) return;
+                var outDuration = Math.max(0.4, leg.distance_m / PLAY_METERS_PER_SECOND);
+                steps.push({
+                    kind: 'walk', floor: leg.floor, points: walked, spans: outSpans,
+                    spanTotal: outSum, start: total, duration: outDuration,
+                    label: '건물 밖 이동 ' + leg.distance_m.toFixed(0) + 'm' +
+                           (leg.name ? ' → ' + leg.name : '')
+                });
+                total += outDuration;
+                return;
+            }
             if (leg.mode === 'walk') {
                 var points = (leg.latlngs || []).filter(Boolean);
                 if (points.length < 2) return;
@@ -672,7 +707,7 @@
             } else if (outdoorStart && engine && engine.hasEntrances()) {
                 idle = '<span style="color:var(--text-muted);">🚶 출발지가 건물 밖입니다 (' +
                        escapeHtml(outdoorStart.name) + ')<br>' +
-                       '방을 고르면 가장 가까운 출입구로 들어가는 경로를 만듭니다.</span>';
+                       '방을 고르면 가장 빨리 닿는 출입구로 들어가는 경로를 만듭니다.</span>';
             } else if (outdoorStart) {
                 // 출입구가 아직 하나도 없으면 실내로 이을 방법이 없다.
                 // 이 상태를 숨기지 말고 무엇을 하면 되는지까지 알린다.
@@ -803,9 +838,8 @@
             }
             if (window.map) window.map.closePopup();
 
-            // 건물 밖에서 출발한 경우. 외부 출입문이 그래프에 없어 실내 구간을
-            // 이을 수 없다. 대신 그 방을 실외 도착지로 잡아 건물까지는 안내되게
-            // 하고, 왜 실내 구간이 없는지 분명히 말한다.
+            // 건물 밖에서 출발했고 출입구가 등록돼 있으면, 실외 구간부터
+            // 방 문 앞까지 한 번에 잇는다.
             if (!start && outdoorStart && engine.hasEntrances()) {
                 return runOutdoorRoute(room);
             }
@@ -848,7 +882,7 @@
         };
     }
 
-    /** 건물 밖 출발지 → 가장 가까운 출입구 → 방. 출입구가 등록돼야 쓸 수 있다. */
+    /** 건물 밖 출발지 → 가장 빨리 닿는 출입구 → 방. 문 선택은 엔진이 한다. */
     function runOutdoorRoute(room) {
         try {
             result = engine.route(

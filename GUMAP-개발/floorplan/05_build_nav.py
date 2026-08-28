@@ -11,6 +11,7 @@ JSON 300KB 남짓이고, 브라우저 다익스트라가 5ms 안에 끝난다. �
 같은 파일을 쓰게 만들어, 에디터에서 확인한 경로가 곧 서비스 경로가 되게 한다.
 """
 import json
+import math
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -102,23 +103,30 @@ def build_payload(graph: nav.NavGraph, transform_data: dict) -> dict:
     transform = georef.transform_from(transform_data)
     origins = transform_data.get("floor_origin_px") or {}
     per_mm = transform_data.get("floor_px_per_mm") or {}
-    entrances = []
-    for index, node_id in enumerate(graph.entrances):
-        node = graph.nodes[node_id]
-        origin = origins.get(node.floor)
-        scale = per_mm.get(node.floor)
+
+    def to_lonlat(floor: str, x: float, y: float):
+        origin = origins.get(floor)
+        scale = per_mm.get(floor)
         if not origin or not scale:
+            return None
+        x_m = (x - origin[0]) / scale / 1000.0
+        y_m = -(y - origin[1]) / scale / 1000.0
+        return georef.apply(transform, x_m, y_m)
+
+    entrances = []
+    for node_id in graph.entrances:
+        node = graph.nodes[node_id]
+        placed = to_lonlat(node.floor, node.x, node.y)
+        if placed is None:
             continue
-        x_m = (node.x - origin[0]) / scale / 1000.0
-        y_m = -(node.y - origin[1]) / scale / 1000.0
-        lon, lat = georef.apply(transform, x_m, y_m)
         entrances.append({
             "node": order[node_id],
             "floor": node.floor,
-            "name": node.name or f"출입구 {index + 1}",
-            "lat": round(lat, 8),
-            "lon": round(lon, 8),
+            "name": node.name,
+            "lat": round(placed[1], 8),
+            "lon": round(placed[0], 8),
         })
+    name_entrances(entrances, building_center(graph, to_lonlat))
 
     return {
         "meta": {
@@ -152,6 +160,63 @@ def build_payload(graph: nav.NavGraph, transform_data: dict) -> dict:
         "entrances": entrances,
         "rooms": route.room_index(graph),
     }
+
+
+COMPASS = ("북", "북동", "동", "남동", "남", "남서", "서", "북서")
+
+
+def building_center(graph: nav.NavGraph, to_lonlat) -> tuple[float, float]:
+    """건물 한가운데 (lat, lon).
+
+    출입구들의 평균을 쓰면 안 된다. 문이 한쪽 면에 몰려 있으면 기준점이
+    그 면으로 끌려가서, 나란히 붙은 두 문이 "북쪽" 과 "남쪽" 으로 갈린다.
+    복도 노드는 건물 전체에 깔려 있으니 그 외접 상자의 한가운데를 쓴다.
+    """
+    lats, lons = [], []
+    for node in graph.nodes.values():
+        placed = to_lonlat(node.floor, node.x, node.y)
+        if placed is None:
+            continue
+        lons.append(placed[0])
+        lats.append(placed[1])
+    if not lats:
+        return (config.REFERENCE_LATITUDE, 0.0)
+    return ((min(lats) + max(lats)) / 2.0, (min(lons) + max(lons)) / 2.0)
+
+
+def name_entrances(entrances: list[dict], center: tuple[float, float]) -> None:
+    """이름 없는 출입구에 방위로 이름을 붙인다.
+
+    "출입구 7" 은 밖에 서 있는 사람에게 아무 정보도 주지 않는다. 최소한
+    건물 어느 쪽인지는 알려줘야 한다. 도면에 room_id 를 적어 두면 그게 이긴다.
+    """
+    center_lat, center_lon = center
+    cos_lat = math.cos(math.radians(center_lat))
+
+    sectors: dict[str, list[dict]] = {}
+    for entrance in entrances:
+        if entrance["name"]:
+            continue
+        north = (entrance["lat"] - center_lat) * config.METERS_PER_DEG_LAT
+        east = (entrance["lon"] - center_lon) * config.METERS_PER_DEG_LON_AT_EQUATOR * cos_lat
+        bearing = (math.degrees(math.atan2(east, north)) + 360.0) % 360.0
+        index = int(((bearing + 22.5) % 360.0) // 45)
+        entrance["_bearing"] = bearing
+        entrance["_offset"] = ((bearing - index * 45.0 + 180.0) % 360.0) - 180.0
+        sectors.setdefault(f"{COMPASS[index]}|{entrance['floor']}", []).append(entrance)
+
+    for key, group in sectors.items():
+        sector, floor = key.split("|")
+        # 같은 방위·같은 층에 여럿이면 번호로 가른다. 구역 한가운데를 기준으로
+        # 시계방향. 북쪽 구역에서 355° 와 5° 가 뒤집히지 않게 각도차로 센다.
+        group.sort(key=lambda e: e["_offset"])
+        for position, entrance in enumerate(group, start=1):
+            suffix = f" {position}" if len(group) > 1 else ""
+            entrance["name"] = f"{sector}쪽 출입구{suffix} ({floor})"
+
+    for entrance in entrances:
+        entrance.pop("_bearing", None)
+        entrance.pop("_offset", None)
 
 
 def self_check(graph: nav.NavGraph) -> list[str]:
