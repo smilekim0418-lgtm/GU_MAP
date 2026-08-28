@@ -85,6 +85,14 @@
     <button id="dark-mode-toggle" class="glass-panel" onclick="toggleDarkMode()"
         style="position:absolute; top:20px; right:20px; z-index:1001; width:44px; height:44px; border-radius:50%; cursor:pointer; font-size:20px; display:flex; align-items:center; justify-content:center; transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1);"
         title="다크모드 전환">🌙</button>
+
+    <!-- 3D 캠퍼스 뷰어. 예전에는 "MaaS 정책 연구소" 패널 안에만 있었는데
+         그 패널이 기본으로 display:none 이라 아무도 찾을 수 없었다.
+         테크노관을 보고 있는 중이면 그 건물로 바로 날아가게 #techno 를 붙인다. -->
+    <button id="open-3d-btn" class="glass-panel"
+        onclick="window.open('3d-viewer.html' + ((document.getElementById('techno-indoor-panel') && getComputedStyle(document.getElementById('techno-indoor-panel')).display !== 'none') ? '#techno' : ''), 'kumoh3d', 'width=1280,height=820,toolbar=no,menubar=no,scrollbars=no')"
+        style="position:absolute; top:176px; right:20px; z-index:1001; width:44px; height:44px; border-radius:50%; cursor:pointer; font-size:19px; display:flex; align-items:center; justify-content:center; transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1);"
+        title="3D 캠퍼스 뷰어 (테크노관 실내 포함)">🏛️</button>
     <div id="routing-panel" class="glass-panel panel-expanded">
         
         <div id="bottom-sheet-handle" onclick="toggleBottomSheet()"></div>
@@ -246,7 +254,7 @@
                                 🏛️ 3D 캠퍼스 뷰어 열기
                             </button>
                             <div style="font-size:9px; color:var(--text-muted); text-align:center; margin-top:-2px;">
-                                IACF · 도서관(LIB) · 학생회관(StC) | 포트 8766 필요
+                                테크노관 실내(도면 기반)는 바로 보임 · 실측 3개동은 포트 8766 필요
                             </div>
                         </div>
                     </div>
@@ -594,7 +602,7 @@
     <script src="../GUMAP-프론트/js/map/map-init.js?v=109" defer></script>
     <script src="../GUMAP-프론트/js/map/map-layers.js?v=75" defer></script>
     <script src="../GUMAP-프론트/js/map/map-techno-imdf-data.js?v=7d00a266" defer></script>
-    <script src="../GUMAP-프론트/js/map/map-techno-indoor.js?v=6ec4cfc4" defer></script>
+    <script src="../GUMAP-프론트/js/map/map-techno-indoor.js?v=0925c173" defer></script>
     <script src="../GUMAP-프론트/js/map/map-techno-route-core.js?v=291841a6" defer></script>
     <script src="../GUMAP-프론트/js/map/map-techno-nav-data.js?v=1f12bfc6" defer></script>
     <script src="../GUMAP-프론트/js/map/map-techno-route.js?v=e68b3a7e" defer></script>

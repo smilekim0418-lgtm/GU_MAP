@@ -356,6 +356,12 @@
 
     buildTechno();
 
+    // 메인 지도에서 테크노관을 보다가 넘어왔으면(#techno) 그 건물로 바로 간다.
+    // 3D Tiles 로드가 끝난 뒤 zoomTo(tileset) 이 카메라를 가져가므로 그 뒤에 건다.
+    if (location.hash === '#techno') {
+        setTimeout(function () { window.flyToBuilding('techno'); }, 900);
+    }
+
     // ── 건물 클릭 → 정보 표시 ──
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     handler.setInputAction(function(click) {
