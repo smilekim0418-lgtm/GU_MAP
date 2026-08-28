@@ -244,18 +244,18 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
     <span style="background:${st.color};color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:800;">
       ${st.icon} ${escHtml(labelStr || st.name)}
     </span>
-    <span style="font-size:10px;color:#94a3b8;font-weight:700;">
+    <span style="font-size:10px;color:var(--text-muted);font-weight:700;">
       테크노관 ${escHtml(targetLevelInfo.name)}
     </span>
   </div>
-  <h4 style="margin:4px 0 6px;font-size:15px;color:#f8fafc;font-weight:800;line-height:1.3;">
+  <h4 style="margin:4px 0 6px;font-size:15px;color:var(--text-main);font-weight:800;line-height:1.3;">
     ${escHtml(displayName)}
   </h4>
   ${tagBadges ? `<div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:2px;">${tagBadges}</div>` : ''}
-  <div style="font-size:11px;color:#94a3b8;line-height:1.6;margin-bottom:10px;padding:8px;background:rgba(255,255,255,.05);border-radius:8px;border:1px solid rgba(255,255,255,.08);">
-    <div>🏛️ <b>구분:</b> <span style="color:#e2e8f0">${escHtml(st.name)}</span></div>
-    ${props.department ? `<div>🏫 <b>소속:</b> <span style="color:#e2e8f0">${escHtml(props.department)}</span></div>` : ''}
-    <div>🌐 <b>표준ID:</b> <span style="color:#64748b;font-family:monospace;font-size:9px">${unit.id.slice(0,18)}…</span></div>
+  <div style="font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:10px;padding:8px;background:var(--bg-input);border-radius:8px;border:1px solid var(--border-panel);">
+    <div>🏛️ <b>구분:</b> <span style="color:var(--text-main)">${escHtml(st.name)}</span></div>
+    ${props.department ? `<div>🏫 <b>소속:</b> <span style="color:var(--text-main)">${escHtml(props.department)}</span></div>` : ''}
+    <div>🌐 <b>표준ID:</b> <span style="color:var(--text-muted);font-family:monospace;font-size:9px">${unit.id.slice(0,18)}…</span></div>
   </div>
   <div style="display:flex;gap:6px;">
     <button onclick="window.routeToTechnoRoom('${escHtml(labelStr || displayName)}', '${unit.id}')"
@@ -297,25 +297,36 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
             window.technoIndoorLayerGroup.addLayer(geoLayer);
         });
 
-        // 2. 출입구(Opening) 렌더링 (휠체어 접근성 등)
+        // 2. 출입구(Opening) 렌더링
+        //    한 층에 문이 60~90개다. 전부 그리면 방 번호가 안 보인다.
+        //    건물 밖으로 나가는 문(pedestrian.principal)만 표시한다.
         levelOpenings.forEach(op => {
             const props = op.properties || {};
+            if (props.category !== 'pedestrian.principal') return;
+
             const isWheelchair = props.accessibility?.includes('wheelchair');
-            const geoLayer = L.geoJSON(op, {
-                style: { color: isWheelchair ? '#10b981' : '#f59e0b', weight: 2, dashArray: '2,3' },
-                pointToLayer: function (feature, latlng) {
-                    return L.marker(latlng, {
-                        icon: L.divIcon({
-                            className: 'imdf-opening-icon',
-                            html: `<div style="font-size:14px;">${isWheelchair ? '♿' : '🚪'}</div>`,
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
-                        })
-                    });
-                }
+            const label = props.name?.['ko-KR'] || props.name?.en || '건물 출입구';
+
+            // 문지방 선분
+            window.technoIndoorLayerGroup.addLayer(L.geoJSON(op, {
+                style: { color: '#16a34a', weight: 5, opacity: 0.95, lineCap: 'round' }
+            }));
+
+            // 표식. LineString 이라 pointToLayer 가 안 걸리므로 직접 찍는다.
+            const point = props.display_point?.coordinates;
+            if (!point) return;
+            const marker = L.marker([point[1], point[0]], {
+                icon: L.divIcon({
+                    className: 'imdf-opening-icon',
+                    html: `<div style="font-size:17px;line-height:1;text-shadow:0 0 3px #fff,0 0 6px #fff;">${isWheelchair ? '♿' : '🚪'}</div>`,
+                    iconSize: [22, 22],
+                    iconAnchor: [11, 11]
+                })
             });
-            geoLayer.bindTooltip(isWheelchair ? '♿ 휠체어 접근 가능 출입구' : '🚪 출입문', { direction: 'top' });
-            window.technoIndoorLayerGroup.addLayer(geoLayer);
+            marker.bindTooltip(`🚪 ${label}${isWheelchair ? ' · ♿' : ''}`, {
+                direction: 'top', className: 'imdf-entrance-tip'
+            });
+            window.technoIndoorLayerGroup.addLayer(marker);
         });
 
         console.log(`[IMDF] ${activeShortName} 렌더링 완료 (${levelUnits.length}개 공간)`);
@@ -357,20 +368,20 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         panel.innerHTML = `
 <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px;">
   <div>
-    <div style="font-size:13px;font-weight:800;color:#f8fafc;display:flex;align-items:center;gap:6px;">
+    <div style="font-size:13px;font-weight:800;color:var(--text-main);display:flex;align-items:center;gap:6px;">
       🏫 테크노관 실내지도
       <span style="font-size:9px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:1px 6px;border-radius:10px;font-weight:700;">OGC IMDF</span>
     </div>
-    <div style="font-size:10px;color:#64748b;margin-top:2px;">국제표준(B1F~6F) 366개 실내공간</div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">국제표준(B1F~6F) 366개 실내공간</div>
   </div>
-  <button id="ti-close" style="background:none;border:none;color:#64748b;font-size:16px;cursor:pointer;padding:2px;">✕</button>
+  <button id="ti-close" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:2px;">✕</button>
 </div>
 
 <!-- 실내 검색창 -->
 <div style="position:relative;">
   <input id="ti-search" type="text" placeholder="🔍 호실, 연구실, 교수명 검색..."
     style="width:100%;padding:7px 10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
-           border-radius:8px;color:#f8fafc;font-size:11px;outline:none;box-sizing:border-box;">
+           border-radius:8px;color:var(--text-main);font-size:11px;outline:none;box-sizing:border-box;">
   <div id="ti-results" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:10;
        background:#0f172a;border:1px solid rgba(255,255,255,.15);border-radius:8px;
        margin-top:4px;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.6);padding:4px;"></div>
@@ -378,12 +389,12 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
 <!-- 층 선택 버튼 그리드 -->
 <div>
-  <div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:6px;">층 선택 (LEVEL)</div>
+  <div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-bottom:6px;">층 선택 (LEVEL)</div>
   <div id="ti-floor-btns" style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;"></div>
 </div>
 
 <!-- 범주 범례 -->
-<div style="font-size:9px;color:#64748b;display:flex;flex-wrap:wrap;gap:6px;padding-top:4px;border-top:1px solid rgba(255,255,255,.06);">
+<div style="font-size:9px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:6px;padding-top:4px;border-top:1px solid rgba(255,255,255,.06);">
   <span>🔬 연구실</span>
   <span>📚 강의실</span>
   <span>💼 교수실</span>
@@ -457,14 +468,14 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
             if (!hits.length) {
                 sr.style.display = 'block';
-                sr.innerHTML = '<div style="padding:8px;font-size:11px;color:#64748b;text-align:center;">검색 결과가 없습니다.</div>';
+                sr.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">검색 결과가 없습니다.</div>';
                 return;
             }
 
             sr.style.display = 'block';
             sr.innerHTML = hits.slice(0, 10).map(h => `
 <div onclick="window._focusTechnoImdfUnit('${h.unit.id}', '${h.levelShort}')"
-  style="padding:6px 8px;font-size:11px;color:#e2e8f0;cursor:pointer;border-radius:6px;
+  style="padding:6px 8px;font-size:11px;color:var(--text-main);cursor:pointer;border-radius:6px;
          display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"
   onmouseover="this.style.background='rgba(255,255,255,.1)'"
   onmouseout="this.style.background='transparent'">

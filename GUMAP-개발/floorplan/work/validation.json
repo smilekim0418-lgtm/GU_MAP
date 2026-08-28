@@ -1,0 +1,982 @@
+[
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F 복도: 꼭짓점 (27.7, -7.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B114: 꼭짓점 (12.0, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B115: 꼭짓점 (19.2, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B116: 꼭짓점 (22.8, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B117: 꼭짓점 (26.5, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B118: 꼭짓점 (44.4, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B119: 꼭짓점 (48.0, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B120: 꼭짓점 (51.6, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B121: 꼭짓점 (55.3, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B122: 꼭짓점 (58.9, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B123: 꼭짓점 (62.4, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B124: 꼭짓점 (66.0, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F B125: 꼭짓점 (69.6, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "B1F 무번호: 꼭짓점 (34.4, -7.5)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 복도: 꼭짓점 (27.5, -7.1)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 113: 꼭짓점 (18.9, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 114: 꼭짓점 (22.6, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 115: 꼭짓점 (26.4, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 116: 꼭짓점 (44.2, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 117: 꼭짓점 (47.8, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 118: 꼭짓점 (51.4, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 119: 꼭짓점 (55.0, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 120: 꼭짓점 (58.6, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 121: 꼭짓점 (62.1, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 122: 꼭짓점 (69.6, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "1F 무번호: 꼭짓점 (72.5, -5.1)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 214: 꼭짓점 (15.7, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 215: 꼭짓점 (19.3, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 216: 꼭짓점 (22.9, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 217: 꼭짓점 (26.5, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 218: 꼭짓점 (30.1, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 219: 꼭짓점 (33.7, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 220: 꼭짓점 (40.9, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 221: 꼭짓점 (48.1, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 222: 꼭짓점 (51.7, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 223: 꼭짓점 (55.3, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 224: 꼭짓점 (58.9, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 225: 꼭짓점 (62.5, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 226: 꼭짓점 (66.1, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "2F 227: 꼭짓점 (69.8, -10.2)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 313: 꼭짓점 (15.5, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 314: 꼭짓점 (19.2, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 315: 꼭짓점 (22.7, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 316: 꼭짓점 (26.3, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 317: 꼭짓점 (29.9, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 319: 꼭짓점 (40.7, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 318: 꼭짓점 (33.5, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 320: 꼭짓점 (44.3, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 321: 꼭짓점 (47.9, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 322: 꼭짓점 (51.5, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 323: 꼭짓점 (58.8, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 324: 꼭짓점 (62.3, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 325: 꼭짓점 (66.0, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "3F 326: 꼭짓점 (69.7, -9.8)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 414: 꼭짓점 (15.3, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 415: 꼭짓점 (18.9, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 416: 꼭짓점 (22.6, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 417: 꼭짓점 (26.1, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 418: 꼭짓점 (33.2, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 419: 꼭짓점 (36.9, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 420: 꼭짓점 (40.4, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 421: 꼭짓점 (44.0, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 422: 꼭짓점 (51.2, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 423: 꼭짓점 (54.8, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 424: 꼭짓점 (58.4, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 425: 꼭짓점 (62.0, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 426: 꼭짓점 (65.6, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "4F 427: 꼭짓점 (69.4, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "5F 516: 꼭짓점 (40.3, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "5F 518: 꼭짓점 (54.7, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "5F 519: 꼭짓점 (58.4, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "5F 520: 꼭짓점 (61.8, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "5F 521: 꼭짓점 (65.4, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "5F 522: 꼭짓점 (69.4, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "5F 512: 꼭짓점 (18.7, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "5F 513: 꼭짓점 (25.9, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "5F 514: 꼭짓점 (29.6, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "5F 515: 꼭짓점 (33.0, -10.0)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "outside_extent",
+    "message": "5F 517: 꼭짓점 (51.0, -9.9)m 가 도면 범위 (90.2x88.7m) 밖이다"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "복도: 면적 492.9㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "B127: 면적 3.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-3: 면적 2.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-1: 면적 2.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-2: 면적 2.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "복도: 면적 1418.4㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "101: 면적 207.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "139: 면적 3.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "124: 면적 3.3㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-3: 면적 2.1㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-1: 면적 2.1㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-2: 면적 2.1㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "복도: 면적 2176.5㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "201: 면적 212.3㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "229: 면적 1.6㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "245: 면적 3.2㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "261: 면적 3.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-1: 면적 2.4㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-2: 면적 2.5㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-3: 면적 2.5㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "복도: 면적 1756.7㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "328: 면적 3.1㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "301: 면적 207.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "345: 면적 3.6㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "364: 면적 3.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-3: 면적 2.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-1: 면적 2.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-2: 면적 2.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "복도: 면적 1820.4㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "429: 면적 2.8㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "448: 면적 3.7㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-3: 면적 2.2㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-1: 면적 2.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-2: 면적 2.0㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "524: 면적 3.1㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "복도: 면적 465.4㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-3: 면적 2.2㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-1: 면적 2.3㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-2: 면적 2.3㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "복도: 면적 231.7㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-1: 면적 2.2㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "area_out_of_range",
+    "message": "EV-2: 면적 2.3㎡ 가 5.0~200.0㎡ 범위 밖"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "1F 복도 와 108 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "1F 복도 와 계단-B 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 212 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 213 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 212-1 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 212-2 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 210 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 209 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 207 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 208 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 EV-1 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 EV-2 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 계단-B 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 계단-C 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "2F 복도 와 EV-3 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "3F 복도 와 310 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "3F 복도 와 307 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "3F 복도 와 308 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "3F 복도 와 309 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "3F 복도 와 311 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "3F 복도 와 312 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "3F 복도 와 계단-C 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "3F 복도 와 EV-3 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "3F 복도 와 EV-1 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "3F 복도 와 EV-2 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "4F 복도 와 409 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "4F 복도 와 410 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "4F 복도 와 411 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "4F 복도 와 412 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "4F 복도 와 413 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "4F 복도 와 407 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "4F 복도 와 408 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "4F 복도 와 계단-C 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "4F 복도 와 EV-3 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "4F 복도 와 EV-1 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "overlap",
+    "message": "4F 복도 와 EV-2 가 100% 겹친다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 125-1 (열-구조해석 및 공력가열 실험실) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 144-1 (일반물리학 실험 기자재실) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 156 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 161 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 162 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 163 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 164 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 165 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 166 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 167 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 168 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 169 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 170 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 171 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 172 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 173 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "1F 174 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "2F 211 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "2F 220-1 (류욱하) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "3F 305-1 (생체공학 실험실) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 440 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 467 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 468 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 469 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 470 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 471 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 472 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 473 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 474 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 475 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 476 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 477 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 478 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "missing_geometry",
+    "message": "4F 479 (이름없음) 에 도형이 없다"
+  },
+  {
+    "severity": "warning",
+    "code": "vertical_misalignment",
+    "message": "4F 계단-D 에서 가장 가까운 5F 수직동선까지 70.8m (허용 2.0m). 좌표 변환을 의심하라."
+  },
+  {
+    "severity": "warning",
+    "code": "vertical_misalignment",
+    "message": "4F 계단-E 에서 가장 가까운 5F 수직동선까지 38.9m (허용 2.0m). 좌표 변환을 의심하라."
+  },
+  {
+    "severity": "warning",
+    "code": "vertical_misalignment",
+    "message": "5F EV-3 에서 가장 가까운 6F 수직동선까지 30.9m (허용 2.0m). 좌표 변환을 의심하라."
+  },
+  {
+    "severity": "warning",
+    "code": "vertical_misalignment",
+    "message": "5F 계단-C 에서 가장 가까운 6F 수직동선까지 26.0m (허용 2.0m). 좌표 변환을 의심하라."
+  },
+  {
+    "severity": "warning",
+    "code": "vertical_misalignment",
+    "message": "5F 계단-F 에서 가장 가까운 6F 수직동선까지 63.0m (허용 2.0m). 좌표 변환을 의심하라."
+  }
+]

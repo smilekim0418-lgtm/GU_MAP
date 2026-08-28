@@ -70,18 +70,6 @@ class MemoryCache:
         self.cache[key] = (time.time() + ttl_seconds, content, status_code, media_type)
 
 
-    def get(self, key):
-        if key in self.cache:
-            expiry, content, status_code, media_type = self.cache[key]
-            if time.time() < expiry:
-                return content, status_code, media_type
-            else:
-                del self.cache[key]
-        return None
-
-    def set(self, key, content, status_code, media_type, ttl_seconds):
-        self.cache[key] = (time.time() + ttl_seconds, content, status_code, media_type)
-
 global_cache = MemoryCache()
 
 # Global HTTP client for connection pooling
@@ -1780,6 +1768,31 @@ async def old_html_redirect():
 
 app.mount("/", CacheControlledStaticFiles(directory=".", html=True), name="static")
 
+def dual_stack_socket(port: int):
+    """IPv4 와 IPv6 를 한 소켓으로 받는다. 실패하면 None.
+
+    'localhost' 는 윈도우에서 IPv6(::1)로 **먼저** 풀린다. 서버가 0.0.0.0
+    (IPv4 전용)으로만 들으면 ::1 연결이 거부되는데, 윈도우는 그 거부를
+    돌려주기까지 약 2초를 쓴다. 그래서 새 연결마다 2초씩 붙었다
+    (실측: localhost 2,016ms vs 127.0.0.1 12ms - 170배).
+    크롬은 IPv4/IPv6 를 동시에 시도해 상당 부분 감추지만, 그래도 페이지
+    로드가 1,154ms → 779ms 로 차이가 났다.
+    """
+    import socket
+    try:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        # 0 이어야 같은 소켓으로 IPv4 매핑 주소까지 받는다
+        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("::", port))
+        sock.listen(2048)
+        sock.set_inheritable(True)
+        return sock
+    except OSError as error:
+        print(f"[!] 듀얼스택 바인드 실패({error}). IPv4 전용으로 계속한다.")
+        return None
+
+
 if __name__ == "__main__":
     import uvicorn
     print("====================================================")
@@ -1791,5 +1804,11 @@ if __name__ == "__main__":
         # uvicorn reload 모드는 app 객체 대신 모듈의 문자열 지칭을 사용해야 작동함
         uvicorn.run("server:app", host="0.0.0.0", port=3000, reload=True, workers=1)
     else:
-        uvicorn.run(app, host="0.0.0.0", port=3000)
+        listener = dual_stack_socket(3000)
+        if listener is None:
+            uvicorn.run(app, host="0.0.0.0", port=3000)
+        else:
+            print("[*] Listening dual-stack (IPv4 + IPv6) on port 3000")
+            server = uvicorn.Server(uvicorn.Config(app))
+            server.run(sockets=[listener])
 

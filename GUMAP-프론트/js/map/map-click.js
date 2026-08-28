@@ -61,7 +61,10 @@ window.initMapClickEvents = function() {
 
     // ── 지도 일반 클릭: 건물 중력 스냅핑 및 POI 조회 ──
     window.map.on('click', function(e) {
-    if (window._indoorMapClicked) return;
+        if (window._indoorMapClicked) return;
+        // 실내 길찾기에서 출발점을 찍는 중이면 그 클릭은 실내 쪽 몫이다.
+        // 여기서 팝업까지 띄우면 두 개가 겹쳐 뜬다.
+        if (typeof window.isTechnoRoutePicking === 'function' && window.isTechnoRoutePicking()) return;
         window.clickToken++;
         var currentToken = window.clickToken;
         window.infoWindow = window.infoWindow || L.popup();
@@ -327,6 +330,44 @@ window.initMapClickEvents = function() {
     });
 };
 
+// ── 이름 붙은 장소가 없는 지점의 팝업 ──
+//
+// 예전에는 건물도 POI 도 안 잡히면 팝업을 그냥 닫아, 빈 공간을 누르면 아무
+// 일도 일어나지 않았다. 길찾기 출발지를 지도에서 찍고 싶을 때 쓸 방법이
+// 없었다. 이제는 좌표만 있어도 지점 팝업을 띄우고, 출발/경유/도착 버튼을
+// 접어 두지 않고 바로 보여 준다.
+window.showPointPopup = function (lat, lng, addr) {
+    window.infoWindow = window.infoWindow || L.popup();
+
+    var label = addr || '좌표 ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+    var safeLabel = String(label).replace(/'/g, "\\'");
+    var safeAddr = addr ? String(addr).replace(/'/g, "\\'") : '';
+
+    window.selectedLocation = { lat: lat, lng: lng, name: '지정한 위치', addr: addr || '' };
+
+    var popupHtml = `
+    <div id="click-popup" style="padding:8px; font-size:13px; min-width:250px; max-width:320px; font-family:'Noto Sans KR',sans-serif; line-height:1.5;">
+        <b id="popup-title" style="font-size:15px; color:var(--text-main); display:block; margin-bottom:2px;">📍 지정한 위치</b>
+        <div id="popup-addr" style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">${label}</div>
+
+        <div style="display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap;">
+            <button onclick="setRoutingPoint('START', ${lat}, ${lng}, '${safeLabel}'); window.map.closePopup();"
+                style="flex:1; padding:6px; font-size:11px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🛫 출발지</button>
+            <button onclick="setRoutingPoint('WAYPOINT', ${lat}, ${lng}, '${safeLabel}'); window.map.closePopup();"
+                style="flex:1; padding:6px; font-size:11px; background:#f59e0b; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🔄 경유지</button>
+            <button onclick="setRoutingPoint('END', ${lat}, ${lng}, '${safeLabel}'); window.map.closePopup();"
+                style="flex:1; padding:6px; font-size:11px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🛬 도착지</button>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end;">
+            <a href="javascript:void(0)" onclick="window.addFavorite('지정한 위치', ${lat}, ${lng}, '${safeAddr}'); window.map.closePopup();"
+               style="font-size:11px; color:#92400e; text-decoration:underline; font-weight:600; cursor:pointer;">⭐ 즐겨찾기</a>
+        </div>
+    </div>`;
+
+    window.infoWindow.setLatLng([lat, lng]).setContent(popupHtml).openOn(window.map);
+};
+
 // ── 빈 공간 클릭 시 POI 상호명 검출 폴백 ──
 function fallbackPoiOnlySearch(lat, lng) {
     window.infoWindow = window.infoWindow || L.popup();
@@ -377,7 +418,7 @@ function fallbackPoiOnlySearch(lat, lng) {
             }
             
             if (!queryStr) {
-                window.map.closePopup(window.infoWindow);
+                window.showPointPopup(lat, lng, finalAddr);
                 return;
             }
             
@@ -415,20 +456,20 @@ function fallbackPoiOnlySearch(lat, lng) {
                             window.infoWindow.setLatLng([lat, lng]);
                             updatePopupContent(finalTitle, poiAddr);
                         } else {
-                            window.map.closePopup(window.infoWindow);
+                            window.showPointPopup(lat, lng, finalAddr);
                         }
                     } else {
-                        window.map.closePopup(window.infoWindow);
+                        window.showPointPopup(lat, lng, finalAddr);
                     }
                 })
                 .catch(err => {
                     console.warn("POI 검색 실패:", err);
-                    window.map.closePopup(window.infoWindow);
+                    window.showPointPopup(lat, lng, finalAddr);
                 });
         })
         .catch(err => {
             console.warn("역지오코딩 실패:", err);
-            window.map.closePopup(window.infoWindow);
+            window.showPointPopup(lat, lng, null);
         });
 }
 

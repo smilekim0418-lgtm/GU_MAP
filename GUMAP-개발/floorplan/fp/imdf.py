@@ -10,6 +10,7 @@ from shapely.geometry import MultiPoint
 from shapely.geometry.polygon import orient
 
 from . import config
+from . import entrances as entrances_module
 from . import excel as excel_module
 from . import georef
 
@@ -31,6 +32,22 @@ def _ring(points_m, transform):
     return ring
 
 
+def _threshold(points_m):
+    """문 박스를 문지방 선분으로 줄인다.
+
+    IMDF 에서 opening 의 기하는 폴리곤이 아니라 문지방 LineString 이다.
+    문 박스는 가늘고 긴 사각형이니 긴 축을 가로지르는 중심선을 쓴다.
+    """
+    xs = [x for x, _ in points_m]
+    ys = [y for _, y in points_m]
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    mid_x, mid_y = (min_x + max_x) / 2.0, (min_y + max_y) / 2.0
+    if (max_x - min_x) >= (max_y - min_y):
+        return [(min_x, mid_y), (max_x, mid_y)], (mid_x, mid_y)
+    return [(mid_x, min_y), (mid_x, max_y)], (mid_x, mid_y)
+
+
 def _feature(feature_id, feature_type, geometry, properties):
     return {
         "id": feature_id,
@@ -41,7 +58,8 @@ def _feature(feature_id, feature_type, geometry, properties):
     }
 
 
-def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") -> dict:
+def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR",
+                 entrance_center=None) -> dict:
     """층별 폴리곤(로컬 미터) + 엑셀 속성 → IMDF 번들.
 
     labeled_by_floor: {floor: [{"points_m": [(x,y)...], "room_id": str|None,
@@ -53,6 +71,7 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
     그 이름으로 다시 판정한다. 둘 다 없으면 방 번호를 이름으로 쓴다.
     """
     levels, units, occupants, footprints = [], [], [], []
+    openings, entrance_rows = [], []
     all_rings = []
 
     room_id_counter = {}
@@ -79,13 +98,50 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
             floor_rings.append(ring)
             all_rings.append(ring)
 
+            # 문은 IMDF 에서 unit 이 아니라 opening 이다. 지금까지 category
+            # "walkway" 인 unit 으로 나갔는데, 실내지도는 walkway 를 일부러
+            # 안 그리므로 문 460개가 통째로 안 보였다. 출입구 11개도 같이.
+            if ptype == "door":
+                connects = item.get("connects") or []
+                exterior = any(entrances_module.is_outside_label(v) for v in connects)
+                line_m, centre_m = _threshold(item["points_m"])
+                line = [list(georef.apply(transform, x, y)) for x, y in line_m]
+                centre = list(georef.apply(transform, *centre_m))
+                opening_id = _stable_id("opening", f"{floor}:{room_id}:{centre_m}")
+                opening_props = {
+                    "level_id": level_id,
+                    # IMDF 의 opening category. 건물 출입구는 principal 이다.
+                    "category": "pedestrian.principal" if exterior else "pedestrian",
+                    "accessibility": None,
+                    "access_control": None,
+                    "door": {"type": "swinging", "automatic": False, "material": None},
+                    "name": None,
+                    "display_point": {"type": "Point", "coordinates": centre},
+                }
+                if connects:
+                    opening_props["connects"] = list(connects)
+                feature = _feature(
+                    opening_id, "opening",
+                    {"type": "LineString", "coordinates": line},
+                    opening_props,
+                )
+                openings.append(feature)
+                if exterior:
+                    # 이름은 여기서 짓지 않는다. 전부 모은 뒤 건물 중심을 알아야
+                    # 방위를 정할 수 있다.
+                    entrance_rows.append({
+                        "feature": feature, "floor": floor,
+                        "name": item.get("room_id") if item.get("room_id") not in (None, "door") else None,
+                        "lat": centre[1], "lon": centre[0],
+                    })
+                continue
+
             # 이름: 엑셀 우선 → 도면 OCR → 방 번호
             excel_name = room.name if room and room.name else ""
             drawing_name = item.get("drawing_name") or ""
             display_name = excel_name or drawing_name or room_id
 
             if ptype == "corridor": category = "walkway"
-            elif ptype == "door": category = "walkway"
             elif ptype == "stairs": category = "stairs"
             elif ptype == "elevator": category = "elevator"
             else:
@@ -162,6 +218,16 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
         )
 
     building_ring = _hull_ring(all_rings)
+
+    # 출입구 이름. 길찾기 번들과 같은 규칙, 같은 기준점을 써야 한다.
+    # 지도와 안내문이 같은 문을 다르게 부르면 그건 그냥 버그다.
+    if entrance_rows:
+        centre = entrance_center or entrances_module.center_of(
+            [(lat, lon) for lon, lat in building_ring])
+        entrances_module.name_entrances(entrance_rows, centre)
+        for row in entrance_rows:
+            row["feature"]["properties"]["name"] = {language: row["name"]}
+
     building = _feature(
         BUILDING_ID,
         "building",
@@ -182,7 +248,7 @@ def build_bundle(labeled_by_floor, rooms_by_floor, transform, language="ko-KR") 
         "units": {"type": "FeatureCollection", "features": units},
         "footprint": {"type": "FeatureCollection", "features": footprints},
         "occupants": {"type": "FeatureCollection", "features": occupants},
-        "openings": {"type": "FeatureCollection", "features": []},
+        "openings": {"type": "FeatureCollection", "features": openings},
         "anchors": {"type": "FeatureCollection", "features": []},
     }
 
