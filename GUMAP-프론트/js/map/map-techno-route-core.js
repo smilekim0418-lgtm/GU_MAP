@@ -438,21 +438,31 @@
    * 표본의 67% 에서 손해였고 최악은 130초였다. 코앞의 문이 지하 복도로만
    * 이어져 있으면, 12m 더 걸어 다른 문으로 들어가는 편이 2분 빠르다.
    */
-  Engine.prototype.attachOutdoorStart = function (lat, lng) {
+  /**
+   * @param overrides {nodeIndex: {meters, path}} 밖에서 실제로 재 온 실외 구간.
+   *        지도의 보행자 길찾기(TMAP/OSRM)가 준 값을 여기로 넣는다. 엔진은
+   *        비동기 호출을 하지 않는다 - 재 온 결과만 받는다.
+   */
+  Engine.prototype.attachOutdoorStart = function (lat, lng, overrides) {
     var self = this;
     var byNode = {};
     var edges = [];
-    // 건물을 돌아가는 거리를 쓴다. 실외 그래프가 없는 옛 번들이면 직선.
+    // 건물을 돌아가는 거리. 실외 그래프가 없는 옛 번들이면 직선.
+    // 보행자 길찾기 결과가 들어오면 그게 이긴다.
     var walks = this.outdoorWalk(lat, lng);
 
     (this.data.entrances || []).forEach(function (entrance, index) {
-      var walk = walks && walks[index];
+      var measured = overrides && overrides[entrance.node];
+      var walk = measured || (walks && walks[index]);
       var meters = walk ? walk.meters
         : self.metersBetween(lat, lng, entrance.lat, entrance.lon);
       var path = walk ? walk.path : [[lat, lng], [entrance.lat, entrance.lon]];
       var seen = byNode[entrance.node];
       if (seen && seen.meters <= meters) return;
-      byNode[entrance.node] = { entrance: entrance, meters: meters, path: path };
+      byNode[entrance.node] = {
+        entrance: entrance, meters: meters, path: path,
+        measured: !!measured
+      };
       edges.push([entrance.node, meters, 'walk']);
     });
     return {
@@ -472,8 +482,53 @@
     var doorNode = this.nodes[picked.entrance.node];
     return {
       entrance: picked.entrance, meters: picked.meters,
-      path: picked.path, from: from, point: [doorNode.x, doorNode.y]
+      path: picked.path, measured: !!picked.measured,
+      from: from, point: [doorNode.x, doorNode.y]
     };
+  };
+
+  /**
+   * 실외 구간을 실제로 재 보기 전에, 재 볼 만한 출입구를 추린다.
+   *
+   * 보행자 길찾기는 API 호출이라 11개를 다 재면 느리고 호출 한도에 걸린다.
+   * 건물만 피한 어림 거리로 총 소요를 계산해 상위 몇 개만 고른다. 어림이
+   * 크게 틀리지 않으니 상위권 안에 진짜 최적이 들어온다.
+   */
+  Engine.prototype.entranceCandidates = function (lat, lng, destination, options, limit) {
+    var self = this;
+    var entrances = this.data.entrances || [];
+    if (!entrances.length) return [];
+    var walks = this.outdoorWalk(lat, lng);
+
+    var scored = entrances.map(function (entrance, index) {
+      var walk = walks && walks[index];
+      var meters = walk ? walk.meters
+        : self.metersBetween(lat, lng, entrance.lat, entrance.lon);
+      var seconds = Infinity;
+      try {
+        var one = self.route(
+          { outdoor: true, lat: lat, lng: lng }, destination,
+          Object.assign({}, options || {}, {
+            approaches: buildOverride(entrance.node, meters, walk)
+          }));
+        seconds = one.duration_s;
+      } catch (error) { /* 이 문으로는 길이 없다 */ }
+      return { entrance: entrance, estimate_m: meters, estimate_s: seconds };
+    }).filter(function (row) { return isFinite(row.estimate_s); });
+
+    scored.sort(function (a, b) { return a.estimate_s - b.estimate_s; });
+    return scored.slice(0, limit || 3);
+
+    function buildOverride(node, meters, walk) {
+      // 이 문 하나만 후보로 두려면 나머지를 아주 멀게 만든다
+      var override = {};
+      entrances.forEach(function (other) {
+        override[other.node] = other.node === node
+          ? { meters: meters, path: walk ? walk.path : null }
+          : { meters: 1e7, path: null };
+      });
+      return override;
+    }
   };
 
   Engine.prototype.corridorDoors = function (floor, roomId) {
@@ -516,7 +571,7 @@
     }
 
     var origin = outdoorFrom
-      ? this.attachOutdoorStart(outdoorFrom[0], outdoorFrom[1])
+      ? this.attachOutdoorStart(outdoorFrom[0], outdoorFrom[1], options.approaches)
       : this.attachStart(start.floor, start.x, start.y, warnings);
     var goal = this.goalTargets(goalFloor, destination.room_id, warnings);
 
@@ -785,6 +840,8 @@
     built.walk_distance_m += approach.meters;
     built.duration_s += seconds;
     built.outdoor_distance_m = approach.meters;
+    // 지도의 보행자 길찾기로 실제로 잰 값인지, 건물만 피한 어림값인지.
+    built.outdoor_measured = !!approach.measured;
     built.entrance = {
       name: entrance.name, floor: entrance.floor, latlng: doorLatLng
     };

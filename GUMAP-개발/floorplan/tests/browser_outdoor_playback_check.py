@@ -101,9 +101,12 @@ def main() -> int:
         if shift < 5:
             problems.append(f"재생 중인데 마커가 안 움직인다 ({shift}px)")
 
-        # 끝까지
+        # 끝까지. 재생 시간은 경로 길이에 비례한다. 고정으로 기다리면 안 된다
+        # (실외에 보행자 경로가 붙으면서 100m 짜리가 650m 가 됐다).
         page.evaluate("() => window.setTechnoRouteSpeed(4)")
-        page.wait_for_timeout(6000)
+        need = page.evaluate(
+            "() => Math.ceil(window.getTechnoRouteResult().distance_m / 12 / 4 * 1000)")
+        page.wait_for_timeout(min(need + 5000, 90000))
         end = page.evaluate("""() => ({
             progress: parseFloat((document.getElementById('tr-play-progress')
                      || {style:{}}).style.width) || 0,

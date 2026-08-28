@@ -133,6 +133,7 @@
      */
 
     var outdoorStart = null;      // 건물 밖 출발지 {lat, lng, name}
+    var outdoorToken = 0;         // 늦게 온 실외 실측이 새 경로를 덮지 않게
     var syncing = false;          // setRoutingPoint ↔ setTechnoRouteStart 재귀 방지
     var nativeSetRoutingPoint = null;
 
@@ -882,23 +883,154 @@
         };
     }
 
+
+    /* ─────────────── 실외 구간: 지도의 보행자 길찾기 ─────────────── */
+
+    // 건물만 피해 도는 어림 경로는 도로도 다른 건물도 모른다. 잔디밭과
+    // 옆 건물을 가로질러 거의 직선으로 간다. 지도가 이미 쓰는 보행자
+    // 길찾기(TMAP, 실패 시 OSRM)로 실외 구간을 실제로 재 온다.
+    var WALK_CANDIDATES = 3;      // 호출 한도가 분당 30회다. 다 재면 금방 막힌다
+    var walkCache = {};
+
+    function walkCacheKey(from, to) {
+        return from[0].toFixed(5) + ',' + from[1].toFixed(5) + '>' +
+               to[0].toFixed(5) + ',' + to[1].toFixed(5);
+    }
+
+    /** 두 점 사이 보행자 경로. 실패하면 null 을 준다(어림값으로 되돌아간다). */
+    function fetchWalk(from, to) {
+        var key = walkCacheKey(from, to);
+        if (walkCache[key]) return walkCache[key];
+
+        var fetcher = window.fetchTmapWithOSRMFallback;
+        // PROXY_URL 은 3000번 포트에서 일부러 빈 문자열이다(같은 출처 상대경로).
+        // 빈 문자열을 "없음" 으로 보면 정작 본서버에서만 안 돈다.
+        if (typeof fetcher !== 'function' || typeof window.PROXY_URL !== 'string') {
+            return Promise.resolve(null);
+        }
+        var payload = {
+            startX: from[1], startY: from[0],
+            endX: to[1], endY: to[0],
+            reqCoordType: 'WGS84GEO', resCoordType: 'WGS84GEO',
+            startName: encodeURIComponent('출발'), endName: encodeURIComponent('출입구')
+        };
+        var pending = fetcher(window.PROXY_URL + '/tmap-routes?endpoint=pedestrian&version=1',
+                              payload, 'walk')
+            .then(function (data) {
+                if (!data || !data.features) return null;
+                var latlngs = [];
+                var meters = 0;
+                data.features.forEach(function (feature) {
+                    if (feature.properties && feature.properties.totalDistance) {
+                        meters = feature.properties.totalDistance;
+                    }
+                    if (feature.geometry && feature.geometry.type === 'LineString') {
+                        feature.geometry.coordinates.forEach(function (point) {
+                            latlngs.push([point[1], point[0]]);
+                        });
+                    }
+                });
+                if (latlngs.length < 2) return null;
+                if (!meters) meters = polylineMeters(latlngs);
+                return { meters: meters, path: latlngs };
+            })
+            .catch(function (error) {
+                console.warn('[실내길찾기] 실외 보행자 경로 실패, 어림값을 씁니다:', error);
+                return null;
+            });
+        walkCache[key] = pending;
+        return pending;
+    }
+
+    function polylineMeters(latlngs) {
+        var total = 0;
+        for (var i = 1; i < latlngs.length; i++) {
+            total += engine.metersBetween(latlngs[i - 1][0], latlngs[i - 1][1],
+                                          latlngs[i][0], latlngs[i][1]);
+        }
+        return total;
+    }
+
+    /**
+     * 후보 출입구 몇 개만 실제로 재 와서 {노드: {meters, path}} 로 돌려준다.
+     * 하나도 못 재면 null - 그러면 엔진이 어림값으로 간다.
+     */
+    function measureApproaches(from, destination, options) {
+        var candidates = [];
+        try {
+            candidates = engine.entranceCandidates(from[0], from[1], destination,
+                                                   options, WALK_CANDIDATES);
+        } catch (error) {
+            return Promise.resolve(null);
+        }
+        if (!candidates.length) return Promise.resolve(null);
+
+        return Promise.all(candidates.map(function (row) {
+            return fetchWalk(from, [row.entrance.lat, row.entrance.lon])
+                .then(function (walk) {
+                    return walk ? { node: row.entrance.node, walk: walk } : null;
+                });
+        })).then(function (rows) {
+            var measured = {};
+            var any = false;
+            rows.forEach(function (row) {
+                if (!row) return;
+                measured[row.node] = row.walk;
+                any = true;
+            });
+            if (!any) return null;
+            // 재 보지 않은 문은 후보에서 뺀다. 어림값과 실측값을 섞어 비교하면
+            // 안 잰 문이 부당하게 짧아 보여서 그리로 가 버린다.
+            (engine.entrances() || []).forEach(function (entrance) {
+                if (!measured[entrance.node]) {
+                    measured[entrance.node] = { meters: 1e7, path: null };
+                }
+            });
+            return measured;
+        });
+    }
+
     /** 건물 밖 출발지 → 가장 빨리 닿는 출입구 → 방. 문 선택은 엔진이 한다. */
     function runOutdoorRoute(room) {
-        try {
-            result = engine.route(
-                { outdoor: true, lat: outdoorStart.lat, lng: outdoorStart.lng },
-                { room_id: room.room_id, floor: room.floor },
-                { avoidStairs: !!(document.getElementById('tr-avoid') || {}).checked });
-        } catch (error) {
-            result = { error: error.message };
-        }
+        var from = [outdoorStart.lat, outdoorStart.lng];
+        var destination = { room_id: room.room_id, floor: room.floor };
+        var options = { avoidStairs: !!(document.getElementById('tr-avoid') || {}).checked };
+
+        // 먼저 어림값으로 즉시 그려 놓고, 실측이 오면 갈아 끼운다.
+        // 기다리는 동안 화면이 비어 있으면 눌러도 반응 없는 것처럼 보인다.
+        settle(function () {
+            try {
+                return engine.route({ outdoor: true, lat: from[0], lng: from[1] },
+                                    destination, options);
+            } catch (error) {
+                return { error: error.message };
+            }
+        }());
+
+        var token = ++outdoorToken;
+        measureApproaches(from, destination, options).then(function (measured) {
+            if (token !== outdoorToken || !measured) return;
+            var refined;
+            try {
+                refined = engine.route({ outdoor: true, lat: from[0], lng: from[1] },
+                                       destination,
+                                       Object.assign({}, options, { approaches: measured }));
+            } catch (error) {
+                return;                     // 어림값 결과를 그대로 둔다
+            }
+            settle(refined);
+        });
+        return result;
+    }
+
+    function settle(next) {
+        result = next;
         resetPlayback();
         // 들어간 출입구가 있는 층을 먼저 보여 준다
         if (result && !result.error && result.entrance) {
             switchFloor(result.entrance.floor);
         }
         render();
-        return result;
     }
 
     /** 방의 대표 위경도. 복도 문이 있으면 그 문, 없으면 방 중심. */
