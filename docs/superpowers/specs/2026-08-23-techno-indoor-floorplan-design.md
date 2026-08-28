@@ -277,7 +277,7 @@ GUMAP-일반지도/map/map-techno-imdf-data.js    # 동일 사본 (아래 3.8 �
 
 ### 3.6 보정 화면
 
-`indoor-calibrate.html`에 이미 Leaflet, 정사영상 레이어, 회전/축척/투명도 슬라이더,
+`GUMAP-개발/floorplan/indoor-calibrate.html`에 이미 Leaflet, 정사영상 레이어, 회전/축척/투명도 슬라이더,
 코드 출력 패널이 구현되어 있다. 이를 확장해 `GUMAP-개발/floorplan/floorplan-editor.html`을
 만든다.
 
