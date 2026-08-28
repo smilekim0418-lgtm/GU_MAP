@@ -19,7 +19,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.stdout.reconfigure(encoding="utf-8")
 
-from fp import config, entrances as entrances_module, georef, nav, outdoor, route  # noqa: E402
+from fp import (cachebust, config, entrances as entrances_module, georef, nav,
+                outdoor, route)  # noqa: E402
 
 TOOL_DIR = Path(__file__).resolve().parent
 CORE_JS = TOOL_DIR / "techno-route-core.js"
@@ -29,6 +30,13 @@ NAV_JSON = config.WORK_DIR / "techno_nav.json"
 FRONTEND_DIRS = [
     config.PROJECT_ROOT / "GUMAP-프론트" / "js" / "map",
     config.PROJECT_ROOT / "GUMAP-일반지도" / "map",
+]
+
+# 브라우저는 js 를 한 시간 캐시한다(Cache-Control: max-age=3600). 파일만
+# 바꾸고 ?v= 를 그대로 두면 서버를 다시 띄워도 옛 코드가 돌아간다.
+HTML_PAGES = [
+    config.PROJECT_ROOT / "index.html",
+    config.PROJECT_ROOT / "GUMAP-일반지도" / "index.html",
 ]
 
 
@@ -224,6 +232,7 @@ def main() -> int:
     print(f"저장: {NAV_JSON}")
 
     bundle = "window.TECHNO_NAV_DATA = " + text + ";\n"
+    written = []
     for directory in FRONTEND_DIRS:
         if not directory.exists():
             print(f"건너뜀: {directory} 없음")
@@ -234,6 +243,12 @@ def main() -> int:
         if MAP_JS.exists():
             shutil.copyfile(MAP_JS, directory / "map-techno-route.js")
         print(f"프론트 번들 갱신: {directory}")
+        written.extend([directory / "map-techno-nav-data.js",
+                        directory / "map-techno-route-core.js",
+                        directory / "map-techno-route.js"])
+
+    for line in cachebust.stamp(written, HTML_PAGES):
+        print(f"캐시 갱신: {line}")
     return 0
 
 

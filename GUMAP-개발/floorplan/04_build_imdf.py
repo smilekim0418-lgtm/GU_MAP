@@ -10,7 +10,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.stdout.reconfigure(encoding="utf-8")
 
-from fp import config, entrances as entrances_module, excel, georef, imdf, validate  # noqa: E402
+from fp import (cachebust, config, entrances as entrances_module, excel, georef,
+                imdf, validate)  # noqa: E402
 
 BUNDLE_KEY_TO_FILE = {
     "venue": "venue.geojson",
@@ -26,6 +27,13 @@ BUNDLE_KEY_TO_FILE = {
 FRONTEND_BUNDLES = [
     config.PROJECT_ROOT / "GUMAP-프론트" / "js" / "map" / "map-techno-imdf-data.js",
     config.PROJECT_ROOT / "GUMAP-일반지도" / "map" / "map-techno-imdf-data.js",
+]
+
+# 브라우저는 js 를 한 시간 캐시한다(Cache-Control: max-age=3600). 파일만
+# 바꾸고 ?v= 를 그대로 두면 서버를 다시 띄워도 옛 코드가 돌아간다.
+HTML_PAGES = [
+    config.PROJECT_ROOT / "index.html",
+    config.PROJECT_ROOT / "GUMAP-일반지도" / "index.html",
 ]
 
 
@@ -150,10 +158,21 @@ def main() -> int:
     print(f"\nIMDF 교체: {config.IMDF_DIR}")
 
     payload = "window.IMDF_TECHNO_DATA = " + json.dumps(bundle, ensure_ascii=False) + ";\n"
+    written = []
     for target in FRONTEND_BUNDLES:
         if target.parent.exists():
             target.write_text(payload, encoding="utf-8")
             print(f"프론트 번들 갱신: {target}")
+            written.append(target)
+
+    # 실내지도 렌더러도 같이 버전을 맞춘다. 출입구 표시가 여기 있다.
+    for directory in {target.parent for target in written}:
+        renderer = directory / "map-techno-indoor.js"
+        if renderer.exists():
+            written.append(renderer)
+
+    for line in cachebust.stamp(written, HTML_PAGES):
+        print(f"캐시 갱신: {line}")
     return 0
 
 
