@@ -19,7 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.stdout.reconfigure(encoding="utf-8")
 
-from fp import config, entrances as entrances_module, georef, nav, route  # noqa: E402
+from fp import config, entrances as entrances_module, georef, nav, outdoor, route  # noqa: E402
 
 TOOL_DIR = Path(__file__).resolve().parent
 CORE_JS = TOOL_DIR / "techno-route-core.js"
@@ -128,6 +128,16 @@ def build_payload(graph: nav.NavGraph, transform_data: dict) -> dict:
     entrances_module.name_entrances(entrances, entrances_module.center_from_labeled(
         config.WORK_DIR, config.FLOORS, to_lonlat))
 
+    # 건물을 돌아 출입구까지 가는 실외 그래프. 직선으로 재면 선이 건물을
+    # 뚫고 지나간다(표본의 55%, 최악 98m 중 60m).
+    outdoor_graph = (outdoor.build(config.FLOORS, config.WORK_DIR, to_lonlat, entrances)
+                     if entrances else None)
+    if outdoor_graph:
+        # 진입 자리를 배열 순번으로 찾게 두면 안 된다. 출입구 목록을 거르는
+        # 코드가 하나만 있어도 조용히 다른 문의 진입 자리를 쓴다.
+        for index, entrance in enumerate(entrances):
+            entrance["approach"] = index
+
     return {
         "meta": {
             "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -158,6 +168,7 @@ def build_payload(graph: nav.NavGraph, transform_data: dict) -> dict:
         "doors_by_room": doors_by_room,
         "entries_by_room": entries_by_room,
         "entrances": entrances,
+        "outdoor": outdoor_graph,
         "rooms": route.room_index(graph),
     }
 

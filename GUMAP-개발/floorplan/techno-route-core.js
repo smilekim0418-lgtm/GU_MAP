@@ -282,6 +282,154 @@
   };
 
   /**
+   * 실외 그래프를 미터 좌표로 펴서 캐시한다.
+   *
+   * 위경도 그대로 기하 판정을 하면 안 된다. orientation() 의 여유가 1e-7 인데
+   * 위경도에서 50m 선분 두 개의 외적은 2e-7 언저리라, 진짜 교차를 0으로
+   * 삼켜 버린다. 미터로 펴 두면 같은 값이 1e4 여서 여유가 안전해진다.
+   */
+  Engine.prototype.outdoorSpace = function () {
+    if (this._outdoorSpace !== undefined) return this._outdoorSpace;
+    var raw = this.data.outdoor;
+    if (!raw || !raw.nodes || !raw.nodes.length) {
+      this._outdoorSpace = null;
+      return null;
+    }
+    var geo = this.data.geo;
+    var perLat = geo.meters_per_deg_lat;
+    var perLon = geo.meters_per_deg_lon_at_equator *
+      Math.cos(geo.reference_latitude * Math.PI / 180);
+    // 구멍(중정)이 있을 수 있어 링이 여럿이다. 옛 번들은 ring 단수였다.
+    var outerRings = raw.rings || (raw.ring ? [raw.ring] : []);
+    if (!outerRings.length) { this._outdoorSpace = null; return null; }
+    var base = outerRings[0][0];
+
+    function project(point) {
+      return [(point[0] - base[0]) * perLon, (point[1] - base[1]) * perLat];
+    }
+
+    var nodeCount = raw.nodes.length;
+    var points = raw.nodes.concat(raw.approaches);       // 위경도
+    var flat = points.map(project);                      // 미터
+    var adjacency = points.map(function () { return []; });
+
+    function link(a, b, meters) {
+      adjacency[a].push([b, meters]);
+      adjacency[b].push([a, meters]);
+    }
+    (raw.edges || []).forEach(function (e) { link(e[0], e[1], e[2]); });
+    (raw.entrance_edges || []).forEach(function (e) {
+      link(e[0], nodeCount + e[1], e[2]);
+    });
+    (raw.approach_edges || []).forEach(function (e) {
+      link(nodeCount + e[0], nodeCount + e[1], e[2]);
+    });
+
+    this._outdoorSpace = {
+      rings: outerRings.map(function (ring) { return ring.map(project); }),
+      points: points, flat: flat, adjacency: adjacency,
+      nodeCount: nodeCount, project: project
+    };
+    return this._outdoorSpace;
+  };
+
+  /** 선분이 건물(과 여유폭)을 뚫고 지나가는가. 좌표는 미터. */
+  function blocksOutdoor(rings, ax, ay, bx, by) {
+    for (var r = 0; r < rings.length; r++) {
+      var ring = rings[r];
+      for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        if (crosses(ax, ay, bx, by, ring[j][0], ring[j][1], ring[i][0], ring[i][1])) {
+          return true;
+        }
+      }
+    }
+    // 어느 변도 안 넘었는데 가운데가 안이면, 선분이 통째로 건물 안이다.
+    return pointInRings(rings, (ax + bx) / 2, (ay + by) / 2);
+  }
+
+  /**
+   * 건물 밖 한 점에서 각 출입구까지, 건물을 돌아가는 최단 도보.
+   * 반환: 출입구 순서대로 {meters, path(위경도)} 또는 null.
+   */
+  Engine.prototype.outdoorWalk = function (lat, lng) {
+    var space = this.outdoorSpace();
+    if (!space) return null;
+    var entrances = this.data.entrances || [];
+    var self = this;
+
+    var here = space.project([lng, lat]);
+    var count = space.points.length;
+    var start = count;
+
+    var best = new Float64Array(count + 1).fill(Infinity);
+    var previous = new Int32Array(count + 1).fill(-1);
+    best[start] = 0;
+
+    var seeds = [];
+    for (var i = 0; i < count; i++) {
+      if (!blocksOutdoor(space.rings, here[0], here[1],
+                         space.flat[i][0], space.flat[i][1])) {
+        seeds.push([i, Math.hypot(space.flat[i][0] - here[0],
+                                  space.flat[i][1] - here[1])]);
+      }
+    }
+    if (!seeds.length) {
+      // 건물 바로 옆이거나 안쪽을 찍은 경우. 길을 못 내느니 최근접에 붙인다.
+      var nearest = 0, nearestSpan = Infinity;
+      for (var k = 0; k < count; k++) {
+        var span = Math.hypot(space.flat[k][0] - here[0], space.flat[k][1] - here[1]);
+        if (span < nearestSpan) { nearestSpan = span; nearest = k; }
+      }
+      seeds.push([nearest, nearestSpan]);
+    }
+
+    var heap = new Heap();
+    seeds.forEach(function (seed) {
+      if (seed[1] < best[seed[0]]) {
+        best[seed[0]] = seed[1];
+        previous[seed[0]] = start;
+        heap.push(seed[1], seed[0]);
+      }
+    });
+
+    while (heap.size()) {
+      var top = heap.pop();
+      var cost = top[0], at = top[1];
+      if (cost > best[at] + 1e-9) continue;
+      var links = space.adjacency[at];
+      for (var e = 0; e < links.length; e++) {
+        var next = cost + links[e][1];
+        if (next < best[links[e][0]] - 1e-9) {
+          best[links[e][0]] = next;
+          previous[links[e][0]] = at;
+          heap.push(next, links[e][0]);
+        }
+      }
+    }
+
+    return entrances.map(function (entrance, index) {
+      // 배열 순번이 아니라 출입구가 들고 있는 번호를 쓴다. 목록을 거른
+      // 상태로 불러도 제 진입 자리를 찾아가야 한다.
+      var slot = entrance.approach === undefined ? index : entrance.approach;
+      var target = space.nodeCount + slot;
+      if (!isFinite(best[target])) return null;
+      var chain = [];
+      for (var at = target; at !== -1 && at !== start; at = previous[at]) {
+        chain.push(space.points[at]);
+      }
+      chain.reverse();
+      // 진입 자리에서 문까지 남은 몇 미터도 세어 준다
+      var approach = space.points[target];
+      var lastHop = self.metersBetween(approach[1], approach[0],
+                                       entrance.lat, entrance.lon);
+      var path = [[lat, lng]];
+      chain.forEach(function (point) { path.push([point[1], point[0]]); });
+      path.push([entrance.lat, entrance.lon]);
+      return { meters: best[target] + lastHop, path: path };
+    });
+  };
+
+  /**
    * 실외 출발지는 문을 하나 고르지 않는다. 출입구 전부를 출발 후보로 깔고
    * 각자의 실외 도보시간을 초기비용으로 준다. 그러면 탐색이 "가장 빨리
    * 도착하는 문" 을 스스로 고른다.
@@ -294,16 +442,23 @@
     var self = this;
     var byNode = {};
     var edges = [];
-    (this.data.entrances || []).forEach(function (entrance) {
-      var meters = self.metersBetween(lat, lng, entrance.lat, entrance.lon);
+    // 건물을 돌아가는 거리를 쓴다. 실외 그래프가 없는 옛 번들이면 직선.
+    var walks = this.outdoorWalk(lat, lng);
+
+    (this.data.entrances || []).forEach(function (entrance, index) {
+      var walk = walks && walks[index];
+      var meters = walk ? walk.meters
+        : self.metersBetween(lat, lng, entrance.lat, entrance.lon);
+      var path = walk ? walk.path : [[lat, lng], [entrance.lat, entrance.lon]];
       var seen = byNode[entrance.node];
       if (seen && seen.meters <= meters) return;
-      byNode[entrance.node] = { entrance: entrance, meters: meters };
+      byNode[entrance.node] = { entrance: entrance, meters: meters, path: path };
       edges.push([entrance.node, meters, 'walk']);
     });
     return {
       point: null, floor: null, where: 'outdoor', outdoor: true,
-      from: [lat, lng], entranceByNode: byNode, edges: edges
+      from: [lat, lng], entranceByNode: byNode, edges: edges,
+      detoured: !!walks
     };
   };
 
@@ -317,7 +472,7 @@
     var doorNode = this.nodes[picked.entrance.node];
     return {
       entrance: picked.entrance, meters: picked.meters,
-      from: from, point: [doorNode.x, doorNode.y]
+      path: picked.path, from: from, point: [doorNode.x, doorNode.y]
     };
   };
 
@@ -619,7 +774,7 @@
       floor: entrance.floor,
       mode: 'outdoor',
       points: [],                       // 실외 구간은 도면 픽셀이 없다
-      latlngs: [approach.from, doorLatLng],
+      latlngs: approach.path || [approach.from, doorLatLng],
       distance_m: approach.meters,
       duration_s: seconds,
       to_floor: null,
