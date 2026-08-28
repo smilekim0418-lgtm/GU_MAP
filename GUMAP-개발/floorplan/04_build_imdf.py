@@ -165,11 +165,15 @@ def main() -> int:
             print(f"프론트 번들 갱신: {target}")
             written.append(target)
 
-    # 실내지도 렌더러도 같이 버전을 맞춘다. 출입구 표시가 여기 있다.
+    # 손으로 고치는 프론트 파일도 같이 버전을 맞춘다. 빌드 산출물은 아니지만
+    # ?v= 를 손으로 올리면 반드시 빼먹고, 그러면 브라우저가 한 시간 동안 옛
+    # 코드를 쓴다. 여기 얹어 두면 빌드 한 번으로 같이 갱신된다.
+    HAND_WRITTEN = ("map-techno-indoor.js", "map-click.js")
     for directory in {target.parent for target in written}:
-        renderer = directory / "map-techno-indoor.js"
-        if renderer.exists():
-            written.append(renderer)
+        for name in HAND_WRITTEN:
+            source = directory / name
+            if source.exists():
+                written.append(source)
 
     for line in cachebust.stamp(written, HTML_PAGES):
         print(f"캐시 갱신: {line}")

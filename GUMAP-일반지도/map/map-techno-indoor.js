@@ -37,6 +37,44 @@
     };
     const DEFAULT_STYLE = { color: '#64748b', fillColor: '#475569', fillOpacity: 0.30, weight: 1.0, icon: '🏢', name: '기타 공간' };
 
+    /* ─────────────── 계단·엘리베이터 픽토그램 ───────────────
+     *
+     * 계단 박스에 "계단-A" 라고 적어 두면 글자를 읽어야 무엇인지 안다.
+     * 도면에서는 그림으로 보여 주는 편이 빠르다. 이름은 박스를 누르면
+     * 팝업이, 올려 두면 툴팁이 알려 준다.
+     *
+     * L.svgOverlay 는 위경도 범위에 맞춰 그려지므로 확대·축소를 따라
+     * 저절로 커지고 작아진다. 픽셀 크기로 아이콘을 붙이면 renderTechnoFloor
+     * 가 줌마다 다시 돌지 않아서 확대할수록 어긋난다.
+     */
+    const PICTOGRAM_ART = {
+        // 옆에서 본 계단. 오르는 방향 화살표까지 있으면 한눈에 읽힌다.
+        stairs: '<path d="M14,84 H33 V67 H52 V50 H71 V33 H88" />' +
+                '<path d="M20,44 L30,34 L40,44" />' +
+                '<path d="M30,34 V62" />',
+        // 승강기 함과 위·아래 화살표. 표준 픽토그램 그대로다.
+        elevator: '<rect x="26" y="16" width="48" height="68" rx="6" />' +
+                  '<path d="M50,30 L59,43 H41 Z" />' +
+                  '<path d="M50,70 L41,57 H59 Z" />'
+    };
+
+    /** 박스를 채우는 픽토그램. 밑에 어두운 획을 한 번 깔아 테두리를 만든다. */
+    function makePictogram(kind) {
+        const art = PICTOGRAM_ART[kind];
+        if (!art) return null;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 100 100');
+        // 박스가 기울어 있어 외접 상자가 실제 박스보다 크다. meet 로 넣어
+        // 안쪽에 담기게 한다. 넘치는 것보다 조금 작은 편이 낫다.
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        svg.innerHTML =
+            '<g fill="none" stroke="#0f172a" stroke-width="16" stroke-opacity="0.55"' +
+            ' stroke-linecap="round" stroke-linejoin="round">' + art + '</g>' +
+            '<g fill="none" stroke="#ffffff" stroke-width="7"' +
+            ' stroke-linecap="round" stroke-linejoin="round">' + art + '</g>';
+        return svg;
+    }
+
     function getCategoryStyle(cat) {
         return IMDF_STYLE[cat] || DEFAULT_STYLE;
     }
@@ -266,9 +304,18 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
 
             geoLayer.bindPopup(popupContent, { maxWidth: 290 });
 
-            // 텍스트 라벨 마커 (중앙 배치)
+            // 계단·엘리베이터는 글자 대신 그림으로 채운다
             const bounds = geoLayer.getBounds();
-            if (bounds && bounds.isValid()) {
+            const pictogram = makePictogram(cat);
+            if (pictogram && bounds && bounds.isValid()) {
+                window.technoIndoorLayerGroup.addLayer(
+                    L.svgOverlay(pictogram, bounds, { interactive: false }));
+                geoLayer.bindTooltip(st.icon + ' ' + escHtml(labelStr || st.name),
+                    { direction: 'top', className: 'imdf-unit-tip' });
+            }
+
+            // 그 밖의 공간은 텍스트 라벨 (중앙 배치)
+            if (!pictogram && bounds && bounds.isValid()) {
                 const center = bounds.getCenter();
                 if (labelStr && cat !== 'walkway') {
                     const lblMarker = L.marker(center, {

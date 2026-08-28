@@ -817,14 +817,14 @@ function updatePopupContent(title, addr) {
         
         <div id="popup-addr" style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">${addr || '주소 정보 없음'}</div>
         
-        <div style="font-size:10px; color:var(--text-muted); margin-bottom:6px; cursor:pointer; user-select:none;" onclick="document.getElementById('popup-route-menu').style.display = document.getElementById('popup-route-menu').style.display === 'flex' ? 'none' : 'flex';">
-            (우) ${zipCode}${parcelPart ? ` (지번) ${parcelPart}` : ''} <span style="color:#3b82f6;">▼</span>
+        <div style="font-size:10px; color:var(--text-muted); margin-bottom:6px; user-select:none;">
+            (우) ${zipCode}${parcelPart ? ` (지번) ${parcelPart}` : ''}
         </div>
         
-        <div id="popup-route-menu" style="display:none; gap:4px; margin-bottom:6px; flex-wrap:wrap;">
-            <button onclick="setRoutingPoint('START', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:4px 6px; font-size:10px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🛫 출발지</button>
-            <button onclick="setRoutingPoint('WAYPOINT', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:4px 6px; font-size:10px; background:#f59e0b; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🔄 경유지</button>
-            <button onclick="setRoutingPoint('END', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:4px 6px; font-size:10px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🛬 도착지</button>
+        <div id="popup-route-menu" style="display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap;">
+            <button onclick="setRoutingPoint('START', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:6px; font-size:11px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🛫 출발지</button>
+            <button onclick="setRoutingPoint('WAYPOINT', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:6px; font-size:11px; background:#f59e0b; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🔄 경유지</button>
+            <button onclick="setRoutingPoint('END', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:6px; font-size:11px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🛬 도착지</button>
         </div>
         
         <div style="display:flex; justify-content:flex-end; gap:6px;">
