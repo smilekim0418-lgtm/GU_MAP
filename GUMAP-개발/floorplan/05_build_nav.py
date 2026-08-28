@@ -37,6 +37,7 @@ FRONTEND_DIRS = [
 HTML_PAGES = [
     config.PROJECT_ROOT / "index.html",
     config.PROJECT_ROOT / "GUMAP-일반지도" / "index.html",
+    config.PROJECT_ROOT / "3d-viewer.html",      # 테크노관 도면을 입체로 쌓는다
 ]
 
 
