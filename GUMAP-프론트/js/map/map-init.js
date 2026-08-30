@@ -89,7 +89,7 @@ window.onload = function() {
     });
 
     // 3. 하이브리드 레이어 정의 (어노테이션)
-    var hybridLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/Hybrid/{z}/{y}/{x}.png' : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    var hybridLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/Hybrid/{z}/{y}/{x}.png' : '', {
         maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         attribution: '© VWorld Hybrid'
@@ -136,7 +136,7 @@ window.onload = function() {
     // 테마 설정 복원 및 첫 화면 맵 레이어 결정
     var isDarkThemeDefault = document.body.classList.contains('dark-theme') || localStorage.getItem('gumap_dark_theme') === 'true';
     var activeBaseLayer = baseLayer;
-    var activeOverlays = [hybridLayer];
+    var activeOverlays = [];
 
     if (isDarkThemeDefault) {
         document.body.classList.add('dark-theme');
