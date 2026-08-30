@@ -18510,52 +18510,6 @@
       }
     },
     {
-      "id": "3272a72c-7c4e-5276-b48c-805cf62f34f1",
-      "type": "Feature",
-      "feature_type": "unit",
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [
-          [
-            [
-              128.39424126949518,
-              36.14660066174329
-            ],
-            [
-              128.39434412326014,
-              36.146620953764874
-            ],
-            [
-              128.3943592846004,
-              36.14657013358398
-            ],
-            [
-              128.39425643083544,
-              36.1465498415624
-            ],
-            [
-              128.39424126949518,
-              36.14660066174329
-            ]
-          ]
-        ]
-      },
-      "properties": {
-        "level_id": "622d6a60-bebd-5f2f-a0b2-418c6993d28f",
-        "category": "office",
-        "label": {
-          "ko-KR": "526"
-        },
-        "name": {
-          "ko-KR": "526"
-        },
-        "department": null,
-        "research_tags": [],
-        "connects": null,
-        "connects_floors": null
-      }
-    },
-    {
       "id": "afded080-3143-5c35-b930-8a16aa753f50",
       "type": "Feature",
       "feature_type": "unit",
