@@ -51,7 +51,7 @@ window.onload = function() {
     var vworldKey = window.VWORLD_KEY || (window.AppConfig && window.AppConfig.VWORLD_KEY) || '';
 
     // 0. 오픈스트리트맵 레이어 정의 (CartoDB Positron No Labels)
-    var osmLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+    var osmLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png', {
         maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
@@ -60,7 +60,7 @@ window.onload = function() {
     });
 
     // 1. 일반지도 레이어 정의 (CartoDB Voyager No Labels)
-    var baseLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
+    var baseLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png', {
         maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
@@ -96,7 +96,7 @@ window.onload = function() {
     });
 
     // 4. 다크모드 레이어 정의 (CartoDB DarkMatter No Labels)
-    var darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+    var darkLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/midnight/{z}/{y}/{x}.png', {
         maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
@@ -105,7 +105,7 @@ window.onload = function() {
     });
 
     // 5. 연구지도용 그레이스케일 레이어 정의 (CartoDB Positron No Labels)
-    var lightGrayLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+    var lightGrayLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png', {
         maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
