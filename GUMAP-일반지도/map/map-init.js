@@ -51,7 +51,7 @@ window.onload = function() {
     var vworldKey = window.VWORLD_KEY || (window.AppConfig && window.AppConfig.VWORLD_KEY) || '';
 
     // 0. 오픈스트리트맵 레이어 정의 (CartoDB Positron No Labels)
-    var osmLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png', {
+    var osmLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
@@ -60,7 +60,7 @@ window.onload = function() {
     });
 
     // 1. 일반지도 레이어 정의 (CartoDB Voyager No Labels)
-    var baseLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png', {
+    var baseLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
@@ -69,7 +69,7 @@ window.onload = function() {
     });
 
     // 2. 위성지도 레이어 정의 (VWorld)
-    var satelliteLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/Satellite/{z}/{y}/{x}.jpeg', {
+    var satelliteLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/Satellite/{z}/{y}/{x}.jpeg' : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 19,
         minZoom: 6,
         detectRetina: true,
@@ -89,14 +89,14 @@ window.onload = function() {
     });
 
     // 3. 하이브리드 레이어 정의 (어노테이션)
-    var hybridLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/Hybrid/{z}/{y}/{x}.png', {
+    var hybridLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/Hybrid/{z}/{y}/{x}.png' : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 19,
         minZoom: 6,
         attribution: '© VWorld Hybrid'
     });
 
     // 4. 다크모드 레이어 정의 (CartoDB DarkMatter No Labels)
-    var darkLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/midnight/{z}/{y}/{x}.png', {
+    var darkLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/midnight/{z}/{y}/{x}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
@@ -105,7 +105,7 @@ window.onload = function() {
     });
 
     // 5. 연구지도용 그레이스케일 레이어 정의 (CartoDB Positron No Labels)
-    var lightGrayLayer = L.tileLayer('https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png', {
+    var lightGrayLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         minZoom: 6,
         updateWhenIdle: true,
