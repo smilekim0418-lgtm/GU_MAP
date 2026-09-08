@@ -47,6 +47,12 @@
     window.setTechnoRouteStart = function (lat, lng, floor) {
         if (!engine) return null;
         floor = floor || window.technoActiveFloor || '1F';
+
+        // 건물 밖을 눌렀으면 실내 출발점으로 우기지 않는다. 도면 픽셀로
+        // 바꿔 두면 엔진이 그 점을 벽 안쪽으로 끌어당기고(pushInside),
+        // 실외 구간이 통째로 사라져 문에서부터 경로가 시작돼 버린다.
+        if (!insideBuilding(lat, lng)) return useOutdoorStart(lat, lng, null, true);
+
         var pixels = engine.latLngToPx(floor, lat, lng);
         if (!pixels) return null;
         start = { floor: floor, x: pixels[0], y: pixels[1] };
@@ -147,14 +153,37 @@
         return window.TechnoRoute._geometry.pointInRings(rings, lng, lat);
     }
 
+    /**
+     * 건물 밖 출발지를 세운다. 실내 출발점은 버린다.
+     *
+     * 출발지가 들어오는 문은 둘이다 - 실외 팝업의 "🛫 출발지"(adoptStart)와
+     * 지도 클릭(setTechnoRouteStart). 어느 쪽으로 들어오든 밖이면 여기로
+     * 모인다. 한쪽만 실외로 분류하던 탓에 지도를 눌러 출발지를 잡으면
+     * 실외 구간이 빠졌다.
+     *
+     * @param mirror 실외 패널의 출발지 칸·핀도 같이 옮길지. 팝업에서 들어온
+     *        경우엔 이미 옮겨져 있으므로 다시 부르지 않는다.
+     */
+    function useOutdoorStart(lat, lng, name, mirror) {
+        outdoorStart = { lat: lat, lng: lng, name: name || '지정한 위치' };
+        start = null;
+        pickingStart = false;
+        paintPickButton();
+        if (mirror) mirrorStartOutdoors(lat, lng, outdoorStart.name);
+        resetPlayback();
+
+        // 목적지가 이미 정해져 있으면 바로 잇는다. 실내 출발점일 때와 같다.
+        var select = document.getElementById('tr-dest');
+        if (select && select.value) runFromControls();
+        else render();
+        return { where: 'outdoor', lat: lat, lng: lng };
+    }
+
     /** 실외에서 찍은 출발지를 실내 쪽으로 받아들인다. */
     function adoptStart(lat, lng, name) {
         if (!engine) return;
         if (!insideBuilding(lat, lng)) {
-            outdoorStart = { lat: lat, lng: lng, name: name || '지정한 위치' };
-            start = null;
-            resetPlayback();
-            render();
+            useOutdoorStart(lat, lng, name, false);
             return;
         }
         outdoorStart = null;
@@ -620,10 +649,10 @@
         });
         document.getElementById('tr-go').addEventListener('click', runFromControls);
         document.getElementById('tr-dest').addEventListener('change', function () {
-            if (start) runFromControls();
+            if (start || outdoorStart) runFromControls();
         });
         document.getElementById('tr-avoid').addEventListener('change', function () {
-            if (start && result && !result.error) runFromControls();
+            if ((start || outdoorStart) && result && !result.error) runFromControls();
         });
         document.getElementById('tr-filter').addEventListener('input', function () {
             fillDestinations(this.value.trim());
@@ -691,6 +720,14 @@
         }
         var parts = select.value.split('|');
         var avoid = document.getElementById('tr-avoid');
+
+        // 밖에서 출발했으면 실외 구간부터 이어 준다. 방 박스의 "여기까지
+        // 길찾기" 만 이 일을 하고 있어서, 패널에서 목적지를 고르면 실외
+        // 구간이 빠졌다. 어느 쪽으로 오든 판단은 여기 한 곳에서 한다.
+        if (!start && outdoorStart && engine && engine.hasEntrances()) {
+            runOutdoorRoute({ room_id: parts[1], floor: parts[0] });
+            return;
+        }
         window.routeInsideTechno(parts[1], parts[0], { avoidStairs: avoid && avoid.checked });
     }
 

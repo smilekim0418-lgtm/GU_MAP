@@ -65,7 +65,7 @@ window._wmTile2geo4326Tms = function(z, wx, wy) {
 window.Ortho4326TmsLayer = L.TileLayer.extend({
     getTileUrl: function(coords) {
         var t = window._wmTile2geo4326Tms(coords.z, coords.x, coords.y);
-        return window.location.protocol + '//' + window.location.hostname + ':8765/' + t.z + '/' + t.x + '/' + t.y + '.jpg';
+        return '/gis/8765/' + t.z + '/' + t.x + '/' + t.y + '.jpg';
     }
 });
 
@@ -112,7 +112,7 @@ window.slopeHeatLayer = null;
 
 window.initDemLayer = function() {
     if (window.demLayer) return;
-    window.demLayer = L.tileLayer(window.location.protocol + '//' + window.location.hostname + ':8767/{z}/{x}/{y}.png', {
+    window.demLayer = L.tileLayer('/gis/8767/{z}/{x}/{y}.png', {
         maxZoom: 17,
         minZoom: 13,
         tms: false,
@@ -128,7 +128,7 @@ window.getElevationAt = async function(lat, lon, zoom) {
     var n = Math.pow(2, zoom);
     var x = Math.floor((lon + 180) / 360 * n);
     var y = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n);
-    var url = window.location.protocol + '//' + window.location.hostname + ':8767/' + zoom + '/' + x + '/' + y + '.png';
+    var url = '/gis/8767/' + zoom + '/' + x + '/' + y + '.png';
 
     return new Promise(function(resolve) {
         var img = new Image();

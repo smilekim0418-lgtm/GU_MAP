@@ -1733,6 +1733,7 @@ from fastapi.responses import RedirectResponse
 class CacheControlledStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         # C0: Prevent sensitive files and source code disclosure
+        print(f"STATIC_REQUEST: {path}")
         filename = os.path.basename(path).lower()
         forbidden_extensions = (".env", ".py", ".yml", ".yaml", ".lock", ".bat", ".sh", ".db", ".sqlite", ".pkl", ".onnx")
         forbidden_files = (".env", ".env.example", ".gitignore", "package.json", "package-lock.json", "capacitor.config.json")
@@ -1745,6 +1746,7 @@ class CacheControlledStaticFiles(StaticFiles):
             path.startswith(".")):
             raise HTTPException(status_code=403, detail="Access denied")
 
+        print("STATIC PATH:", repr(path))
         response = await super().get_response(path, scope)
         if path.endswith((".html", ".htm")) or path == "":
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
@@ -1766,7 +1768,32 @@ async def root_redirect():
 async def old_html_redirect():
     return RedirectResponse(url="/")
 
+
+# === GIS Data Mounts (Dynamic to avoid encoding issues) ===
+gis_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "GIS_DATA")
+if os.path.exists(gis_data_dir):
+    for fldr in os.listdir(gis_data_dir):
+        gis_base = os.path.join(gis_data_dir, fldr)
+        if os.path.isdir(gis_base):
+            subdirs = os.listdir(gis_base)
+            if any(d.startswith("5.") for d in subdirs):
+                for d in subdirs:
+                    if d.startswith("2."):
+                        app.mount("/gis/8765", CacheControlledStaticFiles(directory=os.path.join(gis_base, d)), name="gis_ortho")
+                    elif d.startswith("5."):
+                        app.mount("/gis/8766", CacheControlledStaticFiles(directory=os.path.join(gis_base, d)), name="gis_3d")
+                    elif d.startswith("1."):
+                        dem_path = os.path.join(gis_base, d, "kumoh_DEM")
+                        if os.path.exists(dem_path):
+                            app.mount("/gis/8767", CacheControlledStaticFiles(directory=dem_path), name="gis_dem")
+                break
+
+@app.get("/gis/8766_test")
+async def test_route():
+    return {"hello": "world"}
+
 app.mount("/", CacheControlledStaticFiles(directory=".", html=True), name="static")
+
 
 def dual_stack_socket(port: int):
     """IPv4 와 IPv6 를 한 소켓으로 받는다. 실패하면 None.

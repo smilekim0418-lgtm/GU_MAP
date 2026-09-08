@@ -139,7 +139,7 @@ function wmTile2geo4326Tms(z, wx, wy) {
 const Ortho4326Layer = L.TileLayer.extend({
   getTileUrl(coords) {
     const t = wmTile2geo4326Tms(coords.z, coords.x, coords.y);
-    return `http://localhost:8765/${t.z}/${t.x}/${t.y}.jpg`;
+    return `/gis/8765/${t.z}/${t.x}/${t.y}.jpg`;
   }
 });
 
