@@ -1,0 +1,647 @@
+{
+  "source_sha256": "d51525d29f161deff926115fdc1ae9b4e4f9757c8d09bc6518f1f34f2c7b5675",
+  "coordinate_system": "local CAD XY, Y up; NOT WGS84",
+  "floors": {
+    "B1F": [
+      {
+        "id": "계단-F",
+        "kind": "stairs",
+        "point": [
+          28.283,
+          22.603
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-C",
+        "kind": "stairs",
+        "point": [
+          -12.834,
+          31.13
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-3",
+        "kind": "elevator",
+        "point": [
+          -13.695,
+          24.384
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-1",
+        "kind": "elevator",
+        "point": [
+          -32.952,
+          50.568
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-2",
+        "kind": "elevator",
+        "point": [
+          -30.59,
+          50.568
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-B",
+        "kind": "stairs",
+        "point": [
+          -20.541,
+          63.539
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      }
+    ],
+    "1F": [
+      {
+        "id": "계단-B",
+        "kind": "stairs",
+        "point": [
+          -16.067,
+          63.485
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-A",
+        "kind": "stairs",
+        "point": [
+          -31.945,
+          78.532
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "external",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-C",
+        "kind": "stairs",
+        "point": [
+          -8.28,
+          30.998
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-F",
+        "kind": "stairs",
+        "point": [
+          32.805,
+          22.623
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-D",
+        "kind": "stairs",
+        "point": [
+          47.162,
+          94.633
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-E",
+        "kind": "stairs",
+        "point": [
+          47.183,
+          58.618
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-3",
+        "kind": "elevator",
+        "point": [
+          -9.192,
+          24.408
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-1",
+        "kind": "elevator",
+        "point": [
+          -28.356,
+          50.466
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-2",
+        "kind": "elevator",
+        "point": [
+          -26.024,
+          50.466
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      }
+    ],
+    "2F": [
+      {
+        "id": "계단-E",
+        "kind": "stairs",
+        "point": [
+          47.339,
+          58.62
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-1",
+        "kind": "elevator",
+        "point": [
+          -28.214,
+          50.549
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-2",
+        "kind": "elevator",
+        "point": [
+          -25.832,
+          50.549
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-B",
+        "kind": "stairs",
+        "point": [
+          -15.871,
+          63.482
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-C",
+        "kind": "stairs",
+        "point": [
+          -8.115,
+          31.021
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-3",
+        "kind": "elevator",
+        "point": [
+          -8.981,
+          24.446
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-F",
+        "kind": "stairs",
+        "point": [
+          32.93,
+          22.654
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-A",
+        "kind": "stairs",
+        "point": [
+          -31.699,
+          79.014
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "external",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-D",
+        "kind": "stairs",
+        "point": [
+          47.3,
+          94.586
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "외부계단-동측",
+        "kind": "stairs",
+        "point": [
+          49.6,
+          87.1
+        ],
+        "source": "cad_visual_annotation",
+        "location": "external",
+        "review": "CAD 단차·계단참 기호 확인; 연결층과 통행 가능 여부 미확정"
+      }
+    ],
+    "3F": [
+      {
+        "id": "계단-A",
+        "kind": "stairs",
+        "point": [
+          -31.472,
+          79.505
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "external",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-B",
+        "kind": "stairs",
+        "point": [
+          -15.469,
+          63.632
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-C",
+        "kind": "stairs",
+        "point": [
+          -7.934,
+          31.3
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-D",
+        "kind": "stairs",
+        "point": [
+          47.567,
+          94.77
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-E",
+        "kind": "stairs",
+        "point": [
+          47.523,
+          58.703
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-F",
+        "kind": "stairs",
+        "point": [
+          33.17,
+          22.68
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-3",
+        "kind": "elevator",
+        "point": [
+          -8.846,
+          24.417
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-1",
+        "kind": "elevator",
+        "point": [
+          -28.041,
+          50.582
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-2",
+        "kind": "elevator",
+        "point": [
+          -25.674,
+          50.582
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      }
+    ],
+    "4F": [
+      {
+        "id": "계단-C",
+        "kind": "stairs",
+        "point": [
+          -7.751,
+          31.233
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-3",
+        "kind": "elevator",
+        "point": [
+          -8.612,
+          24.421
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-A",
+        "kind": "stairs",
+        "point": [
+          -31.173,
+          79.344
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "external",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-B",
+        "kind": "stairs",
+        "point": [
+          -15.375,
+          63.499
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-1",
+        "kind": "elevator",
+        "point": [
+          -27.827,
+          50.521
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-2",
+        "kind": "elevator",
+        "point": [
+          -25.485,
+          50.521
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-D",
+        "kind": "stairs",
+        "point": [
+          47.602,
+          94.426
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-E",
+        "kind": "stairs",
+        "point": [
+          47.602,
+          58.599
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-F",
+        "kind": "stairs",
+        "point": [
+          33.214,
+          22.677
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      }
+    ],
+    "5F": [
+      {
+        "id": "계단-A",
+        "kind": "stairs",
+        "point": [
+          -29.201,
+          79.015
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "external",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-B",
+        "kind": "stairs",
+        "point": [
+          -13.599,
+          63.153
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-3",
+        "kind": "elevator",
+        "point": [
+          -6.44,
+          24.089
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-C",
+        "kind": "stairs",
+        "point": [
+          -5.598,
+          30.847
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-F",
+        "kind": "stairs",
+        "point": [
+          35.351,
+          22.304
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-1",
+        "kind": "elevator",
+        "point": [
+          -25.731,
+          50.218
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-2",
+        "kind": "elevator",
+        "point": [
+          -23.345,
+          50.218
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-E (옥상부)",
+        "kind": "stairs",
+        "point": [
+          50.0,
+          59.1
+        ],
+        "source": "cad_visual_annotation",
+        "location": "roof",
+        "review": "CAD 단차·계단참 기호 확인; 연결층과 통행 가능 여부 미확정"
+      }
+    ],
+    "6F": [
+      {
+        "id": "EV-1",
+        "kind": "elevator",
+        "point": [
+          -27.714,
+          50.754
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "EV-2",
+        "kind": "elevator",
+        "point": [
+          -25.372,
+          50.754
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-B",
+        "kind": "stairs",
+        "point": [
+          -15.115,
+          63.668
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "indoor",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-A",
+        "kind": "stairs",
+        "point": [
+          -31.021,
+          79.692
+        ],
+        "source": "legacy_seed_cad_visual_check",
+        "location": "external",
+        "review": "CAD 형상과 위치 대조; 시설 외곽과 층간 통행은 확정하지 않음"
+      },
+      {
+        "id": "계단-C (옥상부)",
+        "kind": "stairs",
+        "point": [
+          -7.7,
+          30.0
+        ],
+        "source": "cad_visual_annotation",
+        "location": "roof",
+        "review": "CAD 단차·계단참 기호 확인; 연결층과 통행 가능 여부 미확정"
+      },
+      {
+        "id": "계단-F (옥상부)",
+        "kind": "stairs",
+        "point": [
+          33.5,
+          23.0
+        ],
+        "source": "cad_visual_annotation",
+        "location": "roof",
+        "review": "CAD 단차·계단참 기호 확인; 연결층과 통행 가능 여부 미확정"
+      }
+    ]
+  }
+}

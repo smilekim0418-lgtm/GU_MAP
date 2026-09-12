@@ -1,0 +1,125 @@
+{
+  "files": [
+    {
+      "path": "GUMAP-개발/floorplan/work/1F_labeled.json",
+      "sha256": "319bf969550fc26ee184d8fbf00aad4e3917d411d6d0e498cf3428b2538de327",
+      "bytes": 79781
+    },
+    {
+      "path": "GUMAP-개발/floorplan/work/2F_labeled.json",
+      "sha256": "55196d5d8d9e789e5ea9b093b2b68ea59aa01ffc3759bf8a131113fbae89c019",
+      "bytes": 78693
+    },
+    {
+      "path": "GUMAP-개발/floorplan/work/3F_labeled.json",
+      "sha256": "fd81d9884934e8d00081c046fbff55da1f407377f2954647dafe98a50655efb5",
+      "bytes": 88618
+    },
+    {
+      "path": "GUMAP-개발/floorplan/work/4F_labeled.json",
+      "sha256": "d40a60b4b6b92257a0f00c832654b15806d9c0c6b41b63013de9ac0eed8561dd",
+      "bytes": 90832
+    },
+    {
+      "path": "GUMAP-개발/floorplan/work/5F_labeled.json",
+      "sha256": "4e9ec7275e60f5e7b24ea2af2fd4fec23fed447e01979b8faf9aad053dc4d455",
+      "bytes": 39517
+    },
+    {
+      "path": "GUMAP-개발/floorplan/work/6F_labeled.json",
+      "sha256": "5a235382781c2e37e1815b6c999814ae956eff5bdc44612f52e3574cb2540c19",
+      "bytes": 14543
+    },
+    {
+      "path": "GUMAP-개발/floorplan/work/B1F_labeled.json",
+      "sha256": "4b261363b88c298328d606ca2d46e6a9d3d73cb9fbf88d5e8a02f34f91669b77",
+      "bytes": 40998
+    },
+    {
+      "path": "GUMAP-개발/floorplan/techno_georef.json",
+      "sha256": "f2b604c2cf8623d36d543430a4c8a0135a8b30af11a9bd6ca4f8675e36590321",
+      "bytes": 4888
+    },
+    {
+      "path": "GUMAP-개발/floorplan/work/techno_nav.json",
+      "sha256": "f80fcd33e0c01e4a29e41afd09636c3863666d177fe6d73e61b578e3ba47a91c",
+      "bytes": 347609
+    },
+    {
+      "path": "GUMAP-학교지도/data/imdf/techno/anchor.geojson",
+      "sha256": "c3311fccb903ee2126af2cf493ed98daa5daa7b7962f5344a25e397e46cbd3c4",
+      "bytes": 54
+    },
+    {
+      "path": "GUMAP-학교지도/data/imdf/techno/building.geojson",
+      "sha256": "179721995205b00fba6ce66f78e4c63b47df3e2d13506696cb28f566a28a8dfd",
+      "bytes": 2588
+    },
+    {
+      "path": "GUMAP-학교지도/data/imdf/techno/footprint.geojson",
+      "sha256": "96ac5b1f3356388d7cb87e958d66c3eada7de90e626c7476f46da34a3b615a16",
+      "bytes": 14962
+    },
+    {
+      "path": "GUMAP-학교지도/data/imdf/techno/level.geojson",
+      "sha256": "ce765e0686ce193dfa6e3169cc29b46052f03863a999699aaa20daa1a2c8b682",
+      "bytes": 15353
+    },
+    {
+      "path": "GUMAP-학교지도/data/imdf/techno/manifest.json",
+      "sha256": "5a4cf88944fd8b6ef82355e713fe856b682841085fa16f8f9fdd7301c947da13",
+      "bytes": 113
+    },
+    {
+      "path": "GUMAP-학교지도/data/imdf/techno/occupant.geojson",
+      "sha256": "2ddbb446c91eaa079ce741934009b8b05227b7cad9ff3e8f21f978c8f94eb60d",
+      "bytes": 109813
+    },
+    {
+      "path": "GUMAP-학교지도/data/imdf/techno/opening.geojson",
+      "sha256": "1a788e0924c5677595b03396db217694576706ed40b6890d5c4879d4c8db9337",
+      "bytes": 456232
+    },
+    {
+      "path": "GUMAP-학교지도/data/imdf/techno/unit.geojson",
+      "sha256": "9f97303442d2067e9f6c37e93492eb17bbcf58af12bca60be056a3c8446a67f5",
+      "bytes": 479854
+    },
+    {
+      "path": "GUMAP-학교지도/data/imdf/techno/venue.geojson",
+      "sha256": "fe20fb03b3e9d00de94ec610aa3a871ecac086ac043124436e0ca5c5eb4acf8c",
+      "bytes": 2519
+    },
+    {
+      "path": "GUMAP-프론트/js/map/map-techno-b1.js",
+      "sha256": "b36562def17d3af1b38c1873025203104cf2f8f58c6db3d2f5daa8263f67c92c",
+      "bytes": 29300
+    },
+    {
+      "path": "GUMAP-프론트/js/map/map-techno-imdf-data.js",
+      "sha256": "b1d9787c5cd21f210c457f1e1950ffdd1f3ab26c788d48dfc2fc4ee274d3843d",
+      "bytes": 602883
+    },
+    {
+      "path": "GUMAP-프론트/js/map/map-techno-indoor.js",
+      "sha256": "8e480cef068e9e1464ffe2e372a424d60e24a46bd84e1d6f2bcbcc0338250347",
+      "bytes": 33954
+    },
+    {
+      "path": "GUMAP-프론트/js/map/map-techno-nav-data.js",
+      "sha256": "9294cef3e0229d09d87c560c0c458088b681c47d25a795c384927bc7b45ceb66",
+      "bytes": 347637
+    },
+    {
+      "path": "GUMAP-프론트/js/map/map-techno-route-core.js",
+      "sha256": "0a9b5d4c5fd2c9f7ceaa9bf57ef52a93c2fc05b9c420400eaf3109f664a4f409",
+      "bytes": 40059
+    },
+    {
+      "path": "GUMAP-프론트/js/map/map-techno-route.js",
+      "sha256": "b28bc2f6d098b1840a44c264099541b48ca863fd187cbfec83e85a74fac8d2fe",
+      "bytes": 55426
+    }
+  ],
+  "dwg_sha256": "d51525d29f161deff926115fdc1ae9b4e4f9757c8d09bc6518f1f34f2c7b5675"
+}

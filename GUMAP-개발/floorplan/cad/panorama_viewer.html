@@ -1,0 +1,762 @@
+<meta charset="utf-8">
+<title>테크노관 실내 로드뷰 (프로토타입)</title>
+<!--
+  실내 로드뷰 프로토타입.
+
+  카카오맵·네이버지도의 로드뷰와 같은 방식이다. 자유롭게 걸어다니는 VR 이 아니라,
+  **찍어 둔 자리들** 사이를 건너뛰는 화면이다. 바닥에 촬영 지점을 잇는 길이 깔리고,
+  그 길을 누르거나 방향키를 눌러 한 자리에서 다음 자리로 넘어간다. 그 사이는
+  보간하지 않는다. 사진이 없는 자리는 갈 수 없다.
+
+  아직 카메라가 없어서 실사진이 없다. 그래서 파노라마를 **CAD 벽선에서 실시간으로
+  합성해서** 넣는다. 사진처럼 보이려는 게 아니라, 사진이 들어올 자리에 무엇이
+  들어가고 방위가 맞는지를 지금 확인하려는 것이다.
+
+  확인하려는 것
+    · 지점을 CAD 좌표에 놓고 지도와 같은 방위로 돌릴 수 있는가
+    · 바닥 길과 이동 표시를 벽선만으로 자동으로 만들 수 있는가
+    · 둘러보는 방향이 도면 위 시야각과 실제로 같은가  <- 이게 제일 중요하다
+
+  실사진이 생기면 바꿀 곳은 한 군데다. makeTexture() 가 지금은 합성 캔버스를
+  돌려주는데, 그 자리에서 node.photo 의 등장방형 이미지를 읽어 오면 된다.
+  node.yaw_offset 에 그 사진의 정북 보정값(도)을 넣으면 나머지는 그대로 돈다.
+
+  주소 인자
+    ?floor=3F&node=42   그 층 그 지점에서 연다
+    ?embed=1            GUMAP 지도의 작은 창에 끼울 때. 큰 설명판을 접는다
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b1020; color: #e2e8f0; overflow: hidden;
+         font: 13px/1.5 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif; }
+  #stage { position: fixed; inset: 0; display: block; }
+  #overlay { position: fixed; inset: 0; pointer-events: none; }
+  .panel { position: fixed; background: rgba(15,23,42,.88); border: 1px solid rgba(148,163,184,.25);
+           border-radius: 12px; backdrop-filter: blur(6px); }
+  #head { top: 12px; left: 12px; padding: 10px 14px; max-width: min(520px, calc(100vw - 24px)); }
+  #head h1 { margin: 0 0 4px; font-size: 14px; }
+  #head .sub { font-size: 11px; color: #94a3b8; }
+  #floors { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  #floors button { padding: 4px 9px; font-size: 11px; font-weight: 700; cursor: pointer;
+                   border-radius: 7px; border: 1px solid rgba(148,163,184,.3);
+                   background: rgba(255,255,255,.05); color: #94a3b8; }
+  #floors button[data-on="1"] { background: #4f46e5; border-color: #6366f1; color: #fff; }
+  #info { top: 12px; right: 12px; padding: 10px 14px; min-width: 220px; font-size: 12px; }
+  #info dt { color: #94a3b8; font-size: 10px; }
+  #info dd { margin: 0 0 6px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #minimap { position: fixed; left: 12px; bottom: 12px; width: 320px; height: 320px;
+             border-radius: 12px; border: 1px solid rgba(148,163,184,.25); background: #0f172a;
+             cursor: crosshair; }
+  #note { right: 12px; bottom: 12px; padding: 9px 12px; max-width: 330px;
+          font-size: 11px; color: #94a3b8; }
+  #note b { color: #fbbf24; }
+  #keys { left: 50%; transform: translateX(-50%); bottom: 12px; padding: 7px 12px;
+          font-size: 11px; color: #cbd5e1; display: flex; gap: 12px; align-items: center; }
+  #keys kbd { display: inline-block; min-width: 19px; text-align: center; padding: 1px 5px;
+              border-radius: 5px; border: 1px solid rgba(148,163,184,.45);
+              background: rgba(255,255,255,.07); font: 700 11px system-ui; }
+  #where { position: fixed; left: 50%; transform: translateX(-50%); top: 12px;
+           padding: 6px 14px; border-radius: 999px; background: rgba(15,23,42,.9);
+           border: 1px solid rgba(148,163,184,.3); font-size: 12px; font-weight: 700;
+           white-space: nowrap; }
+  /* 지도 안 작은 창에서는 설명판을 접는다. 화면이 좁아 그림을 다 가린다. */
+  body.embed #head, body.embed #note, body.embed #info { display: none; }
+  body.embed #minimap { width: 124px; height: 124px; left: 8px; bottom: 8px; }
+  /* 작은 창에서는 가운데 정렬한 안내가 미니맵 위로 겹친다. 오른쪽으로 붙인다. */
+  body.embed #keys { font-size: 10px; padding: 4px 8px; gap: 7px; bottom: 8px;
+                     left: auto; right: 8px; transform: none; }
+  body.embed #keys .wide { display: none; }
+  body.embed #where { top: 8px; font-size: 11px; padding: 4px 10px; }
+  @media (max-width: 760px) {
+    #minimap { width: 180px; height: 180px; }
+    #info { top: auto; bottom: 12px; right: 12px; min-width: 0; }
+    #note { display: none; }
+  }
+</style>
+
+<canvas id="stage"></canvas>
+<canvas id="overlay"></canvas>
+
+<div class="panel" id="head">
+  <h1>테크노관 실내 로드뷰 <span style="font-size:10px;background:#b45309;padding:1px 6px;border-radius:9px;">프로토타입</span></h1>
+  <div class="sub">찍어 둔 자리 사이를 건너뛰는 화면이다. 바닥에 깔린 길을 누르거나
+    방향키로 옮겨 다닌다. 사진이 아직 없어 CAD 벽선으로 합성한 그림이다.</div>
+  <div id="floors"></div>
+</div>
+
+<dl class="panel" id="info">
+  <dt>지점</dt><dd id="i-node">-</dd>
+  <dt>보는 방향 (도면 북쪽 기준)</dt><dd id="i-bearing">-</dd>
+  <dt>CAD 좌표 · 위경도</dt><dd id="i-at">-</dd>
+  <dt>다음 지점</dt><dd id="i-links">-</dd>
+</dl>
+
+<div class="panel" id="note">
+  <b>방위 확인</b> — 아래 지도의 부채꼴이 지금 보고 있는 방향이다. 화면에서 복도가
+  뻗은 쪽과 부채꼴이 가리키는 쪽이 같아야 정합이 맞는 것이다.<br><br>
+  실사진이 생기면 이 합성 화면 자리에 등장방형 사진이 들어가고, 사진마다 정북
+  보정값(yaw)만 넣으면 나머지는 그대로 동작한다.
+</div>
+
+<div class="panel" id="keys">
+  <span><kbd>↑</kbd><kbd>↓</kbd> 앞뒤로 이동</span>
+  <span><kbd>←</kbd><kbd>→</kbd> 둘러보기</span>
+  <span class="wide">바닥 길을 눌러도 이동</span>
+</div>
+
+<div id="where">-</div>
+<canvas id="minimap" width="640" height="640"></canvas>
+
+<script>
+const DATA = /*__PANO_DATA__*/ null;
+</script>
+<script>
+(function () {
+  'use strict';
+  const TEX_W = 1024, TEX_H = 512;
+  const CELL = 0.1;            // 벽 격자 한 칸 (m)
+  const MAX_RAY = 40;          // 이보다 먼 벽은 없는 셈 친다
+  const WALL_H = 3.0, EYE_H = DATA.camera_height_m || 1.6;
+  const MINIMAP_SPAN = 26;     // 미니맵에 담는 반경 (m)
+  const ROAD_START_M = 0.9;    // 발밑은 카메라 다리라 길을 그리지 않는다
+  const TURN_STEP = 0.09;      // 방향키 한 번에 도는 각
+  const FORWARD_CONE = 1.05;   // 이 각 안에 있는 이웃까지 '앞' 으로 본다 (약 60도)
+
+  const params = new URLSearchParams(location.search);
+  const EMBED = params.get('embed') === '1';
+  if (EMBED) document.body.classList.add('embed');
+
+  const stage = document.getElementById('stage');
+  const overlay = document.getElementById('overlay');
+  const minimap = document.getElementById('minimap');
+  const octx = overlay.getContext('2d');
+  const mctx = minimap.getContext('2d');
+
+  const floors = DATA.floors;
+  const grids = {};
+  let floor = floors.find(f => f.floor === (params.get('floor') || '1F')) || floors[0];
+  let nodeIndex = 0, yaw = 0, pitch = 0, fov = 75 * Math.PI / 180;
+  let road = [];               // 바닥 길의 화면 좌표 표본. 누를 자리를 여기서 찾는다
+
+  /* ── 벽 격자: 선형을 한 번 래스터로 구워 두고 광선을 쏜다 ───────────── */
+  function gridFor(data) {
+    if (grids[data.floor]) return grids[data.floor];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const flat of data.paths) {
+      for (let i = 0; i < flat.length; i += 2) {
+        const x = flat[i] / 100, y = flat[i + 1] / 100;
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+    }
+    const w = Math.ceil((maxX - minX) / CELL) + 2, h = Math.ceil((maxY - minY) / CELL) + 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const flat of data.paths) {
+      ctx.moveTo((flat[0] / 100 - minX) / CELL, h - (flat[1] / 100 - minY) / CELL);
+      for (let i = 2; i < flat.length; i += 2) {
+        ctx.lineTo((flat[i] / 100 - minX) / CELL, h - (flat[i + 1] / 100 - minY) / CELL);
+      }
+    }
+    ctx.stroke();
+    const pixels = ctx.getImageData(0, 0, w, h).data;
+    const cells = new Uint8Array(w * h);
+    for (let i = 0; i < cells.length; i++) cells[i] = pixels[i * 4] > 40 ? 1 : 0;
+    // 문은 열려 있다고 보고 그린다. 도면은 문짝을 닫힌 자리에 선으로 그려 둔다.
+    for (const node of data.nodes) {
+      if (node.kind !== 'door') continue;
+      const cx = (node.at[0] - minX) / CELL, cy = h - (node.at[1] - minY) / CELL;
+      const r = Math.round(0.3 / CELL);
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (dx * dx + dy * dy > r * r) continue;
+        const x = Math.round(cx) + dx, y = Math.round(cy) + dy;
+        if (x >= 0 && y >= 0 && x < w && y < h) cells[y * w + x] = 0;
+      }
+    }
+    return (grids[data.floor] = { minX, minY, w, h, cells });
+  }
+
+  function castRay(grid, x, y, angle) {
+    const dx = Math.cos(angle) * CELL, dy = Math.sin(angle) * CELL;
+    let px = x, py = y;
+    for (let step = 1; step * CELL < MAX_RAY; step++) {
+      px += dx; py += dy;
+      const gx = Math.round((px - grid.minX) / CELL);
+      const gy = grid.h - Math.round((py - grid.minY) / CELL);
+      if (gx < 0 || gy < 0 || gx >= grid.w || gy >= grid.h) return MAX_RAY;
+      if (grid.cells[gy * grid.w + gx]) return step * CELL;
+    }
+    return MAX_RAY;
+  }
+
+  /* ── 합성 파노라마 ────────────────────────────────────────────────
+     텍스처 가로축은 셰이더와 **같은 식**으로 만든다. u 에서 경도를 얻고, 그
+     경도가 가리키는 도면 방향으로 광선을 쏜다. 그래서 맞춰 볼 상수가 없다.  */
+  const texCanvas = document.createElement('canvas');
+  texCanvas.width = TEX_W; texCanvas.height = TEX_H;
+  const tctx = texCanvas.getContext('2d');
+
+  // 텍스처 u -> 도면 각. 셰이더는 u 에서 경도 lon = (u-0.5)*2PI 를 읽고,
+  // 도면 각은 거기서 PI/2 만큼 돌아간 값이다. 세 함수 모두 이 한 줄에서 나온다.
+  function cadAngleForU(u) { return (u - 0.5) * 2 * Math.PI - Math.PI / 2; }
+  function wrap(a) { return Math.atan2(Math.sin(a), Math.cos(a)); }
+
+  function makeTexture(node, data) {
+    // 실사진이 생기면 이 함수만 바꾼다: node.photo 를 읽어 그리고,
+    // node.yaw_offset 만큼 가로로 굴리면 끝이다.
+    const grid = gridFor(data);
+    const sky = tctx.createLinearGradient(0, 0, 0, TEX_H / 2);
+    sky.addColorStop(0, '#1e293b'); sky.addColorStop(1, '#334155');
+    tctx.fillStyle = sky; tctx.fillRect(0, 0, TEX_W, TEX_H / 2);
+    const ground = tctx.createLinearGradient(0, TEX_H / 2, 0, TEX_H);
+    ground.addColorStop(0, '#0f172a'); ground.addColorStop(1, '#1e1b4b');
+    tctx.fillStyle = ground; tctx.fillRect(0, TEX_H / 2, TEX_W, TEX_H / 2);
+
+    for (let x = 0; x < TEX_W; x++) {
+      const distance = castRay(grid, node.at[0], node.at[1], cadAngleForU((x + 0.5) / TEX_W));
+      if (distance >= MAX_RAY) continue;
+      const top = Math.atan2(WALL_H - EYE_H, distance);
+      const bottom = Math.atan2(-EYE_H, distance);
+      const yTop = TEX_H * (0.5 - top / Math.PI);
+      const yBottom = TEX_H * (0.5 - bottom / Math.PI);
+      const shade = Math.max(0.15, Math.min(1, 2.2 / (distance + 1.2)));
+      const tone = Math.round(150 * shade + 40);
+      tctx.fillStyle = 'rgb(' + tone + ',' + Math.round(tone * 1.02) + ',' + Math.round(tone * 1.12) + ')';
+      tctx.fillRect(x, yTop, 1, Math.max(1, yBottom - yTop));
+      tctx.fillStyle = 'rgba(15,23,42,.55)';
+      tctx.fillRect(x, yBottom - 1, 1, 2);
+    }
+    texture.needsUpdate = true;
+  }
+
+  /* ── 등장방형 -> 화면. 셰이더로 직접 푼다(구 UV 규약에 얽매이지 않는다) ─ */
+  // preserveDrawingBuffer: 화면 중앙 픽셀을 되읽어 방위 정합을 자동 검사한다.
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: stage, antialias: true,
+                                         preserveDrawingBuffer: true });
+  } catch (error) {
+    // WebGL 이 없는 환경(원격 데스크톱, 오래된 브라우저, 그래픽 가속 끔)에서는
+    // 빈 화면 대신 왜 안 나오는지 적는다. 아무 말 없는 검은 화면이 제일 나쁘다.
+    document.body.innerHTML = '<div style="padding:24px;font:14px system-ui;color:#e2e8f0">' +
+      '<b>이 브라우저에서 360 화면을 그릴 수 없습니다.</b><br><br>' +
+      'WebGL 이 꺼져 있거나 지원되지 않습니다. 브라우저 설정에서 하드웨어 가속을 ' +
+      '켜거나 다른 브라우저로 열어 주세요.</div>';
+    throw error;
+  }
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const texture = new THREE.CanvasTexture(texCanvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.minFilter = texture.magFilter = THREE.LinearFilter;
+  const material = new THREE.ShaderMaterial({
+    uniforms: { map: { value: texture }, yaw: { value: 0 }, pitch: { value: 0 },
+                fov: { value: fov }, aspect: { value: 1 } },
+    vertexShader: 'varying vec2 v; void main(){ v = position.xy; gl_Position = vec4(position.xy, 0., 1.); }',
+    fragmentShader: [
+      'precision highp float;',
+      'uniform sampler2D map; uniform float yaw, pitch, fov, aspect; varying vec2 v;',
+      'const float PI = 3.14159265359;',
+      'void main(){',
+      '  float t = tan(fov * 0.5);',
+      '  vec3 dir = normalize(vec3(v.x * t * aspect, v.y * t, -1.0));',
+      '  float cp = cos(pitch), sp = sin(pitch);',
+      '  dir = vec3(dir.x, dir.y * cp - dir.z * sp, dir.y * sp + dir.z * cp);',
+      '  float cy = cos(yaw), sy = sin(yaw);',
+      '  dir = vec3(dir.x * cy + dir.z * sy, dir.y, -dir.x * sy + dir.z * cy);',
+      '  float lon = atan(dir.x, dir.z);',
+      '  float lat = asin(clamp(dir.y, -1.0, 1.0));',
+      '  gl_FragColor = texture2D(map, vec2(lon / (2.0 * PI) + 0.5, 0.5 - lat / PI));',
+      '}'
+    ].join('\n')
+  });
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
+
+  // 화면 한가운데(카메라 -Z)를 셰이더 회전에 넣으면 lon = yaw - PI 가 나오고,
+  // 따라서 보고 있는 도면 각은 yaw + PI/2 다. 처음에 이걸 반사로 잘못 유도해서
+  // 미니맵 부채꼴이 90도씩 어긋났다. 화면 중앙 픽셀 밝기와 광선 거리를 맞춰
+  // 보는 probe() 가 그걸 잡았다.
+  function cadAngleForYaw(y) { return wrap(y + Math.PI / 2); }
+  function yawForCadAngle(a) { return (a - Math.PI / 2 + Math.PI * 4) % (Math.PI * 2); }
+
+  /* ── 바닥 길 ──────────────────────────────────────────────────────
+     로드뷰의 이동은 '허공에 뜬 단추' 가 아니라 '발밑에 깔린 길' 이다. 그래야
+     어디로 이어지는지가 화면에서 그대로 읽힌다. 바닥 높이(-EYE_H)에 있는 점을
+     그대로 투영해서 길을 긋고, 그 표본을 눌러서 이동한다.                     */
+  function project(cadAngle, elevation) {
+    const relative = ((yawForCadAngle(cadAngle) - yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    if (Math.abs(relative) > Math.PI / 2) return null;
+    const t = Math.tan(fov / 2);
+    const aspect = overlay.width / overlay.height;
+    // 셰이더에서 화면 오른쪽은 도면 각이 **줄어드는** 쪽이다. 부호를 맞춘다.
+    const dir = [-Math.sin(relative), Math.tan(elevation), -Math.cos(relative)];
+    if (dir[2] >= -0.05) return null;
+    const cp = Math.cos(-pitch), sp = Math.sin(-pitch);
+    const y = dir[1] * cp - dir[2] * sp, z = dir[1] * sp + dir[2] * cp;
+    if (z >= -0.05) return null;
+    return { x: (dir[0] / -z / (t * aspect) * 0.5 + 0.5) * overlay.width,
+             y: (0.5 - y / -z / t * 0.5) * overlay.height };
+  }
+
+  /** 서 있는 자리에서 본 바닥 위 한 점(도면 좌표)의 화면 좌표. */
+  function groundPoint(at, from) {
+    const dx = at[0] - from[0], dy = at[1] - from[1];
+    const distance = Math.hypot(dx, dy);
+    if (distance < 0.05) return null;
+    const point = project(Math.atan2(dy, dx), Math.atan2(-EYE_H, distance));
+    return point ? { x: point.x, y: point.y, distance: distance } : null;
+  }
+
+  /** 옆으로 한 칸, 그리고 그 너머로 이어지는 길까지. 카카오 로드뷰처럼 길이
+      끊기지 않고 복도 끝까지 뻗어 보이도록 같은 방향으로 한 번 더 잇는다. */
+  function roadLegs() {
+    const here = floor.nodes[nodeIndex];
+    const legs = [];
+    for (const j of here.to) {
+      const chain = [here.at, floor.nodes[j].at];
+      const targets = [j];
+      const walked = new Set([nodeIndex, j]);
+      let from = nodeIndex, at = j;
+      for (let guard = 0; guard < 6; guard++) {
+        const heading = Math.atan2(floor.nodes[at].at[1] - floor.nodes[from].at[1],
+                                   floor.nodes[at].at[0] - floor.nodes[from].at[0]);
+        let best = null;
+        for (const k of floor.nodes[at].to) {
+          if (walked.has(k)) continue;
+          const other = floor.nodes[k];
+          const angle = Math.atan2(other.at[1] - floor.nodes[at].at[1],
+                                   other.at[0] - floor.nodes[at].at[0]);
+          const turn = Math.abs(wrap(angle - heading));
+          if (turn < 0.45 && (!best || turn < best.turn)) best = { turn: turn, k: k };
+        }
+        if (!best) break;
+        from = at; at = best.k;
+        walked.add(at);
+        chain.push(floor.nodes[at].at); targets.push(at);
+      }
+      legs.push({ chain: chain, targets: targets, first: j });
+    }
+    return legs;
+  }
+
+  /** 길을 화면 좌표 표본으로 바꾼다. 그리기도 누르기도 이 표본 하나로 한다. */
+  function buildRoad() {
+    const here = floor.nodes[nodeIndex];
+    road = [];
+    for (const leg of roadLegs()) {
+      for (let seg = 0; seg < leg.chain.length - 1; seg++) {
+        const a = leg.chain[seg], b = leg.chain[seg + 1];
+        const span = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const steps = Math.max(2, Math.round(span / 0.45));
+        const points = [];
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const at = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+          if (Math.hypot(at[0] - here.at[0], at[1] - here.at[1]) < ROAD_START_M) continue;
+          const point = groundPoint(at, here.at);
+          if (point) points.push(point);
+        }
+        if (points.length < 2) continue;
+        road.push({ points: points, target: leg.targets[seg], step: seg,
+                    label: labelOf(floor.nodes[leg.targets[seg]]) });
+      }
+    }
+    return road;
+  }
+
+  function labelOf(node) {
+    if (node.kind === 'door') return '문';
+    if (node.room) return node.room + '호 앞';
+    return '';
+  }
+
+  function drawRoad() {
+    // 먼 구간부터 그려야 가까운 구간이 위로 온다.
+    const strips = road.slice().sort((a, b) =>
+      b.points[0].distance - a.points[0].distance);
+    for (const strip of strips) {
+      const near = strip.points[0].distance;
+      const width = Math.max(5, 46 / Math.max(1, near));
+      octx.lineCap = 'round'; octx.lineJoin = 'round';
+      octx.beginPath();
+      octx.moveTo(strip.points[0].x, strip.points[0].y);
+      for (const point of strip.points) octx.lineTo(point.x, point.y);
+      octx.strokeStyle = strip.step === 0 ? 'rgba(15,23,42,.45)' : 'rgba(15,23,42,.28)';
+      octx.lineWidth = width + 4;
+      octx.stroke();
+      octx.strokeStyle = strip.step === 0 ? 'rgba(226,232,240,.82)' : 'rgba(226,232,240,.42)';
+      octx.lineWidth = width;
+      octx.stroke();
+      // 진행 방향 갈매기표. 어느 쪽으로 가는 길인지 한눈에 읽히게 한다.
+      for (let i = 1; i < strip.points.length; i += 3) {
+        const a = strip.points[i - 1], b = strip.points[i];
+        const angle = Math.atan2(b.y - a.y, b.x - a.x);
+        const size = Math.max(3, width * 0.34);
+        octx.beginPath();
+        octx.moveTo(b.x - Math.cos(angle - 0.7) * size, b.y - Math.sin(angle - 0.7) * size);
+        octx.lineTo(b.x, b.y);
+        octx.lineTo(b.x - Math.cos(angle + 0.7) * size, b.y - Math.sin(angle + 0.7) * size);
+        octx.strokeStyle = 'rgba(79,70,229,.95)';
+        octx.lineWidth = Math.max(1.5, size * 0.4);
+        octx.stroke();
+      }
+    }
+    // 한 칸 앞 지점에는 발판과 이름을 찍는다.
+    for (const strip of strips) {
+      if (strip.step !== 0) continue;
+      const end = strip.points[strip.points.length - 1];
+      const radius = Math.max(6, 26 / Math.max(1, end.distance));
+      octx.beginPath();
+      octx.ellipse(end.x, end.y, radius, radius * 0.42, 0, 0, Math.PI * 2);
+      octx.fillStyle = 'rgba(99,102,241,.5)'; octx.fill();
+      octx.strokeStyle = 'rgba(226,232,240,.95)'; octx.lineWidth = 2; octx.stroke();
+      if (strip.label && end.distance < 12) {
+        octx.font = '700 12px system-ui'; octx.textAlign = 'center';
+        octx.strokeStyle = 'rgba(15,23,42,.85)'; octx.lineWidth = 3;
+        octx.strokeText(strip.label, end.x, end.y - radius - 4);
+        octx.fillStyle = '#fff';
+        octx.fillText(strip.label, end.x, end.y - radius - 4);
+      }
+    }
+  }
+
+  function drawOverlay() {
+    octx.clearRect(0, 0, overlay.width, overlay.height);
+    buildRoad();
+    drawRoad();
+    octx.strokeStyle = 'rgba(226,232,240,.5)'; octx.lineWidth = 1;
+    octx.beginPath();
+    octx.moveTo(overlay.width / 2 - 9, overlay.height / 2);
+    octx.lineTo(overlay.width / 2 + 9, overlay.height / 2);
+    octx.moveTo(overlay.width / 2, overlay.height / 2 - 9);
+    octx.lineTo(overlay.width / 2, overlay.height / 2 + 9);
+    octx.stroke();
+  }
+
+  /** 화면 좌표에서 가장 가까운 길 표본. 누를 자리를 찾는 데 쓴다. */
+  function roadAt(x, y) {
+    let best = null;
+    for (const strip of road) {
+      const width = Math.max(5, 46 / Math.max(1, strip.points[0].distance));
+      for (const point of strip.points) {
+        const gap = Math.hypot(point.x - x, point.y - y);
+        if (gap <= width * 1.5 + 8 && (!best || gap < best.gap)) {
+          best = { gap: gap, target: strip.target };
+        }
+      }
+    }
+    return best;
+  }
+
+  /* ── 미니맵 ────────────────────────────────────────────────────── */
+  function bearingOf(cadAngle) {
+    // 도면 +X 축이 가리키는 방위에서 시작해, 도면 각이 반시계로 도는 만큼 뺀다.
+    const base = Math.atan2(floor.affine.lon[0] * floor.mpdLon, floor.affine.lat[0] * floor.mpdLat);
+    return ((base - cadAngle) * 180 / Math.PI + 360000) % 360;
+  }
+
+  function drawMinimap() {
+    const node = floor.nodes[nodeIndex];
+    const size = minimap.width, scale = size / (MINIMAP_SPAN * 2);
+    const toX = x => (x - node.at[0]) * scale + size / 2;
+    const toY = y => size / 2 - (y - node.at[1]) * scale;
+    mctx.fillStyle = '#0f172a'; mctx.fillRect(0, 0, size, size);
+
+    mctx.strokeStyle = 'rgba(148,163,184,.75)'; mctx.lineWidth = 1.2; mctx.beginPath();
+    for (const flat of floor.paths) {
+      const x0 = flat[0] / 100, y0 = flat[1] / 100;
+      if (Math.abs(x0 - node.at[0]) > MINIMAP_SPAN + 20 || Math.abs(y0 - node.at[1]) > MINIMAP_SPAN + 20) continue;
+      mctx.moveTo(toX(x0), toY(y0));
+      for (let i = 2; i < flat.length; i += 2) mctx.lineTo(toX(flat[i] / 100), toY(flat[i + 1] / 100));
+    }
+    mctx.stroke();
+
+    // 같은 구역(걸어서 닿는 곳)은 진하게, 다른 구역은 흐리게. 흐린 점도 누르면
+    // 건너뛴다. 걸어서는 못 가지만 지도에서는 갈 수 있다는 뜻이다.
+    for (const solid of [false, true]) {
+      mctx.strokeStyle = solid ? 'rgba(99,102,241,.6)' : 'rgba(100,116,139,.3)';
+      mctx.lineWidth = 1;
+      mctx.beginPath();
+      floor.nodes.forEach((n, i) => {
+        if (((n.zone || 0) === (node.zone || 0)) !== solid) return;
+        for (const j of n.to) {
+          if (j < i) continue;
+          mctx.moveTo(toX(n.at[0]), toY(n.at[1]));
+          mctx.lineTo(toX(floor.nodes[j].at[0]), toY(floor.nodes[j].at[1]));
+        }
+      });
+      mctx.stroke();
+    }
+    for (const n of floor.nodes) {
+      const same = (n.zone || 0) === (node.zone || 0);
+      mctx.beginPath(); mctx.arc(toX(n.at[0]), toY(n.at[1]), same ? 2.5 : 2, 0, Math.PI * 2);
+      mctx.fillStyle = !same ? 'rgba(100,116,139,.55)'
+        : n.kind === 'door' ? '#f59e0b' : '#818cf8';
+      mctx.fill();
+    }
+
+    // 지금 보고 있는 방향. 화면에서 복도가 뻗은 쪽과 이 부채꼴이 같아야 한다.
+    const look = cadAngleForYaw(yaw);
+    mctx.beginPath();
+    mctx.moveTo(toX(node.at[0]), toY(node.at[1]));
+    mctx.arc(toX(node.at[0]), toY(node.at[1]), size * 0.34, -look - fov / 2, -look + fov / 2);
+    mctx.closePath();
+    mctx.fillStyle = 'rgba(250,204,21,.22)'; mctx.fill();
+    mctx.strokeStyle = 'rgba(250,204,21,.9)'; mctx.lineWidth = 1.5; mctx.stroke();
+
+    mctx.beginPath(); mctx.arc(toX(node.at[0]), toY(node.at[1]), 6, 0, Math.PI * 2);
+    mctx.fillStyle = '#fbbf24'; mctx.fill();
+    mctx.strokeStyle = '#0f172a'; mctx.lineWidth = 2; mctx.stroke();
+
+    const north = -Math.atan2(floor.affine.lon[0] * floor.mpdLon, floor.affine.lat[0] * floor.mpdLat);
+    mctx.save();
+    mctx.translate(size - 34, 34); mctx.rotate(north);
+    mctx.beginPath(); mctx.moveTo(0, -16); mctx.lineTo(6, 8); mctx.lineTo(0, 3); mctx.lineTo(-6, 8);
+    mctx.closePath(); mctx.fillStyle = '#f87171'; mctx.fill();
+    mctx.restore();
+    mctx.font = '700 11px system-ui'; mctx.textAlign = 'center'; mctx.fillStyle = '#f87171';
+    mctx.fillText('N', size - 34, 56);
+  }
+
+  /* ── 화면 갱신 ──────────────────────────────────────────────────── */
+  function placeName(node) {
+    const kind = { door: '문간', corridor: '복도' }[node.kind] || node.kind;
+    if (node.near && node.near.length) return node.near.slice(0, 2).join('·') + '호 앞 ' + kind;
+    return kind;
+  }
+
+  function updateInfo() {
+    const node = floor.nodes[nodeIndex];
+    const lon = floor.affine.lon[0] * node.at[0] + floor.affine.lon[1] * node.at[1] + floor.affine.lon[2];
+    const lat = floor.affine.lat[0] * node.at[0] + floor.affine.lat[1] * node.at[1] + floor.affine.lat[2];
+    document.getElementById('where').textContent =
+      floor.floor + ' · ' + placeName(node) + '  (' + (nodeIndex + 1) + '/' + floor.nodes.length + ')';
+    const info = document.getElementById('i-node');
+    if (!info) return;
+    info.textContent = floor.floor + ' · ' + placeName(node) +
+      ' (' + (nodeIndex + 1) + '/' + floor.nodes.length + ')';
+    document.getElementById('i-bearing').textContent = bearingOf(cadAngleForYaw(yaw)).toFixed(0) + '°';
+    document.getElementById('i-at').textContent =
+      node.at[0].toFixed(1) + ', ' + node.at[1].toFixed(1) + ' m · ' +
+      lat.toFixed(6) + ', ' + lon.toFixed(6);
+    document.getElementById('i-links').textContent = node.to.length + '개';
+  }
+
+  function render() {
+    material.uniforms.yaw.value = yaw;
+    material.uniforms.pitch.value = pitch;
+    material.uniforms.fov.value = fov;
+    material.uniforms.aspect.value = stage.width / stage.height;
+    renderer.render(scene, camera);
+    drawOverlay(); drawMinimap(); updateInfo();
+  }
+
+  function goTo(index, keepView) {
+    const before = floor.nodes[nodeIndex];
+    nodeIndex = Math.max(0, Math.min(floor.nodes.length - 1, index));
+    if (!keepView) pitch = 0;
+    const now = floor.nodes[nodeIndex];
+    // 걸어간 방향으로 고개를 돌려 준다. 로드뷰에서 한 칸 나아가면 가던 쪽을
+    // 계속 보게 되는 게 자연스럽다.
+    const walked = before !== now &&
+      Math.hypot(now.at[0] - before.at[0], now.at[1] - before.at[1]) < 14;
+    if (walked) {
+      yaw = yawForCadAngle(Math.atan2(now.at[1] - before.at[1], now.at[0] - before.at[0]));
+    } else if (now.to.length) {
+      // 처음 열었거나 멀리 건너뛴 경우. 아무 데나 보고 있으면 벽만 보이고 길이
+      // 화면에 없어서 갈 데가 없는 것처럼 보인다. 이어진 쪽을 보게 해 둔다.
+      const next = floor.nodes[now.to[0]];
+      yaw = yawForCadAngle(Math.atan2(next.at[1] - now.at[1], next.at[0] - now.at[0]));
+    }
+    makeTexture(now, floor);
+    render();
+  }
+
+  function setFloor(name, at) {
+    floor = floors.find(f => f.floor === name) || floor;
+    document.querySelectorAll('#floors button').forEach(b =>
+      b.dataset.on = b.dataset.floor === floor.floor ? '1' : '0');
+    nodeIndex = 0;
+    goTo(at == null ? startNode(floor) : at, true);
+  }
+
+  function startNode(data) {
+    // 가장 많이 이어진 지점에서 시작한다. 복도 한가운데일 확률이 높다.
+    let best = 0;
+    data.nodes.forEach((n, i) => { if (n.to.length > data.nodes[best].to.length) best = i; });
+    return best;
+  }
+
+  function resize() {
+    const ratio = Math.min(2, window.devicePixelRatio || 1);
+    for (const canvas of [stage, overlay]) {
+      canvas.width = Math.round(window.innerWidth * ratio);
+      canvas.height = Math.round(window.innerHeight * ratio);
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+    }
+    renderer.setPixelRatio(1);
+    renderer.setSize(stage.width, stage.height, false);
+    render();
+  }
+
+  /* ── 조작 ──────────────────────────────────────────────────────── */
+  function step(backwards) {
+    const node = floor.nodes[nodeIndex];
+    const want = cadAngleForYaw(yaw) + (backwards ? Math.PI : 0);
+    let best = null;
+    for (const j of node.to) {
+      const other = floor.nodes[j];
+      const angle = Math.atan2(other.at[1] - node.at[1], other.at[0] - node.at[0]);
+      const off = Math.abs(wrap(angle - want));
+      if (off < FORWARD_CONE && (!best || off < best.off)) best = { off: off, j: j };
+    }
+    if (best) goTo(best.j, true);
+    return !!best;
+  }
+
+  let dragging = null, moved = 0;
+  stage.addEventListener('pointerdown', event => {
+    dragging = { x: event.clientX, y: event.clientY }; moved = 0;
+    stage.setPointerCapture(event.pointerId);
+  });
+  stage.addEventListener('pointermove', event => {
+    const ratio = overlay.width / window.innerWidth;
+    if (!dragging) {
+      stage.style.cursor = roadAt(event.clientX * ratio, event.clientY * ratio)
+        ? 'pointer' : 'grab';
+      return;
+    }
+    const dx = event.clientX - dragging.x, dy = event.clientY - dragging.y;
+    dragging = { x: event.clientX, y: event.clientY };
+    moved += Math.abs(dx) + Math.abs(dy);
+    yaw = (yaw - dx * fov / window.innerWidth + Math.PI * 4) % (Math.PI * 2);
+    pitch = Math.max(-1.2, Math.min(1.2, pitch - dy * fov / window.innerWidth));
+    render();
+  });
+  stage.addEventListener('pointerup', event => {
+    dragging = null;
+    if (moved > 6) return;
+    const ratio = overlay.width / window.innerWidth;
+    const hit = roadAt(event.clientX * ratio, event.clientY * ratio);
+    if (hit) goTo(hit.target, true);
+  });
+  stage.addEventListener('dblclick', () => step(false));
+  stage.addEventListener('wheel', event => {
+    event.preventDefault();
+    fov = Math.max(0.5, Math.min(2.0, fov + event.deltaY * 0.0015));
+    render();
+  }, { passive: false });
+
+  minimap.addEventListener('click', event => {
+    const box = minimap.getBoundingClientRect();
+    const node = floor.nodes[nodeIndex];
+    const scale = minimap.width / (MINIMAP_SPAN * 2);
+    const px = (event.clientX - box.left) / box.width * minimap.width;
+    const py = (event.clientY - box.top) / box.height * minimap.width;
+    const wx = (px - minimap.width / 2) / scale + node.at[0];
+    const wy = (minimap.width / 2 - py) / scale + node.at[1];
+    let best = null;
+    floor.nodes.forEach((n, i) => {
+      const d = Math.hypot(n.at[0] - wx, n.at[1] - wy);
+      if (d < 2.5 && (!best || d < best.d)) best = { d, i };
+    });
+    if (best) goTo(best.i, true);
+  });
+
+  window.addEventListener('keydown', event => {
+    const turn = { ArrowLeft: TURN_STEP, ArrowRight: -TURN_STEP }[event.key];
+    if (turn !== undefined) {
+      yaw = (yaw + turn + Math.PI * 4) % (Math.PI * 2);
+      render();
+      event.preventDefault();
+      return;
+    }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      step(event.key === 'ArrowDown');
+      event.preventDefault();
+    }
+  });
+
+  /* ── 시작 ──────────────────────────────────────────────────────── */
+  const mpdLat = 110540.0, mpdLon = 111320.0 * Math.cos(36.1466 * Math.PI / 180);
+  floors.forEach(f => { f.mpdLat = mpdLat; f.mpdLon = mpdLon; });
+  const bar = document.getElementById('floors');
+  floors.forEach(f => {
+    const button = document.createElement('button');
+    button.textContent = f.floor + ' (' + f.nodes.length + ')';
+    button.dataset.floor = f.floor;
+    button.addEventListener('click', () => setFloor(f.floor));
+    bar.appendChild(button);
+  });
+  window.addEventListener('resize', resize);
+  const wanted = parseInt(params.get('node'), 10);
+  setFloor(floor.floor, Number.isFinite(wanted) ? wanted : null);
+  resize();
+
+  // 지도 쪽 작은 창에서 층·지점을 바꿔 달라고 보낼 수 있게 한다.
+  window.addEventListener('message', event => {
+    const body = event.data;
+    if (!body || body.kind !== 'pano:go') return;
+    setFloor(body.floor || floor.floor, body.node);
+  });
+
+  // 방위 정합 자가진단. 어떤 방향을 보든, 화면 한가운데에 보이는 벽은 그
+  // 방향으로 CAD 에서 광선을 쐈을 때 맞는 벽이어야 한다. 눈으로 보면 그럴듯해
+  // 보여도 90도 돌아가 있는 일이 흔해서 수치로 잡는다.
+  function probe(testYaw) {
+    yaw = ((testYaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    pitch = 0;
+    render();
+    const gl = renderer.getContext();
+    const pixel = new Uint8Array(4);
+    gl.readPixels(stage.width >> 1, stage.height >> 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    // 텍스처는 1024칸이라 칸 하나가 0.35도다. 문틀 모서리에서는 반 칸 차이로
+    // 거리가 3 m -> 40 m 로 튄다. 그건 어긋난 게 아니라 표본 간격이므로,
+    // 실제로 쓰인 칸 가운데 각도로 맞춰 본다.
+    const column = Math.floor((((cadAngleForYaw(yaw) + Math.PI / 2) / (2 * Math.PI) + 0.5)
+                               % 1 + 1) % 1 * TEX_W);
+    const cad = cadAngleForU((column + 0.5) / TEX_W);
+    const node = floor.nodes[nodeIndex];
+    const distance = castRay(gridFor(floor), node.at[0], node.at[1], cad);
+    const shade = Math.max(0.15, Math.min(1, 2.2 / (distance + 1.2)));
+    return { yaw: yaw, cad: cad, bearing: bearingOf(cad), distance: distance,
+             expected: Math.round(150 * shade + 40), measured: pixel[0] };
+  }
+
+  function firstNeighbour() { return floor.nodes[nodeIndex].to[0]; }
+
+  function aimAtFirstNeighbour() {
+    // 이웃 하나를 정면에 두고, 그 지점으로 가는 길 끝이 화면 한가운데 오는지
+    // 재 본다. 텍스처가 맞아도 길이 반대쪽에 깔리면 눌러서 엉뚱한 데로 간다.
+    const node = floor.nodes[nodeIndex];
+    const target = firstNeighbour();
+    const other = floor.nodes[target];
+    const cad = Math.atan2(other.at[1] - node.at[1], other.at[0] - node.at[0]);
+    yaw = yawForCadAngle(cad);
+    pitch = 0;
+    render();
+    const strip = road.find(s => s.target === target && s.step === 0);
+    if (!strip) return null;
+    const end = strip.points[strip.points.length - 1];
+    return { offset: Math.abs(end.x - overlay.width / 2) / overlay.width,
+             bearing: bearingOf(cad) };
+  }
+
+  window.PANO = { goTo: goTo, setFloor: setFloor, probe: probe, step: step,
+                  firstNeighbour: firstNeighbour, aimAtFirstNeighbour: aimAtFirstNeighbour,
+                  roadAt: roadAt,
+                  state: () => ({
+    floor: floor.floor, node: nodeIndex, yaw: yaw, bearing: bearingOf(cadAngleForYaw(yaw)),
+    zone: floor.nodes[nodeIndex].zone || 0,
+    links: floor.nodes[nodeIndex].to.length,
+    hotspots: road.filter(s => s.step === 0).length,
+    road: road.length }) };
+})();
+</script>

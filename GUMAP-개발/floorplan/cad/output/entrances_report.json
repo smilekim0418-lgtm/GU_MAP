@@ -1,0 +1,127 @@
+{
+  "meta": {
+    "source": "GIS_DATA/001.테크노관.dwg",
+    "sha256": "d51525d29f161deff926115fdc1ae9b4e4f9757c8d09bc6518f1f34f2c7b5675",
+    "units": "m",
+    "coordinate_system": "local CAD XY, Y up; NOT WGS84",
+    "method": "per-floor CAD envelope: walls dilated 1.2 m, holes filled, eroded back, then clipped to the existing map's rooms + 3.0 m so the lower roof drawn on 5F/6F is not counted; a door crossing that envelope is exterior. Merged with the existing map's 외부 door labels.",
+    "caveat": "통행 가능 여부·잠금·문 종류는 확정하지 않았다. candidate 등급은 한쪽 근거뿐이다."
+  },
+  "floors": {
+    "B1F": {
+      "door_arcs": 97,
+      "exterior": 11,
+      "courtyard": 0,
+      "certainty": {
+        "high": 6,
+        "low": 5
+      },
+      "open_gaps": 20,
+      "envelope_m2": 2964.7,
+      "legacy_exterior": 4,
+      "legacy_reproduced": 3,
+      "legacy_missed": [
+        [
+          -43.8,
+          55.7
+        ]
+      ],
+      "envelope_rings": 3
+    },
+    "1F": {
+      "door_arcs": 176,
+      "exterior": 23,
+      "courtyard": 0,
+      "certainty": {
+        "high": 8,
+        "low": 15
+      },
+      "open_gaps": 20,
+      "envelope_m2": 4459.3,
+      "legacy_exterior": 7,
+      "legacy_reproduced": 6,
+      "legacy_missed": [
+        [
+          43.9,
+          91.5
+        ]
+      ],
+      "envelope_rings": 3
+    },
+    "2F": {
+      "door_arcs": 164,
+      "exterior": 9,
+      "courtyard": 3,
+      "certainty": {
+        "high": 1,
+        "low": 11
+      },
+      "open_gaps": 21,
+      "envelope_m2": 4719.2,
+      "legacy_exterior": 0,
+      "legacy_reproduced": 0,
+      "legacy_missed": [],
+      "envelope_rings": 2
+    },
+    "3F": {
+      "door_arcs": 155,
+      "exterior": 5,
+      "courtyard": 0,
+      "certainty": {
+        "high": 0,
+        "low": 5
+      },
+      "open_gaps": 16,
+      "envelope_m2": 5349.4,
+      "legacy_exterior": 0,
+      "legacy_reproduced": 0,
+      "legacy_missed": [],
+      "envelope_rings": 1
+    },
+    "4F": {
+      "door_arcs": 152,
+      "exterior": 6,
+      "courtyard": 0,
+      "certainty": {
+        "high": 0,
+        "low": 6
+      },
+      "open_gaps": 16,
+      "envelope_m2": 5178.5,
+      "legacy_exterior": 0,
+      "legacy_reproduced": 0,
+      "legacy_missed": [],
+      "envelope_rings": 1
+    },
+    "5F": {
+      "door_arcs": 68,
+      "exterior": 2,
+      "courtyard": 1,
+      "certainty": {
+        "high": 0,
+        "low": 3
+      },
+      "open_gaps": 17,
+      "envelope_m2": 3685.0,
+      "legacy_exterior": 0,
+      "legacy_reproduced": 0,
+      "legacy_missed": [],
+      "envelope_rings": 1
+    },
+    "6F": {
+      "door_arcs": 38,
+      "exterior": 5,
+      "courtyard": 0,
+      "certainty": {
+        "high": 0,
+        "low": 5
+      },
+      "open_gaps": 27,
+      "envelope_m2": 2619.7,
+      "legacy_exterior": 0,
+      "legacy_reproduced": 0,
+      "legacy_missed": [],
+      "envelope_rings": 5
+    }
+  }
+}
