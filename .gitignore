@@ -201,3 +201,9 @@ GUMAP-개발/floorplan/cad/output/*.png
 GUMAP-개발/floorplan/exp2f/
 experiments/
 tmp/
+**/node_modules/
+node_modules/
+GUMAP-앱/node_modules/
+*등고선*.geojson
+*.zip
+GU_MAP_Release_Package.zip
