@@ -127,7 +127,26 @@ app.add_middleware(
 )
 
 # Gzip compression middleware (compress resources larger than 1KB)
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+class SelectiveGZipMiddleware:
+    """이미 압축된 파일(지도 타일 이미지·웹폰트)은 gzip 을 건너뛴다.
+
+    GZipMiddleware 는 모든 응답을 압축하려 한다. JPEG/PNG 타일은 더 줄지 않는데
+    지도를 한 번 옮길 때마다 수십 장씩 CPU 로 다시 압축하고 있었다.
+    """
+    SKIP = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".woff", ".woff2", ".ico", ".zip")
+
+    def __init__(self, app, minimum_size=1000):
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=minimum_size)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope.get("path", "").lower().endswith(self.SKIP):
+            await self.app(scope, receive, send)
+            return
+        await self.gzip(scope, receive, send)
+
+
+app.add_middleware(SelectiveGZipMiddleware, minimum_size=1000)
 
 API_KEYS = {
     'TMAP': os.getenv('TMAP_API_KEY'),
@@ -1730,10 +1749,28 @@ async def proxy_cctv_stream(request: Request, url: str):
 # ==========================================
 from fastapi.responses import RedirectResponse
 
+import re as _re
+
+# ?v= 에 빌드가 넣은 내용 해시(8자리 16진수)가 붙은 요청. 내용이 바뀌면 주소가
+# 바뀌므로 브라우저가 1년 동안 다시 묻지 않아도 된다. ?v=75 처럼 손으로 올리는
+# 번호는 올리는 걸 잊을 수 있어서 예전처럼 1시간만 둔다.
+_HASHED_VERSION = _re.compile(rb"(?:^|&)v=[0-9a-f]{8}(?:&|$)")
+
+
 class CacheControlledStaticFiles(StaticFiles):
+    """정적 파일 + 캐시 헤더.
+
+    long_cache=True 는 지도 타일처럼 한 번 만들면 바뀌지 않는 파일에 쓴다.
+    """
+
+    def __init__(self, *args, long_cache: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.long_cache = long_cache
+
     async def get_response(self, path: str, scope):
         # C0: Prevent sensitive files and source code disclosure
-        print(f"STATIC_REQUEST: {path}")
+        # 요청마다 print 하지 않는다. 지도를 한 번 옮기면 타일 요청이 수십 개씩
+        # 오는데, 윈도우 콘솔 출력은 동기라 그만큼 응답이 밀렸다.
         filename = os.path.basename(path).lower()
         forbidden_extensions = (".env", ".py", ".yml", ".yaml", ".lock", ".bat", ".sh", ".db", ".sqlite", ".pkl", ".onnx")
         forbidden_files = (".env", ".env.example", ".gitignore", "package.json", "package-lock.json", "capacitor.config.json")
@@ -1746,14 +1783,22 @@ class CacheControlledStaticFiles(StaticFiles):
             path.startswith(".")):
             raise HTTPException(status_code=403, detail="Access denied")
 
-        print("STATIC PATH:", repr(path))
         response = await super().get_response(path, scope)
-        if path.endswith((".html", ".htm")) or path == "":
+        if response.status_code >= 400:
+            return response
+        if self.long_cache:
+            response.headers["Cache-Control"] = "public, max-age=604800"
+        elif path.endswith((".html", ".htm")) or path == "":
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
-        elif path.endswith((".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2")):
+        elif path.endswith((".js", ".css")) and _HASHED_VERSION.search(scope.get("query_string", b"")):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif path.endswith((".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".webp")):
             response.headers["Cache-Control"] = "public, max-age=3600"
+        elif path.endswith((".json", ".geojson")):
+            # 데이터는 바뀔 수 있다. 매번 확인하되, 안 바뀌었으면 304 로 본문 없이 끝난다.
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
 @app.get("/")
@@ -1779,13 +1824,13 @@ if os.path.exists(gis_data_dir):
             if any(d.startswith("5.") for d in subdirs):
                 for d in subdirs:
                     if d.startswith("2."):
-                        app.mount("/gis/8765", CacheControlledStaticFiles(directory=os.path.join(gis_base, d)), name="gis_ortho")
+                        app.mount("/gis/8765", CacheControlledStaticFiles(directory=os.path.join(gis_base, d), long_cache=True), name="gis_ortho")
                     elif d.startswith("5."):
-                        app.mount("/gis/8766", CacheControlledStaticFiles(directory=os.path.join(gis_base, d)), name="gis_3d")
+                        app.mount("/gis/8766", CacheControlledStaticFiles(directory=os.path.join(gis_base, d), long_cache=True), name="gis_3d")
                     elif d.startswith("1."):
                         dem_path = os.path.join(gis_base, d, "kumoh_DEM")
                         if os.path.exists(dem_path):
-                            app.mount("/gis/8767", CacheControlledStaticFiles(directory=dem_path), name="gis_dem")
+                            app.mount("/gis/8767", CacheControlledStaticFiles(directory=dem_path, long_cache=True), name="gis_dem")
                 break
 
 @app.get("/gis/8766_test")

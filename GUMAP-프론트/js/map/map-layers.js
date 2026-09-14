@@ -1,3 +1,22 @@
+/* hls.js 지연 로드. 한 번만 받고, 동시에 여러 번 불려도 같은 약속을 돌려준다. */
+window.loadHlsLibrary = window.loadHlsLibrary || (function () {
+    var pending = null;
+    return function () {
+        if (typeof Hls !== 'undefined') return Promise.resolve();
+        if (pending) return pending;
+        pending = new Promise(function (resolve, reject) {
+            var tag = document.createElement('script');
+            // @latest 는 배포마다 바뀌어 캐시도 안 되고 동작도 흔들린다. 버전을 고정한다.
+            tag.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js';
+            tag.crossOrigin = 'anonymous';
+            tag.onload = function () { resolve(); };
+            tag.onerror = function () { pending = null; reject(new Error('hls.js load failed')); };
+            document.head.appendChild(tag);
+        });
+        return pending;
+    };
+})();
+
 // ============================================================
 // 📁 파일명: js/map/map-layers.js
 // 📌 역할: 지도 위 실시간 데이터 오버레이 레이어 관리
@@ -317,7 +336,16 @@ window.fetchAndRenderCctv = function() {
                             var videoEl = document.getElementById(videoId);
                             if (videoEl) {
                                 var streamUrl = videoEl.getAttribute('data-src');
-                                if (typeof Hls !== 'undefined' && Hls.isSupported() && (streamUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('cctv') !== -1)) {
+                                var wantsHls = streamUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('cctv') !== -1;
+                                // hls.js 는 무거워서(620 KB) 페이지 로드 때 받지 않는다. 사파리처럼
+                                // HLS 를 직접 재생하는 브라우저는 아예 받을 필요가 없다.
+                                if (wantsHls && typeof Hls === 'undefined' && !videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+                                    window.loadHlsLibrary().then(function () {
+                                        if (marker.isPopupOpen()) marker.fire('popupopen');
+                                    }).catch(function () { videoEl.src = streamUrl; });
+                                    return;
+                                }
+                                if (typeof Hls !== 'undefined' && Hls.isSupported() && wantsHls) {
                                     var hls = new Hls();
                                     hls.loadSource(streamUrl);
                                     hls.attachMedia(videoEl);

@@ -64,8 +64,13 @@
                 if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
                 return res.json();
             })
-            .then(bundle => {
-                cache[floor] = project(bundle, meta.affine);
+            // 층을 처음 볼 때 하는 일(투영 → 경로 만들기)을 한 덩어리로 돌리면 느린
+            // 기기에서 100 ms 넘게 화면이 멈춘다. 단계마다 한 번씩 브라우저에 차례를
+            // 넘겨서 그 사이에 입력과 애니메이션이 처리되게 한다.
+            .then(bundle => nextTask().then(() => projectOnly(bundle, meta.affine)))
+            .then(data => nextTask().then(() => prebuild(data)))
+            .then(data => {
+                cache[floor] = data;
                 delete pending[floor];
                 return cache[floor];
             })
@@ -77,6 +82,27 @@
         return pending[floor];
     }
 
+    /**
+     * 위경도 -> ZREF 픽셀. Leaflet 기본 좌표계(EPSG:3857)의 map.project 와 같은 식이다.
+     * 층마다 점이 수만 개라 점마다 L.latLng 객체를 만드는 비용이 층을 처음 열 때의
+     * 멈춤 대부분이었다. 다른 좌표계를 쓰는 지도면 원래 함수로 돌아간다.
+     */
+    const ZREF_SCALE = 256 * Math.pow(2, ZREF);
+    const MAX_LAT = 85.0511287798;
+    const out = [0, 0];
+    function toZrefPixel(lat, lon) {
+        const map = window.map;
+        if (!map.options.crs || map.options.crs !== L.CRS.EPSG3857) {
+            const point = map.project(L.latLng(lat, lon), ZREF);
+            out[0] = point.x; out[1] = point.y;
+            return out;
+        }
+        const sin = Math.sin(Math.max(-MAX_LAT, Math.min(MAX_LAT, lat)) * Math.PI / 180);
+        out[0] = ZREF_SCALE * (lon / 360 + 0.5);
+        out[1] = ZREF_SCALE * (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI));
+        return out;
+    }
+
     /** cm 정수 좌표 -> WGS84 -> ZREF 기준 픽셀. 경계 상자도 같이 만든다. */
     function projectFlat(flat, affine) {
         const count = flat.length / 2;
@@ -86,17 +112,21 @@
             const mx = flat[i * 2] / 100, my = flat[i * 2 + 1] / 100;
             const lon = affine.lon[0] * mx + affine.lon[1] * my + affine.lon[2];
             const lat = affine.lat[0] * mx + affine.lat[1] * my + affine.lat[2];
-            const point = window.map.project(L.latLng(lat, lon), ZREF);
-            xy[i * 2] = point.x; xy[i * 2 + 1] = point.y;
-            if (point.x < minX) minX = point.x;
-            if (point.x > maxX) maxX = point.x;
-            if (point.y < minY) minY = point.y;
-            if (point.y > maxY) maxY = point.y;
+            const point = toZrefPixel(lat, lon);
+            xy[i * 2] = point[0]; xy[i * 2 + 1] = point[1];
+            if (point[0] < minX) minX = point[0];
+            if (point[0] > maxX) maxX = point[0];
+            if (point[1] < minY) minY = point[1];
+            if (point[1] > maxY) maxY = point[1];
         }
         return { xy: xy, box: [minX, minY, maxX, maxY] };
     }
 
-    function project(bundle, affine) {
+    function nextTask() {
+        return new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    function projectOnly(bundle, affine) {
         const paths = bundle.paths.map(flat => projectFlat(flat, affine));
         const rooms = (bundle.rooms || []).map(room => ({
             // 번호가 둘 이상 들어간 구획이 있다. 글자를 겹쳐 찍지 않고 한 줄로 잇는다.
@@ -110,139 +140,194 @@
         return { paths: paths, rooms: rooms, outline: outline };
     }
 
+    /**
+     * 층마다 선형을 Path2D 로 **한 번만** 만들어 둔다.
+     *
+     * 예전에는 지도를 옮길 때마다 선 1만여 개를 자바스크립트로 한 점씩
+     * moveTo/lineTo 했다. 4배 느린 CPU(보급형 휴대폰 수준)에서 팬이 끝날 때마다
+     * 50 ms 넘는 프레임이 생겨 화면이 턱턱 멈췄다. 경로를 미리 만들어 두면
+     * 그릴 때는 변환 행렬 하나만 걸고 stroke 한 번이면 된다.
+     *
+     * 좌표는 ZREF 픽셀에서 층 경계 상자 왼쪽 위를 뺀 값으로 넣는다. ZREF 픽셀은
+     * 1억 단위라 그대로 넣으면 캔버스 내부 정밀도에서 선이 흔들린다.
+     */
+    function prebuild(data) {
+        let minX = Infinity, minY = Infinity;
+        for (const entry of data.paths.concat(data.outline)) {
+            if (entry.box[0] < minX) minX = entry.box[0];
+            if (entry.box[1] < minY) minY = entry.box[1];
+        }
+        if (!isFinite(minX)) { minX = 0; minY = 0; }
+        const anchor = [minX, minY];
+        const trace = (path, entry, close) => {
+            const xy = entry.xy;
+            path.moveTo(xy[0] - minX, xy[1] - minY);
+            for (let i = 2; i < xy.length; i += 2) path.lineTo(xy[i] - minX, xy[i + 1] - minY);
+            if (close) path.closePath();
+        };
+        const lines = new Path2D();
+        data.paths.forEach(entry => trace(lines, entry, false));
+        const outline = new Path2D();
+        data.outline.forEach(entry => trace(outline, entry, true));
+        const solidRooms = new Path2D(), reviewRooms = new Path2D();
+        data.rooms.forEach(room => {
+            if (!room.ring) return;
+            trace(room.status === 'single_label_candidate' ? solidRooms : reviewRooms, room.ring, true);
+        });
+        data.anchor = anchor;
+        data.path2d = { lines: lines, outline: outline, solidRooms: solidRooms, reviewRooms: reviewRooms };
+        return data;
+    }
+
     /* ─────────────── 캔버스 레이어 ─────────────── */
+    // 화면보다 사방으로 이만큼(화면 크기 비율) 더 그려 둔다. 그 안에서 지도를
+    // 옮기는 동안에는 다시 그리지 않고 이미 그린 그림이 같이 움직인다.
+    const PAD = 0.35;
+    // 휴대폰은 화면 배율이 3 이라 여백까지 그대로 그리면 캔버스 하나에 30 MB 가 넘는다.
+    // 선 굵기 1 px 짜리 도면은 배율 2 로도 충분히 선명하다.
+    function canvasRatio() { return Math.min(2, window.devicePixelRatio || 1); }
+    function padFor(size) { return size.x <= 768 ? 0.25 : PAD; }
+
     const CadCanvas = L.Layer.extend({
         onAdd: function (map) {
             this._canvas = L.DomUtil.create('canvas', 'techno-cad-canvas');
             this._canvas.style.pointerEvents = 'none';
             this._canvas.style.position = 'absolute';
             map.getPane('overlayPane').appendChild(this._canvas);
-            map.on('moveend zoomend resize', this._reset, this);
+            map.on('moveend', this._onMoveEnd, this);
+            map.on('zoomend resize', this._reset, this);
             map.on('zoomanim', this._animate, this);
             this._reset();
         },
         onRemove: function (map) {
-            map.off('moveend zoomend resize', this._reset, this);
+            map.off('moveend', this._onMoveEnd, this);
+            map.off('zoomend resize', this._reset, this);
             map.off('zoomanim', this._animate, this);
             if (this._canvas && this._canvas.parentNode) {
                 this._canvas.parentNode.removeChild(this._canvas);
             }
             this._canvas = null;
+            this._drawn = null;
         },
         _animate: function (event) {
             // 줌 애니메이션 동안에는 이미 그려 둔 그림을 같이 확대·이동시킨다.
             // 다시 그리면 한 프레임이 통째로 밀린다.
             const map = this._map;
-            if (!this._canvas || typeof map._latLngBoundsToNewLayerBounds !== 'function') return;
+            if (!this._canvas || !this._drawn) return;
             const scale = map.getZoomScale(event.zoom);
-            const offset = map._latLngBoundsToNewLayerBounds(
-                map.getBounds(), event.zoom, event.center).min;
+            // 캔버스 왼쪽 위(여백 포함)가 새 줌에서 놓일 레이어 좌표
+            const topLeft = map.unproject(this._drawn.world.min, this._drawn.zoom);
+            const offset = map._latLngToNewLayerPoint(topLeft, event.zoom, event.center);
             L.DomUtil.setTransform(this._canvas, offset, scale);
+        },
+        _onMoveEnd: function () {
+            // 그려 둔 여백 안에서만 움직였으면 다시 그릴 필요가 없다.
+            const map = this._map;
+            if (!this._canvas || !map) return;
+            const view = map.getPixelBounds();
+            const drawn = this._drawn;
+            if (drawn && drawn.zoom === map.getZoom() &&
+                view.min.x >= drawn.world.min.x && view.min.y >= drawn.world.min.y &&
+                view.max.x <= drawn.world.max.x && view.max.y <= drawn.world.max.y) {
+                return;
+            }
+            this._reset();
         },
         _reset: function () {
             if (!this._canvas || !this._map) return;
             const map = this._map;
             const size = map.getSize();
-            const ratio = window.devicePixelRatio || 1;
+            const ratio = canvasRatio();
+            const pad = padFor(size);
+            const padX = Math.round(size.x * pad), padY = Math.round(size.y * pad);
+            const cssW = size.x + padX * 2, cssH = size.y + padY * 2;
+            const view = map.getPixelBounds();
+            this._drawn = {
+                zoom: map.getZoom(),
+                world: L.bounds([view.min.x - padX, view.min.y - padY],
+                                [view.max.x + padX, view.max.y + padY])
+            };
             L.DomUtil.setTransform(this._canvas, null, 1);
-            L.DomUtil.setPosition(this._canvas, map.containerPointToLayerPoint([0, 0]));
-            this._canvas.width = Math.round(size.x * ratio);
-            this._canvas.height = Math.round(size.y * ratio);
-            this._canvas.style.width = size.x + 'px';
-            this._canvas.style.height = size.y + 'px';
+            L.DomUtil.setPosition(this._canvas, map.containerPointToLayerPoint([-padX, -padY]));
+            // 크기가 같으면 버퍼를 새로 잡지 않는다. width 를 대입하는 것만으로도
+            // 캔버스 전체를 다시 할당한다.
+            const pxW = Math.round(cssW * ratio), pxH = Math.round(cssH * ratio);
+            if (this._canvas.width !== pxW || this._canvas.height !== pxH) {
+                this._canvas.width = pxW;
+                this._canvas.height = pxH;
+                this._canvas.style.width = cssW + 'px';
+                this._canvas.style.height = cssH + 'px';
+            }
             this.draw();
         },
         draw: function () {
-            if (!this._canvas || !this._map) return;
-            const map = this._map;
-            const ratio = window.devicePixelRatio || 1;
+            if (!this._canvas || !this._map || !this._drawn) return;
+            const ratio = canvasRatio();
             const ctx = this._canvas.getContext('2d');
-            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
 
             const floor = window.technoActiveFloor || '1F';
             const data = cache[floor];
             if (!data) return;
 
-            const zoom = map.getZoom();
+            const zoom = this._drawn.zoom;
             const scale = Math.pow(2, zoom - ZREF);
-            const origin = map.getPixelOrigin();
-            const shift = map.containerPointToLayerPoint([0, 0]);
-            const size = map.getSize();
-            const offX = origin.x + shift.x, offY = origin.y + shift.y;
-            const pad = 40;
-            const onScreen = box =>
-                !(box[0] * scale - offX > size.x + pad || box[2] * scale - offX < -pad ||
-                  box[1] * scale - offY > size.y + pad || box[3] * scale - offY < -pad);
+            // 캔버스 왼쪽 위의 월드 픽셀 좌표
+            const offX = this._drawn.world.min.x, offY = this._drawn.world.min.y;
+            const size = { x: this._canvas.width / ratio, y: this._canvas.height / ratio };
+            // Path2D 좌표(앵커 기준 ZREF 픽셀) -> 캔버스 픽셀
+            const toCanvas = () => ctx.setTransform(
+                ratio * scale, 0, 0, ratio * scale,
+                ratio * (data.anchor[0] * scale - offX), ratio * (data.anchor[1] * scale - offY));
 
-            if (showLines || showRooms) this._drawOutline(ctx, data, scale, offX, offY, onScreen);
-            if (showRooms) this._drawRooms(ctx, data, scale, offX, offY, onScreen);
-            if (showLines) this._drawLines(ctx, data, zoom, scale, offX, offY, onScreen);
+            if (showLines || showRooms) this._drawOutline(ctx, data, scale, toCanvas);
+            if (showRooms) this._drawRooms(ctx, data, scale, toCanvas);
+            if (showLines) this._drawLines(ctx, data, zoom, scale, toCanvas);
             if (showRooms && zoom >= ROOM_LABEL_ZOOM) {
+                ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
                 this._drawRoomNumbers(ctx, data, zoom, scale, offX, offY, size);
             }
         },
-        _trace: function (ctx, entry, scale, offX, offY) {
-            const xy = entry.xy;
-            ctx.moveTo(xy[0] * scale - offX, xy[1] * scale - offY);
-            for (let i = 2; i < xy.length; i += 2) {
-                ctx.lineTo(xy[i] * scale - offX, xy[i + 1] * scale - offY);
-            }
-        },
-        _drawLines: function (ctx, data, zoom, scale, offX, offY, onScreen) {
+        _drawLines: function (ctx, data, zoom, scale, toCanvas) {
             // 얇은 흰 획을 먼저 깔면 위성지도·흰 바탕 어디서도 선이 읽힌다.
+            // 변환 행렬에 배율이 들어가 있으므로 선 굵기는 배율로 나눠 화면 픽셀에 맞춘다.
             const width = zoom >= 20 ? 1.4 : zoom >= 19 ? 1.1 : 0.9;
+            toCanvas();
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.setLineDash([]);
             for (const pass of [
                 { colour: 'rgba(255,255,255,0.85)', width: width + 1.6 },
                 { colour: 'rgba(15,23,42,0.88)', width: width }
             ]) {
                 ctx.strokeStyle = pass.colour;
-                ctx.lineWidth = pass.width;
-                ctx.lineJoin = 'round';
-                ctx.lineCap = 'round';
-                ctx.setLineDash([]);
-                ctx.beginPath();
-                for (const path of data.paths) {
-                    if (onScreen(path.box)) this._trace(ctx, path, scale, offX, offY);
-                }
-                ctx.stroke();
+                ctx.lineWidth = pass.width / scale;
+                ctx.stroke(data.path2d.lines);
             }
         },
-        _drawOutline: function (ctx, data, scale, offX, offY, onScreen) {
+        _drawOutline: function (ctx, data, scale, toCanvas) {
             // 이 층 건물 외곽선. 멀리서 보면 방 하나하나는 안 보여도 건물이
             // 어디까지인지는 보여야 한다.
             if (!data.outline.length) return;
-            ctx.beginPath();
-            for (const ring of data.outline) {
-                if (!onScreen(ring.box)) continue;
-                this._trace(ctx, ring, scale, offX, offY);
-                ctx.closePath();
-            }
+            toCanvas();
             ctx.strokeStyle = 'rgba(79,70,229,0.9)';
-            ctx.lineWidth = 2.6;
+            ctx.lineWidth = 2.6 / scale;
             ctx.setLineDash([]);
-            ctx.stroke();
+            ctx.stroke(data.path2d.outline);
         },
-        _drawRooms: function (ctx, data, scale, offX, offY, onScreen) {
+        _drawRooms: function (ctx, data, scale, toCanvas) {
             // 확정 구획과 검토가 필요한 구획을 실선·점선으로 가른다. 한 구획에
             // 번호가 여럿이거나 방이 잘린 것은 경계를 그대로 믿으면 안 된다.
+            toCanvas();
             for (const solid of [true, false]) {
-                ctx.beginPath();
-                let any = false;
-                for (const room of data.rooms) {
-                    if (!room.ring || onScreen(room.ring.box) === false) continue;
-                    if ((room.status === 'single_label_candidate') !== solid) continue;
-                    this._trace(ctx, room.ring, scale, offX, offY);
-                    ctx.closePath();
-                    any = true;
-                }
-                if (!any) continue;
+                const path = solid ? data.path2d.solidRooms : data.path2d.reviewRooms;
                 ctx.fillStyle = solid ? 'rgba(99,102,241,0.10)' : 'rgba(217,119,6,0.10)';
-                ctx.fill('evenodd');
+                ctx.fill(path, 'evenodd');
                 ctx.strokeStyle = solid ? 'rgba(99,102,241,0.75)' : 'rgba(217,119,6,0.85)';
-                ctx.lineWidth = 1.6;
-                ctx.setLineDash(solid ? [] : [5, 4]);
-                ctx.stroke();
+                ctx.lineWidth = 1.6 / scale;
+                ctx.setLineDash(solid ? [] : [5 / scale, 4 / scale]);
+                ctx.stroke(path);
             }
             ctx.setLineDash([]);
         },
@@ -341,26 +426,33 @@
             window.map.distance(window.map.getCenter(), TECHNO_CENTER) <= NEAR_M;
     }
 
+    // 마지막으로 그린 상태. 지도를 옮기기만 했으면(층·토글 그대로) 출입문 마커를
+    // 다시 만들거나 캔버스를 다시 그리지 않는다. 캔버스는 스스로 여백 밖으로
+    // 나갔을 때만 다시 그린다(CadCanvas._onMoveEnd).
+    let lastDoors = '', lastCanvas = '';
+
     function refresh() {
         const map = window.map;
         if (!map) return;
         const visible = nearby();
         const wantCanvas = visible && (showLines || showRooms);
         if (wantCanvas && !map.hasLayer(canvasLayer)) canvasLayer.addTo(map);
-        if (!wantCanvas && map.hasLayer(canvasLayer)) map.removeLayer(canvasLayer);
+        if (!wantCanvas && map.hasLayer(canvasLayer)) { map.removeLayer(canvasLayer); lastCanvas = ''; }
 
         const wantDoors = visible && showDoors;
         if (wantDoors && !map.hasLayer(doorLayer)) doorLayer.addTo(map);
         if (!wantDoors && map.hasLayer(doorLayer)) map.removeLayer(doorLayer);
 
         if (!visible) return;
-        renderDoors();
         const floor = window.technoActiveFloor || '1F';
+        const doorKey = [floor, showDoors, showCandidates].join('|');
+        if (doorKey !== lastDoors) { renderDoors(); lastDoors = doorKey; }
         if ((showLines || showRooms) && !cache[floor]) {
-            loadFloor(floor).then(() => canvasLayer.draw());
-        } else {
-            canvasLayer.draw();
+            loadFloor(floor).then(() => { canvasLayer.draw(); lastCanvas = [floor, showLines, showRooms, !!cache[floor]].join('|'); });
+            return;
         }
+        const canvasKey = [floor, showLines, showRooms, !!cache[floor]].join('|');
+        if (canvasKey !== lastCanvas) { canvasLayer.draw(); lastCanvas = canvasKey; }
     }
     window.refreshTechnoCadLayer = refresh;
 

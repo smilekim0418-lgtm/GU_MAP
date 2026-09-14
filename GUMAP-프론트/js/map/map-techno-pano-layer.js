@@ -46,15 +46,21 @@
     }
 
     /* ─────────────── 지도 위의 카메라 자리 ─────────────── */
-    function renderPoints() {
+    // 층 전체 지점(층당 200개 이하)을 한 번에 올려 두고, 층이나 열린 지점이 바뀔
+    // 때만 다시 만든다. 예전에는 지도를 옮길 때마다 화면 안 지점을 전부 지우고
+    // 새로 만들었다. 화면 밖 지점은 캔버스 렌더러가 알아서 그리지 않는다.
+    let renderedKey = '';
+
+    function renderPoints(force) {
+        const floor = activeFloor();
+        const key = [floor, showPoints, open ? open.floor + ':' + open.index : ''].join('|');
+        if (!force && key === renderedKey) return;
+        renderedKey = key;
         pointLayer.clearLayers();
         if (!showPoints) return;
-        const floor = activeFloor();
         const nodes = FLOORS[floor];
         if (!nodes || !window.map) return;
-        const bounds = window.map.getBounds().pad(0.25);
         nodes.forEach((node, index) => {
-            if (!bounds.contains([node[0], node[1]])) return;
             const here = open && open.floor === floor && open.index === index;
             const marker = L.circleMarker([node[0], node[1]], {
                 renderer: renderer,
