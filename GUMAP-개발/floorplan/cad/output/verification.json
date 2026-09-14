@@ -1,7 +1,7 @@
 {
   "passed": true,
   "floors": 7,
-  "source_and_legacy_hashes": "unchanged",
+  "source_and_legacy_hashes": "unchanged except intentional: GUMAP-프론트/js/map/map-techno-indoor.js, GUMAP-프론트/js/map/map-techno-route.js",
   "browser_errors": [],
   "checks": [
     "valid candidate geometry",

@@ -9,6 +9,16 @@ from playwright.sync_api import sync_playwright
 BASE=Path(__file__).resolve().parent
 ROOT=BASE.parents[2]
 
+# 보존 대상인데 사람이 일부러 고친 파일. 원본은 legacy_snapshot/ 에 그대로 있고
+# (아래에서 스냅샷 해시는 계속 확인한다), 되돌리기도 거기서 한다. 여기 없는
+# 파일이 바뀌면 여전히 실패한다. 이유 없이 목록에 넣지 않는다.
+INTENTIONALLY_CHANGED={
+    'GUMAP-프론트/js/map/map-techno-indoor.js':
+        '2026-09-14 실내지도 패널 UI 개편: 사이드바와 겹치던 배치·색을 css/indoor.css 로 옮김',
+    'GUMAP-프론트/js/map/map-techno-route.js':
+        '2026-09-14 같은 개편: 길찾기 조작부를 패널의 "실내 길찾기" 구획에 넣고 버튼 색을 클래스로 바꿈 (경로 계산은 그대로)',
+}
+
 def main():
     data=json.loads((BASE/'output/map.json').read_text(encoding='utf-8'))
     raw=json.loads((BASE/'source/vectors.json').read_text(encoding='utf-8'))
@@ -19,8 +29,9 @@ def main():
         source_paths.setdefault((record['handle'],record['kind']),[]).append(record)
     manifest=json.loads((BASE/'legacy_snapshot/manifest.json').read_text(encoding='utf-8'))
     for item in manifest['files']:
-        assert hashlib.sha256((ROOT/item['path']).read_bytes()).hexdigest()==item['sha256'],item['path']
         assert hashlib.sha256((BASE/'legacy_snapshot'/item['path']).read_bytes()).hexdigest()==item['sha256']
+        if item['path'] in INTENTIONALLY_CHANGED: continue
+        assert hashlib.sha256((ROOT/item['path']).read_bytes()).hexdigest()==item['sha256'],item['path']
     assert hashlib.sha256((ROOT/data['meta']['source']).read_bytes()).hexdigest()==manifest['dwg_sha256']
     assert len(data['floors'])==7
     for fl,d in data['floors'].items():
@@ -122,7 +133,7 @@ def main():
         popup.close()
         assert not errors,errors
         browser.close()
-    report=dict(passed=True,floors=7,source_and_legacy_hashes='unchanged',browser_errors=errors,
+    report=dict(passed=True,floors=7,source_and_legacy_hashes=('unchanged except intentional: '+', '.join(INTENTIONALLY_CHANGED)) if INTENTIONALLY_CHANGED else 'unchanged',browser_errors=errors,
                 checks=['valid candidate geometry','unique room labels','64,515 objects round-trip to DXF coordinates within 0.001 mm','external restroom label exclusion','partial room flags','all floor switches','cross-floor search','facility coverage, search, click and visibility','facility SVG and GeoJSON export','legacy overlay','10 m measurement','SVG download','GeoJSON download','responsive canvas','root entry and current-floor link'])
     (BASE/'output/verification.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(report,ensure_ascii=False))

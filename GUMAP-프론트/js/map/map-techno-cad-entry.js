@@ -9,17 +9,18 @@
         if (document.getElementById('ti-official-cad')) return true;
         const link = document.createElement('a');
         link.id = 'ti-official-cad';
-        link.textContent = '학교 공식 CAD 지도 보기 ↗';
+        link.textContent = '학교 공식 CAD 도면 뷰어 ↗';
         link.href = viewer.href;
         link.target = '_blank';
         link.rel = 'noopener';
-        link.style.cssText = 'display:block;text-align:center;padding:9px 10px;border:1px solid #6b9afa;border-radius:8px;background:#244ba4;color:#fff;font-size:11px;font-weight:700;text-decoration:none;';
+        // 모양은 css/indoor.css 가 정한다. 그 스타일시트가 없는 페이지를 위해 최소한만 둔다.
+        link.style.cssText = 'display:block;text-align:center;padding:9px 10px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;';
         link.addEventListener('click', () => {
             const target = new URL(viewer);
             target.hash = window.technoActiveFloor || '1F';
             link.href = target.href;
         });
-        panel.appendChild(link);
+        (document.getElementById('ti-layers-slot') || panel).appendChild(link);
         return true;
     }
     if (!mount()) {

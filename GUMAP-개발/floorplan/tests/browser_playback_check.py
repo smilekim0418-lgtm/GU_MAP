@@ -68,7 +68,7 @@ def main() -> int:
         page.on("pageerror", lambda error: problems.append(f"JS 오류: {error}"))
         page.goto(URL, wait_until="load", timeout=60000)
         page.wait_for_function("() => window.map && window.TECHNO_NAV_DATA", timeout=60000)
-        page.evaluate("(c) => window.map.setView([c[0], c[1]], 19)", list(TECHNO))
+        page.evaluate("(c) => { window.map.setView([c[0], c[1]], 19); }", list(TECHNO))
         page.wait_for_selector("#techno-route-controls", timeout=30000)
         page.wait_for_timeout(1000)
 

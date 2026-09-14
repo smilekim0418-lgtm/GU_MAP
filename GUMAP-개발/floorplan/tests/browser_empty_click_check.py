@@ -31,9 +31,9 @@ POINT_TITLE = "📍 지정한 위치"
 
 
 def click_map(page, lat, lng, zoom=17):
-    page.evaluate("(c) => window.map.setView([c[0], c[1]], c[2])", [lat, lng, zoom])
+    page.evaluate("(c) => { window.map.setView([c[0], c[1]], c[2]); }", [lat, lng, zoom])
     page.wait_for_timeout(900)
-    page.evaluate("(c) => window.map.fire('click', { latlng: L.latLng(c[0], c[1]) })",
+    page.evaluate("(c) => { window.map.fire('click', { latlng: L.latLng(c[0], c[1]) }); }",
                   [lat, lng])
     page.wait_for_timeout(3500)
 

@@ -365,18 +365,19 @@
     window.refreshTechnoCadLayer = refresh;
 
     /* ─────────────── 패널 안의 켜고 끄기 ─────────────── */
-    function control(id, label, checked, onChange) {
+    function control(id, label, checked, onChange, hint) {
+        // 모양은 css/indoor.css 의 .ti-switch 가 정한다 (토글 스위치)
         const row = document.createElement('label');
-        row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:10px;' +
-            'color:var(--text-muted);cursor:pointer;';
+        row.className = 'ti-switch';
+        if (hint) row.title = hint;
         const box = document.createElement('input');
         box.type = 'checkbox';
         box.id = id;
         box.checked = checked;
-        box.style.cssText = 'width:13px;height:13px;accent-color:#6366f1;cursor:pointer;';
+        box.setAttribute('role', 'switch');
         box.addEventListener('change', () => onChange(box.checked));
-        row.appendChild(box);
         row.appendChild(document.createTextNode(label));
+        row.appendChild(box);
         return row;
     }
 
@@ -384,33 +385,27 @@
         const panel = document.getElementById('techno-indoor-panel');
         if (!panel) return false;
         if (document.getElementById('ti-cad-box')) return true;
+        // 새 패널은 '지도 표시' 구획을 비워 두고 기다린다. 없으면 패널 끝에 붙는다.
+        const slot = document.getElementById('ti-layers-slot') || panel;
 
         const box = document.createElement('div');
         box.id = 'ti-cad-box';
-        box.style.cssText = 'padding-top:6px;margin-top:2px;border-top:1px solid rgba(255,255,255,.06);' +
-            'display:flex;flex-direction:column;gap:5px;';
+        box.style.cssText = 'display:flex;flex-direction:column;gap:5px;';
         const title = document.createElement('div');
-        title.style.cssText = 'font-size:10px;font-weight:800;color:#818cf8;';
         title.textContent = '학교 공식 CAD 도면';
         box.appendChild(title);
-        box.appendChild(control('ti-cad-lines', 'CAD 벽·문 선형', showLines, value => {
+        box.appendChild(control('ti-cad-lines', '도면 벽·문 선', showLines, value => {
             showLines = value; refresh();
         }));
-        box.appendChild(control('ti-cad-rooms', 'CAD 호실 경계·번호', showRooms, value => {
+        box.appendChild(control('ti-cad-rooms', '호실 경계·번호', showRooms, value => {
             showRooms = value; refresh();
-        }));
+        }, '호실 번호는 확대하면 나온다. 주황 점선은 CAD 구획이 방 하나와 딱 맞지 않아 검토가 필요한 곳이다.'));
         box.appendChild(control('ti-cad-doors', '외부 출입문', showDoors, value => {
             showDoors = value; refresh();
         }));
-        box.appendChild(control('ti-cad-cands', '막힌 출입문 후보까지', showCandidates, value => {
+        box.appendChild(control('ti-cad-cands', '막힌 출입문 후보', showCandidates, value => {
             showCandidates = value; refresh();
-        }));
-
-        const note = document.createElement('div');
-        note.style.cssText = 'font-size:9px;color:var(--text-muted);line-height:1.5;';
-        note.textContent = '호실 번호는 확대하면 나온다. 주황 점선은 CAD 구획이 방 하나와 ' +
-            '딱 맞지 않아 검토가 필요한 곳이다.';
-        box.appendChild(note);
+        }, '건물 외곽을 넘지만 나가자마자 막히는 문. 계단실·발코니일 수 있다.'));
 
         // 360 투어 프로토타입. 아직 실사진이 없어 CAD 로 합성한 화면이다.
         const tour = document.createElement('a');
@@ -418,15 +413,13 @@
         tour.href = new URL('테크노관-360투어.html', PROJECT_ROOT).href;
         tour.target = '_blank';
         tour.rel = 'noopener';
-        tour.textContent = '실내 360 투어 열기 (프로토타입) ↗';
-        tour.style.cssText = 'display:block;text-align:center;margin-top:4px;padding:7px 10px;' +
-            'border:1px dashed #a78bfa;border-radius:8px;background:rgba(124,58,237,.18);' +
-            'color:#ddd6fe;font-size:10px;font-weight:700;text-decoration:none;';
+        tour.textContent = '실내 로드뷰 전체 화면으로 보기 ↗';
         box.appendChild(tour);
 
-        // 기존 CAD 뷰어 진입 버튼(map-techno-cad-entry.js)이 있으면 그 위에 둔다.
+        slot.appendChild(box);
+        // 기존 CAD 뷰어 진입 버튼(map-techno-cad-entry.js)이 먼저 붙었으면 맨 아래로 내린다.
         const entry = document.getElementById('ti-official-cad');
-        panel.insertBefore(box, entry || null);
+        if (entry) slot.appendChild(entry);
         return true;
     }
 

@@ -72,42 +72,45 @@
     }
 
     /* ─────────────── 작은 창 ─────────────── */
+    // 자리·크기·색은 css/indoor.css 가 정한다 (#techno-pano-panel, .is-full, .is-moved).
+    // 여기서는 구조와 동작만 만든다.
     let panel = null, frame = null, title = null, fullButton = null;
+
+    const ICON = {
+        expand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',
+        shrink: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>',
+        external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+        close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+    };
 
     function buildPanel() {
         if (panel) return panel;
         panel = document.createElement('div');
         panel.id = 'techno-pano-panel';
-        panel.style.cssText = [
-            'position:fixed', 'right:16px', 'bottom:16px', 'width:420px', 'height:300px',
-            'z-index:1200', 'display:none', 'flex-direction:column', 'overflow:hidden',
-            'border-radius:12px', 'border:1px solid rgba(148,163,184,.35)',
-            'background:#0b1020', 'box-shadow:0 18px 44px rgba(0,0,0,.55)'
-        ].join(';');
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-label', '테크노관 실내 로드뷰');
+        // 이 두 줄만 인라인으로 둔다: 스타일시트가 없는 페이지에서도 창이 겹쳐 뜨지 않게
+        panel.style.cssText = 'position:fixed;z-index:1200;display:none;flex-direction:column;overflow:hidden;';
 
         const bar = document.createElement('div');
-        bar.style.cssText = [
-            'display:flex', 'align-items:center', 'gap:8px', 'padding:7px 10px',
-            'background:rgba(15,23,42,.95)', 'border-bottom:1px solid rgba(148,163,184,.2)',
-            'cursor:move', 'flex:0 0 auto', 'user-select:none'
-        ].join(';');
+        bar.className = 'tp-bar';
 
         title = document.createElement('div');
-        title.style.cssText = 'flex:1;min-width:0;font-size:11px;font-weight:800;color:#e2e8f0;' +
-            'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        title.className = 'tp-title';
         title.textContent = '실내 로드뷰';
         bar.appendChild(title);
 
         const tag = document.createElement('span');
+        tag.className = 'tp-tag';
         tag.textContent = '프로토타입';
-        tag.style.cssText = 'flex:0 0 auto;font-size:9px;font-weight:700;background:#b45309;' +
-            'color:#fff;padding:1px 6px;border-radius:9px;';
+        tag.title = '아직 실사진이 없어 CAD 도면으로 합성한 화면입니다';
         bar.appendChild(tag);
 
-        fullButton = chip('⛶ 전체화면', toggleFull);
+        fullButton = iconButton('full', ICON.expand, '전체화면', toggleFull);
         bar.appendChild(fullButton);
-        bar.appendChild(chip('↗', () => window.open(frame.src, '_blank', 'noopener'), '새 창으로'));
-        bar.appendChild(chip('✕', close, '닫기'));
+        bar.appendChild(iconButton('external', ICON.external, '새 창으로 열기',
+            () => window.open(frame.src, '_blank', 'noopener')));
+        bar.appendChild(iconButton('close', ICON.close, '닫기', close));
         panel.appendChild(bar);
 
         frame = document.createElement('iframe');
@@ -116,19 +119,23 @@
         frame.style.cssText = 'flex:1 1 auto;width:100%;border:0;display:block;background:#0b1020;';
         panel.appendChild(frame);
 
+        if (window.L && L.DomEvent) {
+            L.DomEvent.disableScrollPropagation(panel);
+            L.DomEvent.disableClickPropagation(panel);
+        }
         drag(bar);
         document.body.appendChild(panel);
         return panel;
     }
 
-    function chip(text, onClick, label) {
+    function iconButton(action, svg, label, onClick) {
         const button = document.createElement('button');
         button.type = 'button';
-        button.textContent = text;
-        if (label) button.title = label;
-        button.style.cssText = 'flex:0 0 auto;padding:3px 8px;font-size:10px;font-weight:700;' +
-            'cursor:pointer;border-radius:6px;border:1px solid rgba(148,163,184,.35);' +
-            'background:rgba(255,255,255,.06);color:#cbd5e1;';
+        button.className = 'tp-btn';
+        button.dataset.act = action;
+        button.innerHTML = svg;
+        button.title = label;
+        button.setAttribute('aria-label', label);
         button.addEventListener('click', event => { event.stopPropagation(); onClick(); });
         return button;
     }
@@ -136,7 +143,9 @@
     function drag(handle) {
         let from = null;
         handle.addEventListener('pointerdown', event => {
-            if (panel.dataset.full === '1' || event.target.tagName === 'BUTTON') return;
+            // 전체화면·모바일에서는 끌지 않는다. 모바일은 자리가 정해져 있다.
+            if (panel.classList.contains('is-full') || window.innerWidth <= 768) return;
+            if (event.target.closest('button')) return;
             const box = panel.getBoundingClientRect();
             from = { x: event.clientX, y: event.clientY, left: box.left, top: box.top };
             handle.setPointerCapture(event.pointerId);
@@ -148,25 +157,30 @@
                 from.left + event.clientX - from.x));
             const top = Math.max(0, Math.min(window.innerHeight - box.height,
                 from.top + event.clientY - from.y));
+            panel.classList.add('is-moved');
             panel.style.left = left + 'px';
             panel.style.top = top + 'px';
-            panel.style.right = 'auto';
-            panel.style.bottom = 'auto';
         });
         handle.addEventListener('pointerup', () => { from = null; });
     }
 
     function setBox(full) {
-        const style = panel.style;
-        style.left = full ? '0px' : 'auto';
-        style.top = full ? '0px' : 'auto';
-        style.right = full ? '0px' : '16px';
-        style.bottom = full ? '0px' : '16px';
-        style.width = full ? '100vw' : '420px';
-        style.height = full ? '100vh' : '300px';
-        style.borderRadius = full ? '0' : '12px';
+        panel.classList.toggle('is-full', full);
         panel.dataset.full = full ? '1' : '0';
-        if (fullButton) fullButton.textContent = full ? '⤢ 작은 창' : '⛶ 전체화면';
+        if (full) {
+            // 끌어 옮긴 자리는 기억만 해 두고, 전체화면 동안은 비운다
+            panel.dataset.left = panel.style.left;
+            panel.dataset.top = panel.style.top;
+            panel.style.left = '';
+            panel.style.top = '';
+        } else if (panel.classList.contains('is-moved')) {
+            panel.style.left = panel.dataset.left || '';
+            panel.style.top = panel.dataset.top || '';
+        }
+        fullButton.innerHTML = full ? ICON.shrink : ICON.expand;
+        const label = full ? '작은 창' : '전체화면';
+        fullButton.title = label;
+        fullButton.setAttribute('aria-label', label);
     }
 
     function toggleFull() { setBox(panel.dataset.full !== '1'); }
@@ -178,7 +192,8 @@
         const was = open;
         open = { floor: floor, index: index };
         panel.style.display = 'flex';
-        title.textContent = '📷 ' + floor + ' · ' + placeName(nodes[index]);
+        document.body.classList.add('pano-open');
+        title.textContent = floor + ' · ' + placeName(nodes[index]);
         const target = TOUR + '?embed=1&floor=' + encodeURIComponent(floor) + '&node=' + index;
         if (was && frame.contentWindow && frame.dataset.ready === '1') {
             // 이미 떠 있으면 다시 싣지 않는다. 1.8 MB 를 매번 받을 이유가 없다.
@@ -196,7 +211,11 @@
         open = null;
         if (panel) {
             panel.style.display = 'none';
+            document.body.classList.remove('pano-open');
             setBox(false);
+            panel.classList.remove('is-moved');
+            panel.style.left = '';
+            panel.style.top = '';
             frame.src = 'about:blank';
             frame.dataset.ready = '0';
         }
@@ -221,25 +240,20 @@
         if (document.getElementById('ti-pano-points')) return true;
 
         const row = document.createElement('label');
-        row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:10px;' +
-            'color:var(--text-muted);cursor:pointer;';
+        row.className = 'ti-switch';
+        row.title = '줌 ' + MIN_ZOOM + ' 이상 확대하면 복도에 점이 나온다. 복도·계단·로비만 찍는 ' +
+            '계획이라 호실 안에는 지점이 없다.';
         const check = document.createElement('input');
         check.type = 'checkbox';
         check.id = 'ti-pano-points';
         check.checked = showPoints;
-        check.style.cssText = 'width:13px;height:13px;accent-color:#6366f1;cursor:pointer;';
+        check.setAttribute('role', 'switch');
         check.addEventListener('change', () => { showPoints = check.checked; refresh(); });
+        row.appendChild(document.createTextNode('360 촬영 지점 (로드뷰)'));
         row.appendChild(check);
-        row.appendChild(document.createTextNode('360 촬영 지점 (누르면 로드뷰)'));
 
         const tour = document.getElementById('ti-cad-tour');
         box.insertBefore(row, tour || null);
-
-        const note = document.createElement('div');
-        note.style.cssText = 'font-size:9px;color:var(--text-muted);line-height:1.5;';
-        note.textContent = '지점은 확대(줌 ' + MIN_ZOOM + ' 이상)해야 나온다. 복도·계단·로비만 ' +
-            '찍는 계획이라 호실 안에는 지점이 없다.';
-        box.insertBefore(note, tour || null);
         return true;
     }
 

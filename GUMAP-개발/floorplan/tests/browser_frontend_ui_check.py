@@ -33,7 +33,7 @@ def main() -> int:
         page.wait_for_function("() => window.map && window.TECHNO_NAV_DATA", timeout=30000)
 
         # 테크노관으로 이동해 실내지도 패널이 뜨게 한다
-        page.evaluate("(c) => window.map.setView([c[0], c[1]], 19)", list(TECHNO))
+        page.evaluate("(c) => { window.map.setView([c[0], c[1]], 19); }", list(TECHNO))
         page.wait_for_selector("#techno-indoor-panel", state="visible", timeout=20000)
         page.wait_for_selector("#techno-route-controls", timeout=20000)
         print("패널 · 길찾기 조작부 표시 확인")

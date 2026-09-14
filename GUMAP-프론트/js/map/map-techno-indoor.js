@@ -402,70 +402,91 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
         const panel = document.createElement('div');
         panel.id = 'techno-indoor-panel';
         panel.className = 'glass-panel';
-        panel.style.cssText = `
-position: fixed; top: 75px; left: 20px; z-index: 1000;
-width: 250px; background: rgba(15, 23, 42, 0.92);
-border: 1px solid rgba(255, 255, 255, 0.12);
-border-radius: 16px; padding: 14px; color: #f8fafc;
-box-shadow: 0 16px 40px rgba(0,0,0,0.5);
-backdrop-filter: blur(16px); display: none; flex-direction: column; gap: 10px;
-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-`;
+        // 자리·색·크기는 css/indoor.css 가 정한다. 여기서는 처음에 숨겨만 둔다.
+        panel.style.display = 'none';
+        panel.setAttribute('role', 'region');
+        panel.setAttribute('aria-label', '테크노관 실내지도');
+
+        const ICON = {
+            building: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/><path d="M16 9h2a2 2 0 0 1 2 2v10"/><path d="M8 7h4M8 11h4M8 15h4M3 21h18"/></svg>',
+            close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+            chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s"><path d="M6 9l6 6 6-6"/></svg>',
+            search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>'
+        };
 
         panel.innerHTML = `
-<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px;">
-  <div>
-    <div style="font-size:13px;font-weight:800;color:var(--text-main);display:flex;align-items:center;gap:6px;">
-      🏫 테크노관 실내지도
-      <span style="font-size:9px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:1px 6px;border-radius:10px;font-weight:700;">OGC IMDF</span>
-    </div>
-    <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">국제표준(B1F~6F) 366개 실내공간</div>
+<div class="ti-head">
+  <div class="ti-mark" aria-hidden="true">${ICON.building}</div>
+  <div class="ti-title">
+    <strong>테크노관</strong>
+    <span>금오공과대학교 · 실내지도 B1~6층</span>
   </div>
-  <button id="ti-close" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:2px;">✕</button>
+  <button id="ti-expand" class="ti-icon-btn" type="button" aria-expanded="false" aria-label="실내지도 메뉴 펼치기">${ICON.chevron}</button>
+  <button id="ti-close" class="ti-icon-btn" type="button" aria-label="실내지도 닫기">${ICON.close}</button>
 </div>
+<div class="ti-body">
+  <div class="ti-search">
+    ${ICON.search}
+    <input id="ti-search" type="text" placeholder="호실, 연구실, 교수명 검색" autocomplete="off" aria-label="테크노관 호실 검색">
+    <div id="ti-results" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:10;margin-top:6px;max-height:220px;overflow-y:auto;padding:4px;"></div>
+  </div>
 
-<!-- 실내 검색창 -->
-<div style="position:relative;">
-  <input id="ti-search" type="text" placeholder="🔍 호실, 연구실, 교수명 검색..."
-    style="width:100%;padding:7px 10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
-           border-radius:8px;color:var(--text-main);font-size:11px;outline:none;box-sizing:border-box;">
-  <div id="ti-results" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:10;
-       background:#0f172a;border:1px solid rgba(255,255,255,.15);border-radius:8px;
-       margin-top:4px;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.6);padding:4px;"></div>
-</div>
+  <div class="ti-floors">
+    <div class="ti-label">층</div>
+    <div id="ti-floor-btns" role="tablist" aria-label="층 선택"></div>
+  </div>
 
-<!-- 층 선택 버튼 그리드 -->
-<div>
-  <div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-bottom:6px;">층 선택 (LEVEL)</div>
-  <div id="ti-floor-btns" style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;"></div>
-</div>
+  <details class="ti-acc" id="ti-acc-route" open>
+    <summary>실내 길찾기</summary>
+    <div class="ti-acc-body" id="ti-route-slot"></div>
+  </details>
 
-<!-- 범주 범례 -->
-<div style="font-size:9px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:6px;padding-top:4px;border-top:1px solid rgba(255,255,255,.06);">
-  <span>🔬 연구실</span>
-  <span>📚 강의실</span>
-  <span>💼 교수실</span>
-  <span>🚻 화장실</span>
-  <span>🪜 계단/🛗</span>
+  <details class="ti-acc" id="ti-acc-layers">
+    <summary>지도 표시</summary>
+    <div class="ti-acc-body" id="ti-layers-slot">
+      <div class="ti-legend" aria-label="범례">
+        <span>🔬 연구실</span><span>📚 강의실</span><span>💼 교수실</span><span>🚻 화장실</span><span>🪜 계단·승강기</span>
+      </div>
+    </div>
+  </details>
 </div>
 `;
 
         document.body.appendChild(panel);
+        // 패널이 떠 있는지를 body 클래스로도 알린다. 모바일에서 날씨 칩처럼
+        // 같은 자리를 쓰는 요소가 비켜 줄 수 있게 한다. 패널을 켜고 끄는 곳이
+        // 여러 모듈에 흩어져 있어서, 켜는 쪽마다 고치는 대신 여기서 지켜본다.
+        const syncOpen = () => document.body.classList.toggle('indoor-open', panel.style.display !== 'none');
+        new MutationObserver(syncOpen).observe(panel, { attributes: true, attributeFilter: ['style'] });
+        syncOpen();
+        if (window.L && L.DomEvent) {
+            // 패널 위에서 굴린 휠·끌기가 지도로 새지 않게 한다
+            L.DomEvent.disableScrollPropagation(panel);
+            L.DomEvent.disableClickPropagation(panel);
+        }
 
-        // 층 버튼 생성
+        // 층 버튼 생성 (위층이 왼쪽). 선택 상태는 클래스로만 표시한다.
         const btnBox = panel.querySelector('#ti-floor-btns');
         FLOOR_LIST.forEach(fm => {
             const b = document.createElement('button');
+            b.type = 'button';
             b.dataset.floor = fm.id;
             b.className = 'ti-fbtn';
-            const active = fm.id === window.technoActiveFloor;
-            b.style.cssText = `padding:6px 0;font-size:11px;font-weight:800;border-radius:8px;cursor:pointer;
-                border:1.5px solid ${active ? fm.color : 'rgba(255,255,255,.1)'};
-                background:${active ? fm.color : 'rgba(255,255,255,.04)'};
-                color:${active ? '#fff' : '#94a3b8'};transition:all .2s;`;
-            b.textContent = fm.id;
+            b.setAttribute('role', 'tab');
+            b.style.setProperty('--floor-color', fm.color);
+            b.textContent = fm.id === 'B1F' ? 'B1' : fm.id.replace('F', '');
+            b.title = fm.name;
             b.addEventListener('click', () => doFloorSwitch(fm.id, panel));
             btnBox.appendChild(b);
+        });
+        paintFloorButtons(panel, window.technoActiveFloor);
+
+        // 모바일: 접힌 카드 ↔ 펼친 메뉴
+        const expand = panel.querySelector('#ti-expand');
+        expand.addEventListener('click', () => {
+            const open = panel.classList.toggle('is-open');
+            expand.setAttribute('aria-expanded', open ? 'true' : 'false');
+            expand.setAttribute('aria-label', open ? '실내지도 메뉴 접기' : '실내지도 메뉴 펼치기');
         });
 
         // 닫기 버튼
@@ -515,33 +536,34 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
             if (!hits.length) {
                 sr.style.display = 'block';
-                sr.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">검색 결과가 없습니다.</div>';
+                sr.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--text-muted);text-align:center;">검색 결과가 없습니다</div>';
                 return;
             }
 
             sr.style.display = 'block';
             sr.innerHTML = hits.slice(0, 10).map(h => `
 <div onclick="window._focusTechnoImdfUnit('${h.unit.id}', '${h.levelShort}')"
-  style="padding:6px 8px;font-size:11px;color:var(--text-main);cursor:pointer;border-radius:6px;
-         display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"
-  onmouseover="this.style.background='rgba(255,255,255,.1)'"
+  style="padding:8px 10px;font-size:13px;color:var(--text-main);cursor:pointer;border-radius:8px;
+         display:flex;justify-content:space-between;align-items:center;gap:8px;"
+  onmouseover="this.style.background='var(--ui-soft-hover)'"
   onmouseout="this.style.background='transparent'">
-  <span><b style="color:#818cf8">[${h.levelShort}]</b> ${escHtml(h.label)} ${escHtml(h.name)}</span>
-  <span style="color:#10b981;font-size:10px;font-weight:700;">이동→</span>
+  <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><b style="color:var(--ui-accent);margin-right:4px;">${h.levelShort}</b>${escHtml(h.label)} ${escHtml(h.name)}</span>
+  <span style="color:var(--text-muted);font-size:11px;flex:0 0 auto;">이동</span>
 </div>`).join('');
+        });
+    }
+
+    function paintFloorButtons(panel, floorId) {
+        panel.querySelectorAll('.ti-fbtn').forEach(b => {
+            const active = b.dataset.floor === floorId;
+            b.classList.toggle('is-active', active);
+            b.setAttribute('aria-selected', active ? 'true' : 'false');
         });
     }
 
     function doFloorSwitch(floorId, panel) {
         window.technoActiveFloor = floorId;
-        panel.querySelectorAll('.ti-fbtn').forEach(b => {
-            const fm = FLOOR_LIST.find(f => f.id === b.dataset.floor);
-            if (!fm) return;
-            const active = b.dataset.floor === floorId;
-            b.style.background  = active ? fm.color : 'rgba(255,255,255,.04)';
-            b.style.borderColor = active ? fm.color : 'rgba(255,255,255,.1)';
-            b.style.color       = active ? '#fff'   : '#94a3b8';
-        });
+        paintFloorButtons(panel, floorId);
 
         setTimeout(() => {
             window.renderTechnoFloor();

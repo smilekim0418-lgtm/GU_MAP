@@ -586,19 +586,27 @@
             box = document.createElement('div');
             box.id = 'techno-route-box';
             box.style.cssText = 'margin-top:4px;font-size:11px;color:var(--text-main);';
-            host.appendChild(box);
+            routeSlot(host).appendChild(box);
         }
         return box;
     }
 
     /** 실내지도 패널 안에 길찾기 조작부를 한 번만 만든다. */
+    /** 실내지도 패널의 '실내 길찾기' 구획. 옛 패널 구조면 패널 자체. */
+    function routeSlot(host) {
+        return document.getElementById('ti-route-slot') || host;
+    }
+
     function ensureControls(host) {
         // 패널은 높이 제한이 없어서, 경로 안내가 길어지면 화면 아래로 잘려
         // 나갔다 (예: "출발 · 2F 지정 위치" 아래가 통째로 안 보임).
-        // 뷰포트를 넘지 않게 잡고 넘치면 스크롤시킨다.
-        host.style.maxHeight = 'calc(100vh - 95px)';
-        host.style.overflowY = 'auto';
-        host.style.overscrollBehavior = 'contain';
+        // 새 패널은 css/indoor.css 가 높이를 잡고 본문만 스크롤시킨다.
+        // 옛 구조(구획 없음)일 때만 패널 자체를 스크롤시킨다.
+        if (!document.getElementById('ti-route-slot')) {
+            host.style.maxHeight = 'calc(100vh - 95px)';
+            host.style.overflowY = 'auto';
+            host.style.overscrollBehavior = 'contain';
+        }
         // 패널 위에서 굴린 휠이 지도 줌으로 새지 않게 한다
         if (!host.__gumapWheelGuard && window.L && L.DomEvent) {
             L.DomEvent.disableScrollPropagation(host);
@@ -617,8 +625,8 @@
             '<button id="tr-pick" style="width:100%;padding:6px;margin-bottom:5px;border-radius:8px;' +
               'border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);' +
               'color:var(--text-main);font-size:11px;font-weight:700;cursor:pointer;">' +
-              '📍 출발 위치 지정</button>' +
-            '<input id="tr-filter" type="text" placeholder="목적지 호실 검색…" ' +
+              '출발 위치 지정</button>' +
+            '<input id="tr-filter" type="text" placeholder="도착 호실 검색" ' +
               'style="width:100%;padding:6px 8px;margin-bottom:5px;background:rgba(255,255,255,.06);' +
               'border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--text-main);' +
               'font-size:11px;outline:none;box-sizing:border-box;">' +
@@ -626,15 +634,15 @@
               'background:var(--bg-input,#0f172a);border:1px solid var(--border-panel,rgba(255,255,255,.12));border-radius:8px;' +
               'color:var(--text-main);font-size:11px;box-sizing:border-box;"></select>' +
             '<label style="display:flex;align-items:center;gap:5px;color:var(--text-muted);margin-bottom:6px;">' +
-              '<input type="checkbox" id="tr-avoid"> 계단 회피 (배리어프리)</label>' +
+              '<input type="checkbox" id="tr-avoid"> 계단 없이 가기 (배리어프리)</label>' +
             '<button id="tr-go" style="width:100%;padding:7px;border-radius:8px;border:none;' +
               'background:linear-gradient(135deg,#0891b2,#22d3ee);color:#062a33;font-size:12px;' +
               'font-weight:800;cursor:pointer;">길찾기</button>';
 
         // 결과 상자보다 위에 오게 넣는다
         var box = document.getElementById('techno-route-box');
-        if (box) host.insertBefore(block, box);
-        else host.appendChild(block);
+        if (box) box.parentNode.insertBefore(block, box);
+        else routeSlot(host).appendChild(block);
 
         fillDestinations();
 
@@ -663,18 +671,14 @@
     function paintPickButton() {
         var pick = document.getElementById('tr-pick');
         if (!pick) return;
+        // 색은 css/indoor.css 의 #tr-pick / .is-picking 이 정한다
+        pick.classList.toggle('is-picking', !!pickingStart);
         if (pickingStart) {
-            pick.textContent = '📍 지도를 클릭하세요…';
-            pick.style.background = '#0891b2';
-            pick.style.color = '#fff';
-            pick.style.borderColor = '#22d3ee';
+            pick.textContent = '지도를 클릭해 출발 위치를 고르세요';
         } else {
             pick.textContent = start
-                ? '📍 출발: ' + start.floor + ' (다시 지정)'
-                : '📍 출발 위치 지정';
-            pick.style.background = 'rgba(255,255,255,.05)';
-            pick.style.color = 'var(--text-main)';
-            pick.style.borderColor = 'rgba(255,255,255,.12)';
+                ? '출발: ' + start.floor + ' · 다시 지정'
+                : '출발 위치 지정';
         }
     }
 

@@ -68,6 +68,9 @@
   body.embed #keys { font-size: 10px; padding: 4px 8px; gap: 7px; bottom: 8px;
                      left: auto; right: 8px; transform: none; }
   body.embed #keys .wide { display: none; }
+  /* 지도 쪽 작은 창 제목줄에 이미 지점 이름이 있다 */
+  body.embed #where { display: none; }
+  @media (max-width: 420px) { body.embed #keys { display: none; } }
   body.embed #where { top: 8px; font-size: 11px; padding: 4px 10px; }
   @media (max-width: 760px) {
     #minimap { width: 180px; height: 180px; }
