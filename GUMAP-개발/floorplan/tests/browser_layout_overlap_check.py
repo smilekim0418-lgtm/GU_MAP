@@ -162,6 +162,14 @@ def main() -> int:
                         p.classList.remove('panel-expanded'); p.classList.add('panel-collapsed'); }""")
                     page.wait_for_timeout(600)
 
+                # 촬영 지점은 처음에 꺼져 있다. 켜야 점이 생기고 창을 띄울 수 있다.
+                page.evaluate("""() => {
+                    const check = document.getElementById('ti-pano-points');
+                    if (check && !check.checked) check.click();
+                }""")
+                page.wait_for_timeout(600)
+                shown = page.evaluate("() => window.technoPanoLayer.getLayers().length > 0")
+                check(f"{name}: 스위치를 켜면 촬영 지점이 나온다", shown)
                 page.evaluate("() => { const l = window.technoPanoLayer.getLayers(); if (l.length) l[0].fire('click'); }")
                 page.wait_for_timeout(1500)
                 found = overlaps(page.evaluate(MEASURE, WATCHED),

@@ -129,8 +129,15 @@ def main() -> int:
             OUT.joinpath("cad-layer-B1F.png").write_bytes(page.screenshot())
 
             # ── 실내 로드뷰: 지도에서 누르면 작은 창, 전체화면은 한 번 더 ──
+            # 촬영 지점은 처음에 꺼져 있다. 스위치를 켜야 점이 나온다.
+            off = page.evaluate(
+                "() => window.technoPanoLayer.getLayers().length === 0"
+                " && !document.getElementById('ti-pano-points').checked")
+            check("360 촬영 지점은 처음엔 꺼져 있다", off)
+            page.evaluate("() => document.getElementById('ti-pano-points').click()")
+            page.wait_for_timeout(600)
             points = page.evaluate("() => window.technoPanoLayer.getLayers().length")
-            check("360 촬영 지점이 지도에 찍힘", points > 0, f"{points}개")
+            check("스위치를 켜면 360 촬영 지점이 지도에 찍힘", points > 0, f"{points}개")
             opened = page.evaluate("""() => {
                 // 캔버스로 그린 마커라 좌표를 짚기 어렵다. 마커가 스스로 내는
                 // 것과 같은 사건을 쏴서 누른 경로를 그대로 태운다.

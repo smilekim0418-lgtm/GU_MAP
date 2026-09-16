@@ -31,7 +31,8 @@
     const MIN_ZOOM = 19;       // 이보다 멀면 점이 서로 겹쳐 도면만 더럽힌다
     const KIND_TEXT = { door: '문간', corridor: '복도' };
 
-    let showPoints = true;
+    // 처음 들어오면 꺼 둔다. 도면부터 보고, 로드뷰가 필요할 때 직접 켠다.
+    let showPoints = false;
     let open = null;           // {floor, index}
 
     const renderer = L.canvas({ padding: 0.3 });
@@ -247,7 +248,7 @@
 
         const row = document.createElement('label');
         row.className = 'ti-switch';
-        row.title = '줌 ' + MIN_ZOOM + ' 이상 확대하면 복도에 점이 나온다. 복도·계단·로비만 찍는 ' +
+        row.title = '켜고 줌 ' + MIN_ZOOM + ' 이상 확대하면 복도에 점이 나온다. 복도·계단·로비만 찍는 ' +
             '계획이라 호실 안에는 지점이 없다.';
         const check = document.createElement('input');
         check.type = 'checkbox';
