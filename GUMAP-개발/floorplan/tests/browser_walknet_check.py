@@ -1,12 +1,12 @@
 """실외 구간이 지도의 보행자 길찾기를 쓰는지 확인한다.
 
 건물만 피해 도는 어림 경로는 도로도 옆 건물도 모른다. 잔디밭을 가로질러
-거의 직선으로 간다. 지도는 이미 TMAP 보행자 경로(실패 시 OSRM)를 쓰고
+거의 직선으로 간다. 지도는 보행 전용 OSRM 경로(실패 시 TMAP)를 쓰고
 있으니 실외 구간도 그걸 써야 한다.
 
   · 방을 고르면 보행자 경로 API 를 부른다
   · 실외 구간이 여러 점으로 꺾이고, 어림 직선보다 길다
-  · API 가 죽어도 경로는 나온다 (어림값으로 되돌아간다)
+  · API 응답 전에는 임시 경로를 그리지 않고, 실패하면 재시도를 안내한다
 
   python tests/browser_walknet_check.py
 """
@@ -61,7 +61,7 @@ def main() -> int:
         calls = []
         errors = []
         page.on("request", lambda r: calls.append(r.url)
-                if ("tmap-routes" in r.url or "osrm" in r.url) else None)
+                if ("tmap-routes" in r.url or "routed-foot" in r.url) else None)
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(URL, wait_until="networkidle", timeout=60000)
         page.wait_for_function("() => !!window.TECHNO_NAV_DATA", timeout=30000)
@@ -72,7 +72,7 @@ def main() -> int:
 
         # ── A. 보행자 경로를 쓰는가
         run_route(page, room)
-        page.wait_for_timeout(8000)
+        page.wait_for_function("() => !!window.getTechnoRouteResult()", timeout=45000)
         walked = page.evaluate(SNAP)
         if walked.get("error"):
             print(f"경로 실패: {walked['error']}")
@@ -98,22 +98,23 @@ def main() -> int:
         page.wait_for_timeout(2000)
         page.screenshot(path=str(SHOTS / "outdoor-walknet.png"))
 
-        # ── B. API 가 죽어도 길은 나와야 한다
+        # ── B. API 실패 시 어림 경로를 표시하지 않아야 한다
         # 같은 구간은 캐시에 남아 있으니(그건 맞는 동작) 다른 지점에서 본다.
         page.route("**/tmap-routes*", lambda route: route.abort())
         page.route("**router.project-osrm.org**", lambda route: route.abort())
+        page.route("**routing.openstreetmap.de/**", lambda route: route.abort())
         run_route(page, room, (36.14520, 128.39280))
-        page.wait_for_timeout(6000)
+        page.wait_for_function("() => !!window.getTechnoRouteResult()", timeout=45000)
         fallen = page.evaluate(SNAP)
         print(f"\nB. API 차단 시: ", end="")
         if fallen.get("error"):
             print(f"경로 실패 — {fallen['error']}")
-            problems.append("API 가 죽으면 경로가 아예 안 난다")
         else:
-            print(f"{fallen['entrance']} · 실외 {fallen['outdoor_m']:.0f}m "
-                  f"· 실측 {fallen['measured']} (어림값으로 되돌아감)")
-            if fallen["measured"]:
-                problems.append("API 가 죽었는데 실측이라고 표시한다")
+            problems.append("API 실패 후에도 경로를 표시한다")
+        lines = page.evaluate("""() => window.technoRouteLayerGroup.getLayers()
+            .filter(layer => layer instanceof L.Polyline).length""")
+        if lines:
+            problems.append("API 실패 후 임시 경로선이 남아 있다")
 
         real = [e for e in errors if "ResizeObserver" not in e]
         if real:

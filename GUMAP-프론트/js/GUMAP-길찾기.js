@@ -118,18 +118,95 @@ window.fetchBenchmark = function(mode) {
     .catch(err => console.warn('[Benchmark] 벤치마크 호출 실패:', err));
 };
 
+// OSRM의 /foot 문자열만으로는 자동차 서버가 보행 서버로 바뀌지 않는다.
+// 보행 전용 도로망을 먼저 사용하고 요청 시작을 최대 초당 1회로 제한한다.
+window.fetchPedestrianRoute = (function () {
+    const cache = new Map();
+    let queue = Promise.resolve();
+    let lastRequest = 0;
+    return function (payload) {
+        const points = [[Number(payload.startX), Number(payload.startY)]];
+        if (payload.passList) {
+            payload.passList.split('_').forEach(value => points.push(value.split(',').map(Number)));
+        }
+        points.push([Number(payload.endX), Number(payload.endY)]);
+        if (points.some(point => point.length !== 2 || !point.every(Number.isFinite))) {
+            return Promise.reject(new Error('보행 경로 좌표가 올바르지 않습니다.'));
+        }
+        const coords = points.map(point => point.join(',')).join(';');
+        const cached = cache.get(coords);
+        if (cached && Date.now() - cached.time < 300000) return cached.promise;
+        const turn = queue.then(async function () {
+            const delay = Math.max(0, 1100 - (Date.now() - lastRequest));
+            if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+            lastRequest = Date.now();
+        });
+        // 응답이 느려도 다음 요청의 시작까지 막지는 않는다.
+        queue = turn.catch(() => {});
+        const pending = turn.then(async function () {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 10000);
+            try {
+                const response = await fetch('https://routing.openstreetmap.de/routed-foot/route/v1/foot/' +
+                    coords + '?overview=full&geometries=geojson', { signal: controller.signal });
+                if (!response.ok) throw new Error('보행 전용 경로 조회 실패: ' + response.status);
+                const data = await response.json();
+                const route = data.routes && data.routes[0];
+                if (data.code !== 'Ok' || !route || !route.geometry ||
+                    !Array.isArray(route.geometry.coordinates) || route.geometry.coordinates.length < 2) {
+                    throw new Error('보행 경로를 찾을 수 없습니다.');
+                }
+                if (window.map && window.map.attributionControl) {
+                    window.map.attributionControl.addAttribution(
+                        '보행 경로 © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · ' +
+                        '<a href="https://www.openstreetmap.org/fixthemap">지도 수정</a>');
+                }
+                return {
+                    provider: 'osrm-foot',
+                    features: [{
+                        properties: { totalDistance: route.distance, totalTime: route.duration,
+                            taxiFare: 0, tollFare: 0 },
+                        geometry: route.geometry
+                    }]
+                };
+            } finally {
+                clearTimeout(timer);
+            }
+        });
+        cache.set(coords, { time: Date.now(), promise: pending });
+        if (cache.size > 128) cache.delete(cache.keys().next().value);
+        pending.catch(() => {
+            if (cache.get(coords)?.promise === pending) cache.delete(coords);
+        });
+        return pending;
+    };
+}());
+
 window.fetchTmapWithOSRMFallback = async function(url, payload, mode) {
+    if (mode === 'walk') {
+        try {
+            return await window.fetchPedestrianRoute(payload);
+        } catch (error) {
+            console.warn('보행 전용 서버 실패, TMAP 보행 경로를 조회합니다:', error);
+        }
+    }
     try {
         let res = await fetch(url, {
             method: "POST",
             headers: { "Accept": "application/json", "Content-Type": "application/json", },
             body: JSON.stringify(payload)
         });
-        if (res.status === 429 || res.status === 403) throw new Error("TMAP Rate Limit Exceeded");
+        if (!res.ok) throw new Error('TMAP 경로 조회 실패: ' + res.status);
         let data = await res.json();
         if (data.error) throw new Error(data.error.message);
+        if (!Array.isArray(data.features) || !data.features.some(feature =>
+            feature.geometry && feature.geometry.type === 'LineString')) {
+            throw new Error('TMAP 경로 좌표가 없습니다.');
+        }
         return data;
     } catch (e) {
+        // 보행 API가 모두 실패해도 자동차 경로를 도보로 표시하지 않는다.
+        if (mode === 'walk') throw e;
         console.warn("TMAP API 실패, OSRM으로 우회합니다:", e);
         
         let profile = 'driving';

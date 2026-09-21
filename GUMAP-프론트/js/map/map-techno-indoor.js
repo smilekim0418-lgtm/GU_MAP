@@ -146,6 +146,7 @@
     window.technoFootprintLayerGroup = L.layerGroup();
     window.technoB1LayerGroup     = window.technoIndoorLayerGroup;  // 하위 호환
     window.technoActiveFloor      = '1F';
+    window.technoIndoorOpen       = false;
     window._technoLive            = null;
 
     /* ══════════════════════════════════════════════════════════
@@ -171,7 +172,7 @@
             }
         });
 
-        geoLayer.bindTooltip('🏫 금오공과대학교 테크노관 (61번 건물)<br><span style="font-size:10px;color:#818cf8;">확대 시 층별 실내지도 표시</span>', {
+        geoLayer.bindTooltip('🏫 금오공과대학교 테크노관 (61번 건물)<br><span style="font-size:10px;color:#818cf8;">실내지도 보기 버튼을 눌러 주세요</span>', {
             direction: 'top',
             className: 'techno-footprint-tooltip'
         });
@@ -180,16 +181,27 @@
         const bounds = geoLayer.getBounds();
         if (bounds && bounds.isValid()) {
             const center = bounds.getCenter();
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'techno-indoor-open-button';
+            button.setAttribute('aria-label', '테크노관 실내지도 보기');
+            button.setAttribute('aria-controls', 'techno-indoor-panel');
+            button.style.cssText = 'background:#4f46e5;border:2px solid #fff;color:#fff;' +
+                'padding:10px 14px;min-height:44px;border-radius:22px;font-size:12px;' +
+                'font-weight:800;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.25);cursor:pointer;';
+            button.textContent = '🏫 테크노관 · 실내지도 보기';
+            button.addEventListener('click', event => {
+                event.stopPropagation();
+                window.openTechnoIndoorMap();
+            });
             const landmarkMarker = L.marker(center, {
-                  interactive: false,
+                keyboard: false,
+                bubblingMouseEvents: false,
                 icon: L.divIcon({
                     className: 'techno-building-badge',
-                    html: `<div style="background:rgba(15,23,42,0.85);border:1px solid #6366f1;color:#fff;
-padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.4);display:flex;align-items:center;gap:4px;">
-🏫 테크노관 <span style="background:#6366f1;color:#fff;font-size:9px;padding:1px 5px;border-radius:10px;">B1F~6F</span>
-</div>`,
-                    iconSize: [120, 30],
-                    iconAnchor: [60, 15]
+                    html: button,
+                    iconSize: [210, 44],
+                    iconAnchor: [105, 22]
                 })
             });
             window.technoFootprintLayerGroup.addLayer(landmarkMarker);
@@ -491,9 +503,7 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
 
         // 닫기 버튼
         panel.querySelector('#ti-close').addEventListener('click', () => {
-            panel.style.display = 'none';
-            if (window.map && window.map.hasLayer(window.technoIndoorLayerGroup))
-                window.map.removeLayer(window.technoIndoorLayerGroup);
+            window.closeTechnoIndoorMap();
             if (window.map && window.map.hasLayer(window.technoFootprintLayerGroup))
                 window.map.removeLayer(window.technoFootprintLayerGroup);
         });
@@ -566,9 +576,9 @@ padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:n
         paintFloorButtons(panel, floorId);
 
         setTimeout(() => {
+            if (!window.technoIndoorOpen) return;
             window.renderTechnoFloor();
-            if (window.map && !window.map.hasLayer(window.technoIndoorLayerGroup))
-                window.technoIndoorLayerGroup.addTo(window.map);
+            checkVis();
         }, 50);
 
         if (window.showToast) window.showToast(`🏫 테크노관 ${floorId} 실내지도`);
