@@ -1460,6 +1460,42 @@ window.renderTransitDetail = function(index, showPanel) {
         }
     });
 
+    // 도보 구간(trafficType 3)은 좌표가 없다. 앞뒤 구간의 정류장(처음·끝이면
+    // 출발지·도착지) 사이를 보행 경로로 이어 점선으로 그린다. 그리지 않으면
+    // 버스에서 내린 뒤 목적지까지 가는 길이 지도에 보이지 않는다.
+    path.subPath.forEach((sub, subIdx) => {
+        if (sub.trafficType !== 3 || !(sub.distance > 0)) return;
+        var prev = path.subPath[subIdx - 1];
+        var next = path.subPath[subIdx + 1];
+        var from = prev ? { lat: parseFloat(prev.endY), lng: parseFloat(prev.endX) } : window.startCoord;
+        var to = next ? { lat: parseFloat(next.startY), lng: parseFloat(next.startX) } : window.endCoord;
+        if (!from || !to || ![from.lat, from.lng, to.lat, to.lng].every(Number.isFinite)) return;
+        drawTransitWalk(from, to, myRoutingRenderId);
+    });
+
+    async function drawTransitWalk(from, to, renderId) {
+        var line = [[from.lat, from.lng], [to.lat, to.lng]];
+        try {
+            var data = await window.fetchTmapWithOSRMFallback(`${window.PROXY_URL}/tmap-routes?endpoint=pedestrian&version=1`, {
+                startX: from.lng, startY: from.lat, endX: to.lng, endY: to.lat,
+                reqCoordType: "WGS84GEO", resCoordType: "WGS84GEO",
+                startName: encodeURIComponent("출발"), endName: encodeURIComponent("도착")
+            }, 'walk');
+            var walked = [];
+            (data.features || []).forEach(function(feature) {
+                if (feature.geometry && feature.geometry.type === "LineString") {
+                    feature.geometry.coordinates.forEach(function(coord) { walked.push([coord[1], coord[0]]); });
+                }
+            });
+            // 보행 도로망에 붙은 점과 실제 정류장·도착지 사이 틈도 잇는다
+            if (walked.length > 1) line = [line[0]].concat(walked, [line[1]]);
+        } catch (e) {
+            console.warn('대중교통 도보 구간 조회 실패, 직선으로 표시합니다:', e);
+        }
+        if (renderId !== currentRoutingRenderId) return;
+        drawPolyline(line, '#475569', 'shortdash', 5);
+    }
+
     // 대중교통 정류장 간 도로 스냅 함수
     async function drawTransitRoadSnap(stops, color, renderId) {
         for (var i = 0; i < stops.length - 1; i += 5) {
