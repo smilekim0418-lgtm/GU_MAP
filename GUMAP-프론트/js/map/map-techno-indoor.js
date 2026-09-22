@@ -502,10 +502,9 @@
         });
 
         // 닫기 버튼
+        // 닫으면 건물 외곽선과 "실내지도 보기" 버튼으로 돌아간다.
         panel.querySelector('#ti-close').addEventListener('click', () => {
             window.closeTechnoIndoorMap();
-            if (window.map && window.map.hasLayer(window.technoFootprintLayerGroup))
-                window.map.removeLayer(window.technoFootprintLayerGroup);
         });
 
         // 실시간 검색
@@ -633,7 +632,8 @@
         if (oldCtrl) oldCtrl.style.display = 'none';
 
         if (dist <= 1200) {
-            if (zoom >= 17) {
+            // 실내지도는 확대만으로 뜨지 않는다. 버튼(openTechnoIndoorMap)으로 연다.
+            if (zoom >= 17 && window.technoIndoorOpen) {
                 // (1) 고배율 (Zoom 17 이상): 세부 실내지도 표출
                 if (panel) panel.style.display = 'flex';
                 if (zoom < 19) {
@@ -676,6 +676,29 @@
                 window.map.removeLayer(window.technoFootprintLayerGroup);
         }
     }
+
+    /** 실내지도를 연다. floor 를 주면 그 층으로 바꾼다. 멀거나 작게 보고
+     *  있으면 건물로 확대해 들어간다. */
+    window.openTechnoIndoorMap = function (floor) {
+        if (!window.map) return;
+        window.technoIndoorOpen = true;
+        const panel = document.getElementById('techno-indoor-panel');
+        if (floor && floor !== window.technoActiveFloor) {
+            window.technoActiveFloor = floor;
+            if (panel) paintFloorButtons(panel, floor);
+            if (window.map.hasLayer(window.technoIndoorLayerGroup)) window.renderTechnoFloor();
+        }
+        const far = window.map.distance(window.map.getCenter(), TECHNO_CENTER) > 1200;
+        if (far || window.map.getZoom() < 18) {
+            window.map.setView(TECHNO_CENTER, 18);  // moveend 가 checkVis 를 부른다
+        }
+        checkVis();
+    };
+
+    window.closeTechnoIndoorMap = function () {
+        window.technoIndoorOpen = false;
+        checkVis();
+    };
 
     /* ══════════════════════════════════════════════════════════
        ⑦ 초기화 진입점
