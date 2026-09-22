@@ -59,6 +59,7 @@ JSON Schema:
       "building": "테크노관", // Required for route_indoor
       "room": "301", // Required for route_indoor: room number ("301", "B104") or room/professor name ("대강의실", "이현권") exactly as the user said it
       "floor": "3F", // Optional for route_indoor: only if the user said a floor ("3층" -> "3F", "지하 1층" -> "B1F")
+      // "mode" is Optional for route_indoor: set it only if the user named a way to travel (버스/대중교통 -> "transit", 자가용/택시 -> "car", 걸어서/도보 -> "walk"). If omitted, the app picks transit for far starts and walking for nearby ones.
       "routeNo": "11", // Required for search_bus (e.g. "11", "170", "960")
       "category": "string", // Required for search_poi (e.g. "구미시청", "대형마트", "이마트", "스타벅스", "카페", "경로당", "편의점", "공원", "공공기관", "경찰서", "소방서")
       "open_closest": true, // Optional: Set to true if the user asks for the "closest" (가장 가까운) POI
@@ -91,7 +92,7 @@ Guidelines:
 8. If the user asks to open developer settings or keys, use "show_dev_menu".
 9. If the user asks to add a landmark to favorites, use "add_favorite" with name, lat, and lng.
 10. CRITICAL: If the user asks for a route to a place you don't know the exact coordinates of, use "search_and_route".
-11. If the destination is a room, lecture hall, lab, or professor's office inside 테크노관 (e.g. "테크노관 301호 가는 길", "테크노관 대강의실까지", "61동 이현권 교수님 연구실"), use one "route_indoor" action instead of set_end/route/search_and_route. If the user also named a start place, put a "set_start" action before it. Indoor routes are always walking. Do not invent room numbers.
+11. If the destination is a room, lecture hall, lab, or professor's office inside 테크노관 (e.g. "테크노관 301호 가는 길", "테크노관 대강의실까지", "61동 이현권 교수님 연구실"), use one "route_indoor" action instead of set_end/route/search_and_route. If the user also named a start place, put a "set_start" action before it. The app routes to the building entrance (by bus when the start is far) and then walks inside to the room. Do not invent room numbers.
 `;
 
     /* ───────────── 실내 호실 찾기 (테크노관) ─────────────
@@ -241,7 +242,11 @@ Guidelines:
                 if (fromInfo) actions.push({ type: "set_start", lat: fromInfo.lat, lng: fromInfo.lng, name: fromInfo.name });
                 indoorText = fromMatch[2];
             }
-            actions.push({ type: "route_indoor", building: "테크노관", room: indoorText.trim() });
+            var indoorAction = { type: "route_indoor", building: "테크노관", room: indoorText.trim() };
+            if (/버스|대중교통/.test(text)) indoorAction.mode = "transit";
+            else if (/자가용|운전|택시/.test(text)) indoorAction.mode = "car";
+            else if (/걸어|도보|걷기/.test(text)) indoorAction.mode = "walk";
+            actions.push(indoorAction);
             return { reply: "🏫 테크노관 안 목적지까지 걸어가는 길을 찾아드립니다.", actions: actions,
                      suggested_replies: ["알겠습니다", "초기화"] };
         }
@@ -663,6 +668,17 @@ Guidelines:
         }
     }
 
+    // 이보다 멀리서 출발하면 따로 말이 없어도 건물까지는 대중교통으로 안내한다.
+    var TECHNO_CENTER = [36.146643, 128.394348];
+    var INDOOR_WALK_LIMIT_M = 1500;
+
+    function pickIndoorTravelMode(requested, origin) {
+        if (requested === 'walk' || !origin || origin.where !== 'outdoor') return 'walk';
+        if (requested && requested !== 'walk') return requested;
+        var meters = L.latLng(origin.lat, origin.lng).distanceTo(L.latLng(TECHNO_CENTER));
+        return meters > INDOOR_WALK_LIMIT_M ? 'transit' : 'walk';
+    }
+
     // 건물 안 호실까지. 호실을 도면에서 확인한 뒤 실내 길찾기 모듈에 넘긴다.
     async function runIndoorRoute(action, infoBar) {
         var building = action.building || '';
@@ -696,12 +712,32 @@ Guidelines:
         }
 
         var room = rooms[0];
-        if (window.openTechnoIndoorMap) window.openTechnoIndoorMap(room.floor);
         // 출발지 설정(set_start)이 실내 모듈에 전달될 시간을 둔다.
         await new Promise(function (resolve) { setTimeout(resolve, 400); });
+        var origin = window.getTechnoRouteStart ? window.getTechnoRouteStart() : null;
+        var mode = pickIndoorTravelMode(action.mode, origin);
+
+        // 멀리서 오면 건물 출입구까지는 대중교통(또는 차), 그 뒤는 실내 도보.
+        if (mode !== 'walk' && window.routeTechnoFromArrival && window.calcRoute && window.setRoutingPoint) {
+            var entrance = window.routeTechnoFromArrival(room.room_id, room.floor);
+            if (entrance && entrance.latlng) {
+                // 지도는 전체 이동 경로를 보여 주고, 실내지도는 확대하면 뜨게만 해 둔다.
+                window.technoIndoorOpen = true;
+                window.setRoutingPoint('END', entrance.latlng[0], entrance.latlng[1],
+                                       describeRoom(room));
+                await new Promise(function (resolve) { setTimeout(resolve, 400); });
+                window.calcRoute(mode);
+                if (infoBar) infoBar.innerHTML = '🏫 [AI 연동] 도착지: <b>' + DOMPurify.sanitize(describeRoom(room)) + '</b>';
+                appendChatMessage("ai", (mode === 'car' ? "🚗 " : "🚌 ") + DOMPurify.sanitize(entrance.name) +
+                    "까지 " + getModeName(mode) + " 경로를 찾고, 거기서 " + describeRoom(room) +
+                    " 문 앞까지 실내 경로를 표시합니다. 테크노관을 확대하면 층별 경로가 보입니다.");
+                return;
+            }
+        }
+
+        if (window.openTechnoIndoorMap) window.openTechnoIndoorMap(room.floor);
         window.routeToTechnoRoom(room.room_id, room.unitId);
         if (infoBar) infoBar.innerHTML = '🏫 [AI 연동] 도착지: <b>' + DOMPurify.sanitize(describeRoom(room)) + '</b>';
-        var origin = window.getTechnoRouteStart ? window.getTechnoRouteStart() : null;
         appendChatMessage("ai", origin
             ? "🧭 " + describeRoom(room) + " 문 앞까지 경로를 표시합니다."
             : "📍 도착지를 " + describeRoom(room) + "(으)로 정했습니다. 출발 위치를 지도에서 눌러 주세요.");

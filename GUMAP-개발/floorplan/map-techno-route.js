@@ -109,6 +109,31 @@
         return result;
     };
 
+    /**
+     * 버스·차로 건물 앞까지 온 다음의 실내 구간. 방까지 가장 빠른 출입구에서
+     * 출발하는 경로를 그리고 그 출입구({name, floor, latlng})를 돌려준다.
+     * 실외 출발지는 건드리지 않는다 - 실외 패널의 대중교통 경로가 그 출발지를
+     * 그대로 쓰고, 도착지만 이 출입구로 잡으면 두 경로가 문에서 이어진다.
+     */
+    window.routeTechnoFromArrival = function (roomLabel, floor, options) {
+        if (!engine || !engine.hasEntrances()) return null;
+        outdoorToken++;          // 진행 중인 도보 실측이 이 경로를 덮지 않게
+        var destination = { room_id: roomLabel, floor: floor };
+        var routeOptions = { avoidStairs: !!(options && options.avoidStairs) };
+        var best = null;
+        engine.entrances().forEach(function (entrance) {
+            try {
+                var one = engine.route({ outdoor: true, lat: entrance.lat, lng: entrance.lon },
+                                       destination, routeOptions);
+                if (!best || one.duration_s < best.duration_s) best = one;
+            } catch (error) { /* 이 문으로는 방까지 길이 없다 */ }
+        });
+        var select = document.getElementById('tr-dest');
+        if (select) select.value = (floor || '') + '|' + roomLabel;
+        settle(best || { error: (floor || '') + ' ' + roomLabel + ' 까지 가는 실내 경로가 없습니다.' });
+        return best ? best.entrance : null;
+    };
+
     window.clearTechnoRoute = function () {
         outdoorToken++;
         outdoorLoading = false;
