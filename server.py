@@ -1195,6 +1195,44 @@ async def proxy_tago_direct(request: Request):
     qs = rebuild_qs(request, {'serviceKey': API_KEYS['TAGO']}, ['targetUrl'])
     return await proxy_request(f'{target_url}?{qs}', cache_ttl=5)
 
+bis_client = None
+
+@app.get("/bus-timetable")
+@limiter.limit("60/minute")
+async def proxy_bus_timetable(request: Request):
+    """구미시 BIS 노선 시간표 (기점 출발 시각 목록).
+
+    routeId 는 TAGO routeid 에서 'GMB' 를 뗀 값(예: GMB19010 → 19010), bType 은
+    0=평일, 2=주말·공휴일. BIS 는 CORS 헤더가 없고 form POST 만 받아 서버가 대신 부른다.
+    """
+    route_id = request.query_params.get('routeId', '')
+    b_type = request.query_params.get('bType', '0')
+    if not route_id or len(route_id) > 20 or not all(c.isalnum() or c == '-' for c in route_id) \
+            or b_type not in ('0', '2'):
+        return JSONResponse({"error": "invalid routeId/bType"}, status_code=400)
+
+    cache_key = ('bis-timetable', route_id, b_type)
+    cached = global_cache.get(cache_key)
+    if cached:
+        content, status_code, media_type = cached
+        return Response(content=content, status_code=status_code, media_type=media_type)
+
+    # bis.gumi.go.kr 은 중간 인증서를 보내지 않아 검증이 실패한다(curl 은 OS 저장소로 메움).
+    # 공개 시간표만 읽는 호출이라 이 도메인 전용 클라이언트에서만 검증을 끈다.
+    global bis_client
+    if bis_client is None:
+        bis_client = httpx.AsyncClient(timeout=15.0, verify=False, follow_redirects=True)
+    try:
+        response = await bis_client.post('https://bis.gumi.go.kr/localbus/getTimetableInfo',
+                                          data={'routeId': route_id, 'bType': b_type},
+                                          headers={"User-Agent": "Mozilla/5.0"})
+    except httpx.RequestError as exc:
+        return JSONResponse({"error": f"Request failed: {str(exc)}"}, status_code=502)
+    media_type = response.headers.get('content-type', 'application/json')
+    if response.status_code == 200:
+        global_cache.set(cache_key, response.content, 200, media_type, 3600)
+    return Response(content=response.content, status_code=response.status_code, media_type=media_type)
+
 @app.get("/opinet-around")
 @limiter.limit("30/minute")
 async def proxy_opinet_around(request: Request):

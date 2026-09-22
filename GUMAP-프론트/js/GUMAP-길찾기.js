@@ -1260,6 +1260,73 @@ window.closeRouteDetailPanel = function() {
 
 // 최초 버스 탑승 구간 정류장의 실시간 ETA 정보 가져오기
 /**
+ * 시간표로 본 다음 차. 실시간 정보는 이미 운행 중인 차만 알려 주므로, 도착 예정
+ * 차가 없을 때 "가장 가까운 시간"을 여기서 구한다.
+ *
+ * 구미시 BIS 시간표는 기점 출발 시각이다. 승차 정류장이 기점이 아니면 노선
+ * 경유 정류장(TAGO) 좌표로 기점~승차 정류장 거리를 재고, 이 구간 버스 속도
+ * (ODsay sectionTime)로 걸리는 시간을 어림해 더한다.
+ *
+ * @param sub ODsay 버스 구간 (lane[0].busLocalBlID, startLocalStationID, startY/X, distance, sectionTime)
+ * @return Promise<{atStop: Date, originTime, originName, estimated, tomorrow} | null>
+ */
+window.fetchNextScheduledBus = function(sub) {
+    var lane = sub && sub.lane && sub.lane[0];
+    var blId = lane && lane.busLocalBlID;        // 예: GMB19010 (방향별 노선 ID)
+    if (!blId || !/^GMB/.test(blId)) return Promise.resolve(null);   // 구미 시내버스만
+    var bisId = blId.replace(/^GMB/, '');
+    var dayType = d => (d.getDay() === 0 || d.getDay() === 6) ? '2' : '0';   // 평일 / 주말
+    var toMin = t => { var p = String(t).split(':'); return (+p[0]) * 60 + (+p[1]); };
+    var timetable = type => fetch(`${window.PROXY_URL}/bus-timetable?routeId=${encodeURIComponent(bisId)}&bType=${type}`)
+        .then(res => res.ok ? res.json() : { rows: [] })
+        .then(data => (data.rows || []).map(r => r.starttime).filter(t => /^\d{1,2}:\d{2}$/.test(t)));
+
+    // 기점 → 승차 정류장 소요 시간(분). 모르면 0 으로 두고 '기점 출발' 로 안내한다.
+    var offsetPromise = fetchAPI(`https://apis.data.go.kr/1613000/BusRouteInfoInqireService/getRouteAcctoThrghSttnList?pageNo=1&numOfRows=300&_type=json&cityCode=37050&routeId=${encodeURIComponent(blId)}`)
+        .then(data => {
+            var list = data.response && data.response.body && data.response.body.items && data.response.body.items.item;
+            var stops = (Array.isArray(list) ? list : (list ? [list] : [])).sort((a, b) => a.nodeord - b.nodeord);
+            if (!stops.length) return { minutes: 0, origin: null, known: false };
+            var at = stops.findIndex(s => s.nodeid === sub.startLocalStationID);
+            if (at < 0) {
+                var lat = parseFloat(sub.startY), lng = parseFloat(sub.startX);
+                at = stops.reduce((best, s, i) => {
+                    var d = Math.abs(s.gpslati - lat) + Math.abs(s.gpslong - lng);
+                    return d < best.d ? { i: i, d: d } : best;
+                }, { i: 0, d: Infinity }).i;
+            }
+            var meters = 0;
+            for (var i = 1; i <= at; i++) {
+                meters += L.latLng(stops[i - 1].gpslati, stops[i - 1].gpslong)
+                    .distanceTo(L.latLng(stops[i].gpslati, stops[i].gpslong));
+            }
+            // 이 구간 평균 속도, 시속 12~40km 사이로 묶는다
+            var mpm = (sub.distance && sub.sectionTime) ? sub.distance / sub.sectionTime : 350;
+            mpm = Math.min(Math.max(mpm, 200), 670);
+            return { minutes: Math.round(meters / mpm), origin: stops[0].nodenm, known: true };
+        })
+        .catch(() => ({ minutes: 0, origin: null, known: false }));
+
+    var now = new Date();
+    var tomorrow = new Date(now.getTime() + 86400000);
+    return Promise.all([timetable(dayType(now)), offsetPromise]).then(([times, offset]) => {
+        var nowMin = now.getHours() * 60 + now.getMinutes();
+        var next = times.find(t => toMin(t) + offset.minutes >= nowMin);
+        var pick = next ? Promise.resolve({ t: next, tomorrow: false })
+            : (dayType(tomorrow) === dayType(now) ? Promise.resolve(times) : timetable(dayType(tomorrow)))
+                .then(list => list.length ? { t: list[0], tomorrow: true } : null);
+        return pick.then(found => {
+            if (!found) return null;
+            var atStop = new Date(found.tomorrow ? tomorrow : now);
+            atStop.setHours(0, toMin(found.t) + offset.minutes, 0, 0);
+            return { atStop: atStop, originTime: found.t, originName: offset.origin,
+                     estimated: offset.known && offset.minutes > 0, offsetKnown: offset.known,
+                     tomorrow: found.tomorrow };
+        });
+    });
+};
+
+/**
  * 승차 정류장의 실시간 도착 정보를 조회해 버스 배지(elementId)에 적는다.
  * briefing 을 주면(첫 번째로 타는 버스) 상단 브리핑 카드도 결과로 바꾼다.
  * briefing.walkMinutes: 출발지에서 그 정류장까지 걷는 시간(분).
@@ -1267,7 +1334,7 @@ window.closeRouteDetailPanel = function() {
  * 공공데이터포털은 serviceKey 가 필요해 브라우저에서 바로 부르면 401 이 난다.
  * 반드시 fetchAPI(서버 /tago-api 프록시)로 부른다.
  */
-window.fetchETAForStop = function(stopName, lat, lng, busNo, elementId, briefing) {
+window.fetchETAForStop = function(stopName, lat, lng, busNo, elementId, briefing, sub) {
     var targetEl = document.getElementById(elementId);
     if (!targetEl) return;
     var TAGO = 'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/';
@@ -1294,6 +1361,33 @@ window.fetchETAForStop = function(stopName, lat, lng, busNo, elementId, briefing
         return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
     }
 
+    // 실시간으로 오는 차가 없거나 조회에 실패하면 시간표에서 가장 가까운 차를 찾는다
+    function showSchedule(reason) {
+        var fallback = () => {
+            badge('#64748b', reason === 'error' ? '정보없음' : '운행대기');
+            brief(`<b>${safeBus}번</b> · ${safeStop}<br>` + (reason === 'error'
+                ? '실시간 도착 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+                : '지금은 도착 예정인 차가 없고, 시간표 정보도 찾지 못했습니다.'));
+        };
+        window.fetchNextScheduledBus(sub).then(next => {
+            if (!next) return fallback();
+            var when = (next.tomorrow ? '내일 ' : '') + clock(next.atStop);
+            var mins = Math.round((next.atStop - Date.now()) / 60000);
+            var origin = next.originName ? next.originName.replace(/[&<>"']/g, '') : '기점';
+            var how = next.estimated ? `${when}경 도착 예정` : (next.offsetKnown ? `${when} 출발` : `${origin} ${when} 출발`);
+            badge('#2563eb', `시간표 · 다음 차 ${when}${next.estimated ? '경' : ''}`);
+            var walkMin = briefing && Number(briefing.walkMinutes) || 0;
+            var leave = (!next.tomorrow && walkMin && mins - walkMin >= 0)
+                ? `<br>🚶 정류장까지 도보 ${walkMin}분 → <b style="color:#16a34a;">${clock(new Date(next.atStop - walkMin * 60000))}까지 출발</b>하세요` : '';
+            brief(`<b>${safeBus}번</b> · ${safeStop} 승차<br>
+                ${reason === 'error' ? '실시간 정보를 불러오지 못해 시간표로 안내합니다.' : '지금 운행 중인 차는 없습니다.'}<br>
+                <b>가장 가까운 차:</b> <span style="color:#2563eb; font-weight:700;">${how}</span>` +
+                (!next.tomorrow && mins >= 0 ? ` (${mins >= 60 ? Math.floor(mins / 60) + '시간 ' : ''}${mins % 60}분 후)` : '') +
+                (next.estimated ? `<br><span style="font-size:11px; color:var(--text-muted);">${origin} ${next.originTime} 출발 시간표 기준 어림값</span>` : '') +
+                leave);
+        }).catch(fallback);
+    }
+
     // 1) 정류장 ID: 이름으로 찾고 좌표가 가장 가까운 것을 고른다. ODsay 와 TAGO 의
     //    정류장 이름이 다르면 좌표 반경 검색으로 다시 찾는다.
     fetchAPI(`${TAGO}getSttnNoList?pageNo=1&numOfRows=20&_type=json&cityCode=37050&nodeNm=${encodeURIComponent(stopName)}`)
@@ -1312,6 +1406,10 @@ window.fetchETAForStop = function(stopName, lat, lng, busNo, elementId, briefing
                 .sort((a, b) => a.diff - b.diff)
                 .filter((item, i) => i === 0 || item.diff < 0.003)
                 .slice(0, 4);
+            // ODsay 가 알려 준 승차 정류장 ID 도 꼭 본다
+            if (sub && sub.startLocalStationID && !near.some(item => item.id === sub.startLocalStationID)) {
+                near.unshift({ id: sub.startLocalStationID });
+            }
             // 2) 그 승강장들의 실시간 도착 예정 목록
             return Promise.all(near.map(item =>
                 fetchAPI(`${window.PROXY_URL}/bus-arrival?pageNo=1&numOfRows=50&_type=json&cityCode=37050&nodeId=${item.id}`)
@@ -1322,8 +1420,7 @@ window.fetchETAForStop = function(stopName, lat, lng, busNo, elementId, briefing
                 .filter(item => String(item.routeno).trim() === routeNo)
                 .sort((a, b) => a.arrtime - b.arrtime)[0];
             if (!matchedBus) {
-                badge('#64748b', '운행대기');
-                brief(`<b>${safeBus}번</b> · ${safeStop}<br>지금은 도착 예정인 차가 없습니다 (운행 대기 또는 막차 이후).`);
+                showSchedule('none');
                 return;
             }
             var arrSec = Number(matchedBus.arrtime) || 0;
@@ -1348,8 +1445,7 @@ window.fetchETAForStop = function(stopName, lat, lng, busNo, elementId, briefing
         })
         .catch(err => {
             console.warn("ETA 조회 실패:", err);
-            badge('#ef4444', '정보없음');
-            brief(`<b>${safeBus}번</b> · ${safeStop}<br>실시간 도착 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.`);
+            showSchedule('error');
         });
 };
 
@@ -1691,7 +1787,7 @@ window.renderTransitDetail = function(index, showPanel) {
             }
             setTimeout(function() {
                 window.fetchETAForStop(sub.startName, parseFloat(sub.startY), parseFloat(sub.startX),
-                                       busNo, etaSpanId, briefing);
+                                       busNo, etaSpanId, briefing, sub);
             }, 150 * busEtaCounter);
 
             // 정류장 목록 HTML 구성 (클릭 없이 항상 펼침)
