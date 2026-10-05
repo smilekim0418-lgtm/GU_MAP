@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# 벡터 레이어는 LF 로 둔다. core.autocrlf=true 인 Windows 에서 받으면 CRLF 로 바뀌어
+# 43만 줄짜리 파일이 0.4 MB 커지고 원본과 바이트가 달라진다.
+GUMAP-데이터/vector_layers/*.geojson text eol=lf

@@ -129,8 +129,15 @@ def main() -> int:
             OUT.joinpath("cad-layer-B1F.png").write_bytes(page.screenshot())
 
             # ── 실내 로드뷰: 지도에서 누르면 작은 창, 전체화면은 한 번 더 ──
+            # 촬영 지점은 처음에 꺼져 있다. 스위치를 켜야 점이 나온다.
+            off = page.evaluate(
+                "() => window.technoPanoLayer.getLayers().length === 0"
+                " && !document.getElementById('ti-pano-points').checked")
+            check("360 촬영 지점은 처음엔 꺼져 있다", off)
+            page.evaluate("() => document.getElementById('ti-pano-points').click()")
+            page.wait_for_timeout(600)
             points = page.evaluate("() => window.technoPanoLayer.getLayers().length")
-            check("360 촬영 지점이 지도에 찍힘", points > 0, f"{points}개")
+            check("스위치를 켜면 360 촬영 지점이 지도에 찍힘", points > 0, f"{points}개")
             opened = page.evaluate("""() => {
                 // 캔버스로 그린 마커라 좌표를 짚기 어렵다. 마커가 스스로 내는
                 // 것과 같은 사건을 쏴서 누른 경로를 그대로 태운다.
@@ -152,7 +159,7 @@ def main() -> int:
 
             full = page.evaluate("""() => {
                 const panel = document.getElementById('techno-pano-panel');
-                [...panel.querySelectorAll('button')].find(b => b.textContent.includes('전체화면')).click();
+                panel.querySelector('button[data-act="full"]').click();
                 const box = panel.getBoundingClientRect();
                 return { w: box.width, h: box.height, vw: window.innerWidth,
                          vh: window.innerHeight, flag: panel.dataset.full };
@@ -160,7 +167,7 @@ def main() -> int:
             # 작은 창 안에서 로드뷰가 실제로 그려질 때까지 기다린다. 창 크기만
             # 맞고 안이 빈 화면이면 아무 쓸모가 없다.
             frame = page.frame_locator("#techno-pano-panel iframe")
-            frame.locator("#where").wait_for(timeout=30000)
+            frame.locator("#where").wait_for(state="attached", timeout=30000)
             page.wait_for_timeout(2500)
             inside = page.evaluate("""() => {
                 const win = document.querySelector('#techno-pano-panel iframe').contentWindow;
@@ -178,13 +185,15 @@ def main() -> int:
 
             back = page.evaluate("""() => {
                 const panel = document.getElementById('techno-pano-panel');
-                [...panel.querySelectorAll('button')].find(b => b.textContent.includes('작은 창')).click();
+                const full = panel.querySelector('button[data-act="full"]');
+                const label = full.getAttribute('aria-label');
+                full.click();
                 const small = panel.getBoundingClientRect().width;
-                [...panel.querySelectorAll('button')].find(b => b.textContent === '✕').click();
-                return { small: small, shown: getComputedStyle(panel).display };
+                panel.querySelector('button[data-act="close"]').click();
+                return { small: small, shown: getComputedStyle(panel).display, label: label };
             }""")
             check("작은 창으로 돌아오고 닫으면 사라진다",
-                  back["small"] < 700 and back["shown"] == "none",
+                  back["small"] < 700 and back["shown"] == "none" and back["label"] == "작은 창",
                   f'폭 {back["small"]:.0f}px')
             page.wait_for_timeout(300)
 

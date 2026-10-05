@@ -68,7 +68,7 @@ def main() -> int:
             problems.append(f"문자열 한글이 깨져 있다: {korean}")
 
         # 정사영상 레이어 켜기 → 8765 타일 요청 확인
-        page.evaluate("(c) => window.map.setView([c[0], c[1]], 16)", list(GUMI))
+        page.evaluate("(c) => { window.map.setView([c[0], c[1]], 16); }", list(GUMI))
         page.evaluate("() => window.toggleOrthophotoLayer(true)")
         page.wait_for_timeout(2500)
         on = page.evaluate("() => window.isOrthophotoOn")

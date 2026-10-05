@@ -35,7 +35,11 @@
     <title>G-map - 구미시 통합 모빌리티 지도</title>
     <!-- 브라우저 캐시 허용을 통한 성능 최적화 적용됨 -->
     <!-- favicon 설정 (대표 앱 이미지 지정) -->
-    <link rel="icon" href="GUMAP-아이콘/app_icon.png" type="image/png">
+    <link rel="icon" href="GUMAP-아이콘/app_icon_96.png" type="image/png">
+    <!-- 폰트·라이브러리 CDN 과의 연결을 미리 열어 첫 요청의 DNS·TLS 대기를 줄인다 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <!-- Google Fonts 및 Leaflet CSS 로드 -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="anonymous" />
@@ -47,6 +51,7 @@
     <link rel="stylesheet" href="GUMAP-프론트/css/components.css">
     <link rel="stylesheet" href="GUMAP-프론트/css/bottom-sheet.css">
     <link rel="stylesheet" href="GUMAP-프론트/css/animations.css">
+    <link rel="stylesheet" href="GUMAP-프론트/css/indoor.css">
 
     <style>
         .indoor-zoom-low .imdf-unit-label { display: none !important; }
@@ -96,7 +101,7 @@
         
         <!-- 앱 브랜드 로고 및 헤더 -->
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; margin-top:5px; cursor:pointer;" id="app-header" onclick="window.location.reload();" title="페이지 새로고침">
-            <img src="GUMAP-아이콘/app_icon.png" alt="G-map 로고" style="width:38px; height:38px; border-radius:10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1.5px solid var(--border-panel);">
+            <img src="GUMAP-아이콘/app_icon_96.png" alt="G-map 로고" width="38" height="38" decoding="async" style="width:38px; height:38px; border-radius:10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1.5px solid var(--border-panel);">
             <div>
                 <h1 style="margin:0; font-size:18px; font-weight:800; background:var(--primary-grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:-0.5px; line-height:1.2;">G-map</h1>
                 <p style="margin:0; font-size:10px; color:var(--text-muted); font-weight:600; letter-spacing:-0.2px;">구미시 통합 모빌리티 지도</p>
@@ -582,7 +587,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.4.1/leaflet.markercluster.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest" crossorigin="anonymous"></script>
+    <!-- hls.js(620 KB) 는 CCTV 영상을 열 때만 map-layers.js 가 받아 온다 -->
     <script src="GUMAP-프론트/js/data/GUMAP-버스정류장.js" defer></script>
 
     <!-- 모듈화된 커스텀 스크립트 로드 (캐시 갱신을 위해 v=74로 버전업) -->
@@ -597,28 +602,29 @@
     <script src="GUMAP-프론트/js/ui/GUMAP-리뷰.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/ui/GUMAP-즐겨찾기.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/map/map-init.js?v=109" defer></script>
-    <script src="GUMAP-프론트/js/map/map-layers.js?v=75" defer></script>
+    <script src="GUMAP-프론트/js/map/map-layers.js?v=76d3e2c2" defer></script>
     <script src="GUMAP-프론트/js/map/map-techno-imdf-data.js?v=da0738ef" defer></script>
-    <script src="GUMAP-프론트/js/map/map-techno-indoor.js?v=6ec4cfc4" defer></script>
-    <script src="GUMAP-프론트/js/map/map-techno-cad-entry.js?v=abfac14d" defer></script>
+    <script src="GUMAP-프론트/js/map/map-techno-indoor.js?v=f6abcef0" defer></script>
+    <script src="GUMAP-프론트/js/map/map-techno-cad-entry.js?v=db8e5834" defer></script>
     <script src="GUMAP-프론트/js/map/map-techno-cad-data.js?v=57a426c1" defer></script>
-    <script src="GUMAP-프론트/js/map/map-techno-cad-layer.js?v=aa114004" defer></script>
+    <script src="GUMAP-프론트/js/map/map-techno-cad-layer.js?v=d3afb935" defer></script>
     <script src="GUMAP-프론트/js/map/map-techno-pano-data.js?v=159e0364" defer></script>
-    <script src="GUMAP-프론트/js/map/map-techno-pano-layer.js?v=39e7341e" defer></script>
+    <script src="GUMAP-프론트/js/map/map-techno-pano-layer.js?v=1b049759" defer></script>
     <script src="GUMAP-프론트/js/map/map-techno-route-core.js?v=291841a6" defer></script>
     <script src="GUMAP-프론트/js/map/map-techno-nav-data.js?v=1f12bfc6" defer></script>
-    <script src="GUMAP-프론트/js/map/map-techno-route.js?v=7e8d9417" defer></script>
+    <script src="GUMAP-프론트/js/map/map-techno-route.js?v=0f437aea" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-보행로.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/map/map-search.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/map/map-click.js?v=eef7fcfa" defer></script>
-    <script src="GUMAP-프론트/js/GUMAP-길찾기.js?v=75" defer></script>
+    <script src="GUMAP-프론트/js/GUMAP-길찾기.js?v=f4833045" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-정류장정보.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-연구탭.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-금오공대데이터.js?v=1" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-금오공대탭.js?v=1" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-버스추적.js?v=75" defer></script>
-    <script src="GUMAP-프론트/js/GUMAP-AI비서.js?v=75" defer></script>
+    <script src="GUMAP-프론트/js/GUMAP-AI비서.js?v=ce38a407" defer></script>
     <script src="GUMAP-프론트/js/ui/GUMAP-이벤트.js?v=75" defer></script>
+    <script src="GUMAP-프론트/js/ui/GUMAP-모바일시작.js?v=d745e217" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-커스텀장소.js?v=1" defer></script>
 
     <script>

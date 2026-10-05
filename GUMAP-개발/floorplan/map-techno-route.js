@@ -46,6 +46,9 @@
     /** 출발 지점을 지도 좌표로 지정한다. */
     window.setTechnoRouteStart = function (lat, lng, floor) {
         if (!engine) return null;
+        outdoorToken++;
+        outdoorLoading = false;
+        result = null;
         floor = floor || window.technoActiveFloor || '1F';
 
         // 건물 밖을 눌렀으면 실내 출발점으로 우기지 않는다. 도면 픽셀로
@@ -83,6 +86,11 @@
     /** 목적지 방으로 경로를 계산한다. roomLabel 은 도면 방 번호(예: "301"). */
     window.routeInsideTechno = function (roomLabel, floor, options) {
         if (!engine) { console.warn('[실내길찾기] 엔진 없음'); return null; }
+        if (!start && outdoorStart) {
+            return runOutdoorRoute({ room_id: roomLabel, floor: floor }, options);
+        }
+        outdoorToken++;
+        outdoorLoading = false;
         if (!start) {
             pickingStart = true;
             if (window.showToast) window.showToast('🧭 출발 위치를 지도에서 눌러 주세요');
@@ -101,7 +109,34 @@
         return result;
     };
 
+    /**
+     * 버스·차로 건물 앞까지 온 다음의 실내 구간. 방까지 가장 빠른 출입구에서
+     * 출발하는 경로를 그리고 그 출입구({name, floor, latlng})를 돌려준다.
+     * 실외 출발지는 건드리지 않는다 - 실외 패널의 대중교통 경로가 그 출발지를
+     * 그대로 쓰고, 도착지만 이 출입구로 잡으면 두 경로가 문에서 이어진다.
+     */
+    window.routeTechnoFromArrival = function (roomLabel, floor, options) {
+        if (!engine || !engine.hasEntrances()) return null;
+        outdoorToken++;          // 진행 중인 도보 실측이 이 경로를 덮지 않게
+        var destination = { room_id: roomLabel, floor: floor };
+        var routeOptions = { avoidStairs: !!(options && options.avoidStairs) };
+        var best = null;
+        engine.entrances().forEach(function (entrance) {
+            try {
+                var one = engine.route({ outdoor: true, lat: entrance.lat, lng: entrance.lon },
+                                       destination, routeOptions);
+                if (!best || one.duration_s < best.duration_s) best = one;
+            } catch (error) { /* 이 문으로는 방까지 길이 없다 */ }
+        });
+        var select = document.getElementById('tr-dest');
+        if (select) select.value = (floor || '') + '|' + roomLabel;
+        settle(best || { error: (floor || '') + ' ' + roomLabel + ' 까지 가는 실내 경로가 없습니다.' });
+        return best ? best.entrance : null;
+    };
+
     window.clearTechnoRoute = function () {
+        outdoorToken++;
+        outdoorLoading = false;
         outdoorStart = null;
         resetPlayback();
         if (play.group && window.map && window.map.hasLayer(play.group)) {
@@ -140,6 +175,9 @@
 
     var outdoorStart = null;      // 건물 밖 출발지 {lat, lng, name}
     var outdoorToken = 0;         // 늦게 온 실외 실측이 새 경로를 덮지 않게
+    var outdoorLoading = false;
+    var outdoorProgress = null;
+    var loadingCard = null;
     var syncing = false;          // setRoutingPoint ↔ setTechnoRouteStart 재귀 방지
     var nativeSetRoutingPoint = null;
 
@@ -165,6 +203,9 @@
      *        경우엔 이미 옮겨져 있으므로 다시 부르지 않는다.
      */
     function useOutdoorStart(lat, lng, name, mirror) {
+        outdoorToken++;
+        outdoorLoading = false;
+        result = null;
         outdoorStart = { lat: lat, lng: lng, name: name || '지정한 위치' };
         start = null;
         pickingStart = false;
@@ -225,19 +266,76 @@
 
     /* ───────────────────── 렌더링 ───────────────────── */
 
+    function renderLoadingCard() {
+        if (!outdoorLoading || !outdoorProgress) {
+            if (loadingCard) loadingCard.remove();
+            loadingCard = null;
+            return;
+        }
+        if (!window.map || !window.map.getContainer) return;
+        if (!loadingCard) {
+            loadingCard = document.createElement('div');
+            loadingCard.className = 'techno-route-loading';
+            loadingCard.setAttribute('role', 'status');
+            loadingCard.setAttribute('aria-live', 'polite');
+            loadingCard.innerHTML =
+                '<span class="tr-loading-spinner" aria-hidden="true"></span>' +
+                '<div class="tr-loading-copy"><strong>걸어서 가는 길을 찾고 있어요</strong>' +
+                '<span class="tr-loading-destination"></span>' +
+                '<span class="tr-loading-caption">교내 보행로와 출입구를 확인하고 있어요</span>' +
+                '<div class="tr-loading-track" role="progressbar" aria-label="출입구 경로 확인" ' +
+                'aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div></div>' +
+                '<button type="button" class="tr-loading-cancel">취소</button>';
+            loadingCard.querySelector('button').addEventListener('click', function () {
+                window.clearTechnoRoute();
+            });
+            if (L.DomEvent) L.DomEvent.disableClickPropagation(loadingCard);
+            window.map.getContainer().appendChild(loadingCard);
+        }
+        loadingCard.querySelector('.tr-loading-destination').textContent =
+            '도착 · ' + outdoorProgress.label;
+        var percent = outdoorProgress.total
+            ? Math.round(outdoorProgress.completed / outdoorProgress.total * 100) : 0;
+        loadingCard.querySelector('.tr-loading-track').setAttribute('aria-valuenow', String(percent));
+        loadingCard.querySelector('.tr-loading-track i').style.width = percent + '%';
+        if (outdoorProgress.completed) {
+            loadingCard.querySelector('.tr-loading-caption').textContent =
+                '출입구 ' + outdoorProgress.completed + ' / ' + outdoorProgress.total + '곳 확인';
+        }
+    }
+
+
     function render() {
         if (!group || !window.map) return;
         group.clearLayers();
         if (!window.map.hasLayer(group)) group.addTo(window.map);
         lastFloor = window.technoActiveFloor;
+        renderLoadingCard();
 
         var floor = window.technoActiveFloor || '1F';
+
+        if (outdoorStart && !(window.startMarker && window.map.hasLayer(window.startMarker))) {
+            group.addLayer(L.circleMarker([outdoorStart.lat, outdoorStart.lng], {
+                radius: 8, color: '#fff', weight: 3,
+                fillColor: '#22c55e', fillOpacity: 1
+            }).bindTooltip('출발', { permanent: true, direction: 'top', className: 'techno-route-tip' }));
+        }
 
         if (start && start.floor === floor) {
             group.addLayer(L.circleMarker(engine.pxToLatLng(floor, start.x, start.y), {
                 radius: 8, color: '#fff', weight: 3,
                 fillColor: '#22c55e', fillOpacity: 1
             }).bindTooltip('출발', { permanent: true, direction: 'top', className: 'techno-route-tip' }));
+        }
+
+        if (outdoorLoading && outdoorProgress && outdoorProgress.latlng) {
+            group.addLayer(L.circleMarker(outdoorProgress.latlng, {
+                radius: 10, color: '#fff', weight: 3,
+                fillColor: '#ef4444', fillOpacity: 0.85,
+                className: 'techno-route-pending-pin'
+            }).bindTooltip('도착 · ' + outdoorProgress.label, {
+                permanent: true, direction: 'top', className: 'techno-route-tip'
+            }));
         }
 
         if (!result || result.error) { renderPanel(); return; }
@@ -263,7 +361,7 @@
         });
 
         // 들어가는 문. 실외 구간 끝에 찍는다.
-        if (result.entrance && result.entrance.floor === floor && result.entrance.latlng) {
+        if (result.entrance && result.entrance.latlng) {
             group.addLayer(L.circleMarker(result.entrance.latlng, {
                 radius: 9, color: '#fff', weight: 3,
                 fillColor: '#16a34a', fillOpacity: 1
@@ -652,7 +750,7 @@
             if (start || outdoorStart) runFromControls();
         });
         document.getElementById('tr-avoid').addEventListener('change', function () {
-            if ((start || outdoorStart) && result && !result.error) runFromControls();
+            if ((start || outdoorStart) && (outdoorLoading || (result && !result.error))) runFromControls();
         });
         document.getElementById('tr-filter').addEventListener('input', function () {
             fillDestinations(this.value.trim());
@@ -734,6 +832,13 @@
     function renderPanel() {
         var box = panelElement();
         if (!box) return;
+
+        if (outdoorLoading) {
+            box.innerHTML = '<div role="status" aria-live="polite" ' +
+                'style="padding:8px;border-top:1px solid rgba(255,255,255,.1);">' +
+                '보행 경로를 불러오는 중입니다…</div>';
+            return;
+        }
 
         if (!result || result.error) {
             var idle;
@@ -925,8 +1030,8 @@
 
     // 건물만 피해 도는 어림 경로는 도로도 다른 건물도 모른다. 잔디밭과
     // 옆 건물을 가로질러 거의 직선으로 간다. 지도가 이미 쓰는 보행자
-    // 길찾기(TMAP, 실패 시 OSRM)로 실외 구간을 실제로 재 온다.
-    var WALK_CANDIDATES = 3;      // 호출 한도가 분당 30회다. 다 재면 금방 막힌다
+    // 보행 전용 도로망(OSRM foot, 실패 시 TMAP)으로 실외 구간을 재 온다.
+    var WALK_CANDIDATES = 3;      // 보행 서버에서 요청 간격과 캐시를 관리한다
     var walkCache = {};
 
     function walkCacheKey(from, to) {
@@ -934,7 +1039,7 @@
                to[0].toFixed(5) + ',' + to[1].toFixed(5);
     }
 
-    /** 두 점 사이 보행자 경로. 실패하면 null 을 준다(어림값으로 되돌아간다). */
+    /** 두 점 사이 보행자 경로. 실패하면 null 을 주고 재시도할 수 있게 한다. */
     function fetchWalk(from, to) {
         var key = walkCacheKey(from, to);
         if (walkCache[key]) return walkCache[key];
@@ -969,11 +1074,23 @@
                 });
                 if (latlngs.length < 2) return null;
                 if (!meters) meters = polylineMeters(latlngs);
+                // API는 입력 좌표를 가까운 길 위로 옮긴다. 실제 출발점과 문까지
+                // 남은 연결 구간도 그려야 출발 핀에서 떨어진 곳부터 시작하지 않는다.
+                var first = latlngs[0];
+                var last = latlngs[latlngs.length - 1];
+                meters += engine.metersBetween(from[0], from[1], first[0], first[1]);
+                meters += engine.metersBetween(last[0], last[1], to[0], to[1]);
+                latlngs.unshift(from.slice());
+                latlngs.push(to.slice());
                 return { meters: meters, path: latlngs };
             })
             .catch(function (error) {
-                console.warn('[실내길찾기] 실외 보행자 경로 실패, 어림값을 씁니다:', error);
+                console.warn('[실내길찾기] 실외 보행자 경로 조회 실패:', error);
                 return null;
+            })
+            .then(function (walk) {
+                if (!walk) delete walkCache[key];
+                return walk;
             });
         walkCache[key] = pending;
         return pending;
@@ -990,9 +1107,9 @@
 
     /**
      * 후보 출입구 몇 개만 실제로 재 와서 {노드: {meters, path}} 로 돌려준다.
-     * 하나도 못 재면 null - 그러면 엔진이 어림값으로 간다.
+     * 하나도 못 재면 null - 실제 경로를 표시하지 않고 재시도를 안내한다.
      */
-    function measureApproaches(from, destination, options) {
+    function measureApproaches(from, destination, options, token) {
         var candidates = [];
         try {
             candidates = engine.entranceCandidates(from[0], from[1], destination,
@@ -1001,10 +1118,18 @@
             return Promise.resolve(null);
         }
         if (!candidates.length) return Promise.resolve(null);
+        if (token === outdoorToken && outdoorProgress) {
+            outdoorProgress.total = candidates.length;
+            renderLoadingCard();
+        }
 
         return Promise.all(candidates.map(function (row) {
             return fetchWalk(from, [row.entrance.lat, row.entrance.lon])
                 .then(function (walk) {
+                    if (token === outdoorToken && outdoorLoading && outdoorProgress) {
+                        outdoorProgress.completed++;
+                        renderLoadingCard();
+                    }
                     return walk ? { node: row.entrance.node, walk: walk } : null;
                 });
         })).then(function (rows) {
@@ -1028,39 +1153,68 @@
     }
 
     /** 건물 밖 출발지 → 가장 빨리 닿는 출입구 → 방. 문 선택은 엔진이 한다. */
-    function runOutdoorRoute(room) {
+    function runOutdoorRoute(room, routeOptions) {
         var from = [outdoorStart.lat, outdoorStart.lng];
         var destination = { room_id: room.room_id, floor: room.floor };
-        var options = { avoidStairs: !!(document.getElementById('tr-avoid') || {}).checked };
+        var options = { avoidStairs: routeOptions
+            ? !!routeOptions.avoidStairs
+            : !!(document.getElementById('tr-avoid') || {}).checked };
 
-        // 먼저 어림값으로 즉시 그려 놓고, 실측이 오면 갈아 끼운다.
-        // 기다리는 동안 화면이 비어 있으면 눌러도 반응 없는 것처럼 보인다.
-        settle(function () {
-            try {
-                return engine.route({ outdoor: true, lat: from[0], lng: from[1] },
-                                    destination, options);
-            } catch (error) {
-                return { error: error.message };
-            }
-        }());
-
+        // API가 반환하기 전에는 출발 핀과 로딩 안내만 표시한다.
+        // 건물만 피하는 임시 경로가 먼저 보였다가 바뀌는 일을 막는다.
         var token = ++outdoorToken;
-        measureApproaches(from, destination, options).then(function (measured) {
-            if (token !== outdoorToken || !measured) return;
-            var refined;
-            try {
-                refined = engine.route({ outdoor: true, lat: from[0], lng: from[1] },
-                                       destination,
-                                       Object.assign({}, options, { approaches: measured }));
-            } catch (error) {
-                return;                     // 어림값 결과를 그대로 둔다
+        outdoorLoading = true;
+        var targetRoom = engine.rooms().find(function (item) {
+            return item.room_id === room.room_id && item.floor === room.floor;
+        }) || room;
+        outdoorProgress = {
+            label: room.floor + ' ' + room.room_id,
+            latlng: roomLatLng(targetRoom), completed: 0, total: 0
+        };
+        result = null;
+        resetPlayback();
+        render();
+
+
+        Promise.resolve().then(function () {
+            if (token !== outdoorToken) return null;
+            return measureApproaches(from, destination, options, token);
+        }).then(function (measured) {
+            if (token !== outdoorToken) return;
+            if (!measured) {
+                throw new Error('보행 경로를 불러오지 못했습니다. 잠시 후 다시 길찾기를 눌러 주세요.');
             }
-            settle(refined);
+            var completed = engine.route({ outdoor: true, lat: from[0], lng: from[1] },
+                                         destination,
+                                         Object.assign({}, options, { approaches: measured }));
+            settle(completed);
+            fitOutdoorRoute();
+        }).catch(function (error) {
+            if (token !== outdoorToken) return;
+            settle({ error: error.message });
+            if (window.showToast) window.showToast(error.message);
         });
-        return result;
+        return null;
+    }
+
+    // 실내 방을 고를 때 확대된 화면에서도 건물 밖 출발점부터 보이게 한다.
+    // 경로가 완성될 때 한 번만 조정하고 층 전환 때는 다시 옮기지 않는다.
+    function fitOutdoorRoute() {
+        if (!window.map || !result || result.error) return;
+        var points = [];
+        result.legs.forEach(function (leg) {
+            (leg.latlngs || []).forEach(function (point) {
+                if (point) points.push(point);
+            });
+        });
+        if (points.length < 2) return;
+        window.map.fitBounds(L.latLngBounds(points), {
+            padding: [60, 60], maxZoom: 19
+        });
     }
 
     function settle(next) {
+        outdoorLoading = false;
         result = next;
         resetPlayback();
         // 들어간 출입구가 있는 층을 먼저 보여 준다
@@ -1151,6 +1305,27 @@
             '.leaflet-tooltip.techno-route-tip{background:#0ea5e9;color:#fff;border:none;' +
             'font-weight:700;font-size:11px;padding:2px 7px;border-radius:5px;box-shadow:none;}' +
             '.leaflet-tooltip.techno-route-tip::before{display:none;}';
+        tag.textContent +=
+            '.techno-route-loading{position:absolute;left:50%;bottom:32px;transform:translateX(-50%);' +
+            'z-index:1100;display:flex;align-items:center;gap:12px;width:360px;max-width:calc(100% - 32px);' +
+            'box-sizing:border-box;padding:15px 16px;border-radius:16px;' +
+            'background:var(--bg-panel,#fff);color:var(--text-main,#0f172a);' +
+            'border:1px solid var(--border-panel,#e2e8f0);box-shadow:0 8px 30px rgba(15,23,42,.2);}' +
+            '.tr-loading-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}' +
+            '.tr-loading-copy strong{font-size:13px;}.tr-loading-destination{font-size:12px;}' +
+            '.tr-loading-caption{font-size:11px;color:var(--text-muted,#64748b);}' +
+            '.tr-loading-spinner{flex-shrink:0;width:22px;height:22px;border:3px solid #a5f3fc;' +
+            'border-top-color:#0891b2;border-radius:50%;animation:tr-loading-spin .9s linear infinite;}' +
+            '.tr-loading-track{height:4px;border-radius:4px;overflow:hidden;background:rgba(8,145,178,.15);margin-top:3px;}' +
+            '.tr-loading-track i{display:block;height:100%;width:0;background:#0891b2;transition:width .25s ease;}' +
+            '.tr-loading-cancel{min-width:44px;min-height:44px;border:0;border-radius:9px;cursor:pointer;' +
+            'background:rgba(8,145,178,.1);color:inherit;font-size:12px;}' +
+            '.techno-route-pending-pin{animation:tr-loading-pulse 1.5s ease-in-out infinite;}' +
+            '@keyframes tr-loading-spin{to{transform:rotate(360deg);}}' +
+            '@keyframes tr-loading-pulse{50%{opacity:.4;}}' +
+            '@media(max-width:600px){.techno-route-loading{bottom:84px;padding:12px;}}' +
+            '@media(prefers-reduced-motion:reduce){.tr-loading-spinner,.techno-route-pending-pin{animation:none;}' +
+            '.tr-loading-track i{transition:none;}}';
         document.head.appendChild(tag);
     }
 

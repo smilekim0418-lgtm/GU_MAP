@@ -36,6 +36,9 @@
         "구미시청": { lat: 36.119485, lng: 128.344573, name: "구미시청" }
     };
 
+    // 실내 길찾기를 지원하는 건물. 방 목록은 IMDF(window.IMDF_TECHNO_DATA)에서 찾는다.
+    var INDOOR_BUILDING_PATTERN = /테크노\s*관|61\s*(?:동|번\s*건물)/;
+
     var SYSTEM_PROMPT = `
 You are the G-map AI Assistant, a helper for the Gumi City Mobility Map.
 Your goal is to parse user intents, provide helpful answers in Korean, and generate structured control commands for the map UI.
@@ -48,11 +51,15 @@ JSON Schema:
   "suggested_replies": ["Korean reply option 1", "Korean reply option 2"],
   "actions": [
     {
-      "type": "set_start" | "set_end" | "route" | "search_bus" | "search_poi" | "search_and_route" | "switch_mode" | "toggle_research_layer" | "toggle_cctv" | "toggle_event" | "clear_map" | "run_drt_calc" | "run_taxi_sim" | "run_fare_calc" | "show_dev_menu" | "add_favorite",
+      "type": "set_start" | "set_end" | "route" | "route_indoor" | "search_bus" | "search_poi" | "search_and_route" | "switch_mode" | "toggle_research_layer" | "toggle_cctv" | "toggle_event" | "clear_map" | "run_drt_calc" | "run_taxi_sim" | "run_fare_calc" | "show_dev_menu" | "add_favorite",
       "lat": 36.12345, // Required for set_start, set_end, add_favorite
       "lng": 128.12345, // Required for set_start, set_end, add_favorite
       "name": "Landmark Name", // Required for set_start, set_end, add_favorite
       "mode": "transit" | "car" | "shared" | "bike" | "walk", // Required for route, search_and_route
+      "building": "테크노관", // Required for route_indoor
+      "room": "301", // Required for route_indoor: room number ("301", "B104") or room/professor name ("대강의실", "이현권") exactly as the user said it
+      "floor": "3F", // Optional for route_indoor: only if the user said a floor ("3층" -> "3F", "지하 1층" -> "B1F")
+      // "mode" is Optional for route_indoor: set it only if the user named a way to travel (버스/대중교통 -> "transit", 자가용/택시 -> "car", 걸어서/도보 -> "walk"). If omitted, the app picks transit for far starts and walking for nearby ones.
       "routeNo": "11", // Required for search_bus (e.g. "11", "170", "960")
       "category": "string", // Required for search_poi (e.g. "구미시청", "대형마트", "이마트", "스타벅스", "카페", "경로당", "편의점", "공원", "공공기관", "경찰서", "소방서")
       "open_closest": true, // Optional: Set to true if the user asks for the "closest" (가장 가까운) POI
@@ -72,6 +79,8 @@ Available Landmarks & Coordinates (prefer using these if the user mentions them)
 - 사곡역: 36.0967, 128.3564
 - 선산터미널 / 선산: 36.248679, 128.304332
 
+Buildings with indoor room-level navigation: 테크노관 (금오공대 61동, floors B1F~6F).
+
 Guidelines:
 1. If the user asks for directions (e.g. "금오공대에서 구미역 가는 길 알려줘"), create "set_start", "set_end" actions first, then add a "route" action.
 2. If the user asks to find facilities or a specific place (e.g. "주변 약국 찾아줘", "가장 가까운 편의점 알려줘"), add a "search_poi" action. If they asked for the closest, set "open_closest": true. If they asked to compare gas station prices, set category to "주유소" and "price_compare": true.
@@ -83,7 +92,89 @@ Guidelines:
 8. If the user asks to open developer settings or keys, use "show_dev_menu".
 9. If the user asks to add a landmark to favorites, use "add_favorite" with name, lat, and lng.
 10. CRITICAL: If the user asks for a route to a place you don't know the exact coordinates of, use "search_and_route".
+11. If the destination is a room, lecture hall, lab, or professor's office inside 테크노관 (e.g. "테크노관 301호 가는 길", "테크노관 대강의실까지", "61동 이현권 교수님 연구실"), use one "route_indoor" action instead of set_end/route/search_and_route. If the user also named a start place, put a "set_start" action before it. The app routes to the building entrance (by bus when the start is far) and then walks inside to the room. Do not invent room numbers.
 `;
+
+    /* ───────────── 실내 호실 찾기 (테크노관) ─────────────
+     * Gemini 는 사용자가 말한 방 이름만 넘기고, 실제 방은 여기서 도면
+     * 데이터로 확인한다. 모델이 없는 호실을 지어내도 경로가 엉뚱한 곳으로
+     * 가지 않게 하려는 것이다. */
+    var technoRoomIndex = null;
+
+    function compact(text) {
+        return String(text || '').replace(/\s+/g, '').toLowerCase();
+    }
+
+    // IMDF 유닛(이름·호실 번호) 가운데 길찾기 그래프에 있는 방만 모은다.
+    function getTechnoRoomIndex() {
+        if (technoRoomIndex) return technoRoomIndex;
+        var bundle = window.IMDF_TECHNO_DATA;
+        var nav = window.TECHNO_NAV_DATA;
+        if (!bundle || !bundle.units || !nav || !nav.rooms) return null;
+        var routable = {};
+        nav.rooms.forEach(function (row) { routable[row.floor + '|' + row.room_id] = true; });
+        var floorOfLevel = {};
+        (bundle.levels.features || []).forEach(function (level) {
+            var name = level.properties.short_name;
+            floorOfLevel[level.id] = name ? (name['ko-KR'] || name.en) : null;
+        });
+        technoRoomIndex = [];
+        (bundle.units.features || []).forEach(function (unit) {
+            var props = unit.properties || {};
+            var floor = floorOfLevel[props.level_id];
+            var label = props.label && props.label['ko-KR'];
+            if (!floor || !label || !routable[floor + '|' + label]) return;
+            var name = (props.name && props.name['ko-KR']) || label;
+            technoRoomIndex.push({ floor: floor, room_id: label, name: name,
+                                   department: props.department || '', unitId: unit.id });
+        });
+        return technoRoomIndex;
+    }
+
+    // "3층" → "3F", "지하 1층"/"지하" → "B1F"
+    function parseFloor(text) {
+        if (!text) return null;
+        var value = String(text).trim();
+        if (/^B?\d+F$/i.test(value)) return value.toUpperCase();
+        if (/지하/.test(value)) return 'B1F';
+        var match = value.match(/(\d+)\s*층/);
+        return match ? match[1] + 'F' : null;
+    }
+
+    // 여러 방이 같은 이름을 쓰면 모두 돌려준다(예: 1F·2F 대강의실).
+    function findTechnoRooms(query, floorHint) {
+        var index = getTechnoRoomIndex();
+        if (!index) return null;
+        var text = String(query || '').replace(INDOOR_BUILDING_PATTERN, ' ');
+        var floor = parseFloor(floorHint) || parseFloor(text);
+        var pool = floor ? index.filter(function (room) { return room.floor === floor; }) : index;
+
+        // 1) 호실 번호: "301호", "B104", "지하 104호"
+        var number = text.match(/(?:^|[^0-9A-Za-z])([Bb]?\d{3,4})(?![0-9])/);
+        if (number) {
+            var label = number[1].toUpperCase();
+            if (/지하/.test(text) && label.charAt(0) !== 'B') label = 'B' + label;
+            var byNumber = pool.filter(function (room) { return room.room_id === label; });
+            if (byNumber.length) return byNumber;
+        }
+
+        // 2) 방 이름·교수 이름. 흔한 꼬리말은 떼고 비교한다.
+        var needle = compact(text.replace(/\d+\s*층|지하/g, ' '))
+            .replace(/(?:으로|로|까지|에|가는길|가는|길|호실|호|교수님|교수|방)+$/g, '')
+            .replace(/(?:교수님|교수)(?:의)?(?:연구실|방)?$/, '');
+        if (needle.length < 2) return [];
+        var exact = pool.filter(function (room) { return compact(room.name) === needle; });
+        if (exact.length) return exact;
+        return pool.filter(function (room) {
+            var name = compact(room.name);
+            return name.length >= 2 && (name.indexOf(needle) >= 0 || needle.indexOf(name) >= 0);
+        });
+    }
+
+    function describeRoom(room) {
+        return '테크노관 ' + room.floor + ' ' + room.room_id +
+            (room.name && room.name !== room.room_id ? ' ' + room.name : '');
+    }
 
     // 텍스트 매칭 기반의 예비(Fallback) 규칙 분석기 (API 한도 초과 또는 에러 대비)
     function runRuleBasedHeuristic(text) {
@@ -139,6 +230,25 @@ Guidelines:
             actions.push({ type: "show_dev_menu" });
             reply = "⚙️ G-map 개발자 모드 설정창을 오픈합니다.";
             return { reply: reply, actions: actions, suggested_replies: ["알겠습니다"] };
+        }
+
+        // 0. 건물 안 호실까지 길찾기 ("구미역에서 테크노관 301호 가는 길")
+        if (INDOOR_BUILDING_PATTERN.test(text) &&
+            /가는|가고|갈|가줘|가야|까지|길|안내|경로|어떻게/.test(text)) {
+            var indoorText = text;
+            var fromMatch = text.match(/(.+?)에서\s*(.+)/);
+            if (fromMatch && !INDOOR_BUILDING_PATTERN.test(fromMatch[1])) {
+                var fromInfo = findLandmark(fromMatch[1]);
+                if (fromInfo) actions.push({ type: "set_start", lat: fromInfo.lat, lng: fromInfo.lng, name: fromInfo.name });
+                indoorText = fromMatch[2];
+            }
+            var indoorAction = { type: "route_indoor", building: "테크노관", room: indoorText.trim() };
+            if (/버스|대중교통/.test(text)) indoorAction.mode = "transit";
+            else if (/자가용|운전|택시/.test(text)) indoorAction.mode = "car";
+            else if (/걸어|도보|걷기/.test(text)) indoorAction.mode = "walk";
+            actions.push(indoorAction);
+            return { reply: "🏫 테크노관 안 목적지까지 걸어가는 길을 찾아드립니다.", actions: actions,
+                     suggested_replies: ["알겠습니다", "초기화"] };
         }
 
         // 1. 길찾기 패턴 검출 (A에서 B로)
@@ -333,14 +443,14 @@ Guidelines:
         fetchPromise.then(result => {
             removeLoadingMessage(loadingId);
             appendChatMessage("ai", result.reply);
-            
+
+            // 예상 답변 칩 렌더링. 액션(예: 호실 후보 고르기)이 칩을 바꿀 수 있으므로 먼저 그린다.
+            renderSuggestedReplies(result.suggested_replies || ["네", "아니요", "다른 것도 찾아주세요"]);
+
             // UI 액션 실행
             if (result.actions && result.actions.length > 0) {
                 executeAiActions(result.actions);
             }
-            
-            // 예상 답변 칩 렌더링
-            renderSuggestedReplies(result.suggested_replies || ["네", "아니요", "다른 것도 찾아주세요"]);
         });
     };
 
@@ -423,6 +533,9 @@ Guidelines:
                         window.calcRoute(action.mode);
                         if (infoBar) infoBar.innerHTML = `🧭 [AI 연동] ${getModeName(action.mode)} 경로 탐색을 시작합니다...`;
                     }
+                }
+                else if (action.type === 'route_indoor') {
+                    await runIndoorRoute(action, infoBar);
                 }
                 else if (action.type === 'search_bus') {
                     if (window.selectRoute) {
@@ -553,6 +666,81 @@ Guidelines:
             // 액션 간의 매끄러운 갭을 위한 미세한 시간 차이 부여
             await new Promise(r => setTimeout(r, 300));
         }
+    }
+
+    // 이보다 멀리서 출발하면 따로 말이 없어도 건물까지는 대중교통으로 안내한다.
+    var TECHNO_CENTER = [36.146643, 128.394348];
+    var INDOOR_WALK_LIMIT_M = 1500;
+
+    function pickIndoorTravelMode(requested, origin) {
+        if (requested === 'walk' || !origin || origin.where !== 'outdoor') return 'walk';
+        if (requested && requested !== 'walk') return requested;
+        var meters = L.latLng(origin.lat, origin.lng).distanceTo(L.latLng(TECHNO_CENTER));
+        return meters > INDOOR_WALK_LIMIT_M ? 'transit' : 'walk';
+    }
+
+    // 건물 안 호실까지. 호실을 도면에서 확인한 뒤 실내 길찾기 모듈에 넘긴다.
+    async function runIndoorRoute(action, infoBar) {
+        var building = action.building || '';
+        var query = action.room || action.name || action.keyword || '';
+        if (building && !INDOOR_BUILDING_PATTERN.test(building)) {
+            // 실내 도면이 없는 건물은 건물 입구까지만 안내한다.
+            appendChatMessage("ai", "🚧 " + building + "은(는) 아직 실내 도면이 없어 건물까지만 안내합니다.");
+            return executeAiActions([{ type: 'search_and_route', keyword: building, mode: 'walk' }]);
+        }
+        if (typeof window.routeToTechnoRoom !== 'function') {
+            appendChatMessage("ai", "🚧 실내 길찾기 모듈이 아직 준비되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+            return;
+        }
+        var rooms = findTechnoRooms(query, action.floor);
+        if (!rooms) {
+            appendChatMessage("ai", "🚧 테크노관 도면 데이터를 불러오지 못했습니다.");
+            return;
+        }
+        if (!rooms.length) {
+            appendChatMessage("ai", "❓ 테크노관에서 '" + query + "'을(를) 찾지 못했습니다. 호실 번호(예: 301호)로 다시 말씀해 주세요.");
+            renderSuggestedReplies(["테크노관 101호 가는 길", "테크노관 대강의실 가는 길"]);
+            return;
+        }
+        if (rooms.length > 1) {
+            // 같은 이름이 여러 층에 있으면 고르게 한다.
+            appendChatMessage("ai", "🏫 '" + query + "'이(가) " + rooms.length + "곳 있습니다. 어디로 갈까요?");
+            renderSuggestedReplies(rooms.slice(0, 6).map(function (room) {
+                return '테크노관 ' + room.room_id + '호 가는 길';
+            }));
+            return;
+        }
+
+        var room = rooms[0];
+        // 출발지 설정(set_start)이 실내 모듈에 전달될 시간을 둔다.
+        await new Promise(function (resolve) { setTimeout(resolve, 400); });
+        var origin = window.getTechnoRouteStart ? window.getTechnoRouteStart() : null;
+        var mode = pickIndoorTravelMode(action.mode, origin);
+
+        // 멀리서 오면 건물 출입구까지는 대중교통(또는 차), 그 뒤는 실내 도보.
+        if (mode !== 'walk' && window.routeTechnoFromArrival && window.calcRoute && window.setRoutingPoint) {
+            var entrance = window.routeTechnoFromArrival(room.room_id, room.floor);
+            if (entrance && entrance.latlng) {
+                // 지도는 전체 이동 경로를 보여 주고, 실내지도는 확대하면 뜨게만 해 둔다.
+                window.technoIndoorOpen = true;
+                window.setRoutingPoint('END', entrance.latlng[0], entrance.latlng[1],
+                                       describeRoom(room));
+                await new Promise(function (resolve) { setTimeout(resolve, 400); });
+                window.calcRoute(mode);
+                if (infoBar) infoBar.innerHTML = '🏫 [AI 연동] 도착지: <b>' + DOMPurify.sanitize(describeRoom(room)) + '</b>';
+                appendChatMessage("ai", (mode === 'car' ? "🚗 " : "🚌 ") + DOMPurify.sanitize(entrance.name) +
+                    "까지 " + getModeName(mode) + " 경로를 찾고, 거기서 " + describeRoom(room) +
+                    " 문 앞까지 실내 경로를 표시합니다. 테크노관을 확대하면 층별 경로가 보입니다.");
+                return;
+            }
+        }
+
+        if (window.openTechnoIndoorMap) window.openTechnoIndoorMap(room.floor);
+        window.routeToTechnoRoom(room.room_id, room.unitId);
+        if (infoBar) infoBar.innerHTML = '🏫 [AI 연동] 도착지: <b>' + DOMPurify.sanitize(describeRoom(room)) + '</b>';
+        appendChatMessage("ai", origin
+            ? "🧭 " + describeRoom(room) + " 문 앞까지 경로를 표시합니다."
+            : "📍 도착지를 " + describeRoom(room) + "(으)로 정했습니다. 출발 위치를 지도에서 눌러 주세요.");
     }
 
     // AI 예상 답변(칩) 및 + 버튼 렌더링
