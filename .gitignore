@@ -207,3 +207,9 @@ GUMAP-앱/node_modules/
 *등고선*.geojson
 *.zip
 GU_MAP_Release_Package.zip
+**/node_modules/
+node_modules/
+GUMAP-앱/node_modules/
+*등고선*.geojson
+*.zip
+GU_MAP_Release_Package.zip
