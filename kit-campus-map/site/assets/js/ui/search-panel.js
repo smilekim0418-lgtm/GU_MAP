@@ -25,6 +25,11 @@ function row({ lead, title, sub, onclick, selected }) {
   icon('chevron-right', 'icon chev')));
 }
 
+/** '312호 컴퓨터실습실' — 이름 없는 방은 '312호' 만 */
+export function roomTitle(room, i18n) {
+  return `${i18n.t('detail.room', { room: room.label })} ${i18n.name(room.name)}`.trim();
+}
+
 export function describeLocation(item, places, i18n) {
   const b = places.buildings.find((x) => x.id === item.building);
   const parts = [];
@@ -134,7 +139,7 @@ export function createSearchPanel({ places, getIndex, i18n, shell, onPick, onCat
       const r = places.rooms.find((x) => x.id === hit.id);
       return {
         lead: h('span', { class: 'badge kind', 'aria-hidden': 'true' }, icon('room')),
-        title: `${i18n.t('detail.room', { room: r.label })} ${i18n.name(r.name)}`,
+        title: roomTitle(r, i18n),
         sub: [describeLocation({ building: r.building, floor: r.floor }, places, i18n),
           r.dept ? i18n.name(r.dept) : null].filter(Boolean).join(' · '),
       };

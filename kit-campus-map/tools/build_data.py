@@ -604,7 +604,10 @@ def main():
         if key in seen:
             continue
         seen.add(key)
-        name_ko = (row.get("name") or "").strip() or f"{row['id']}호"
+        # 이름 없는 방은 이름을 비워 둔다. 화면이 '312호' 처럼 호실 번호만 보여 준다.
+        name_ko = (row.get("name") or "").strip()
+        if name_ko in (row["id"], f"{row['id']}호"):
+            name_ko = ""
         person = looks_like_person(name_ko)
         room = {
             "id": "T" + row["id"], "building": "b2", "floor": row["floor"], "label": row["id"],
@@ -629,7 +632,7 @@ def main():
         rooms_out.append({
             "id": "T" + room_id, "building": "b2", "floor": floor, "label": room_id,
             "category": unit_category.get((floor, room_id), "office"),
-            "routable": True, "name": {"ko": f"{room_id}호"},
+            "routable": True, "name": {"ko": ""},
         })
     rooms_out.sort(key=lambda r: (FLOORS.index(r["floor"]), r["label"]))
 

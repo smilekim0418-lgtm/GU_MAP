@@ -4,6 +4,7 @@
  */
 import { h, icon, clear, fill, showView } from './dom.js';
 import { floorLabel, telHref } from '../core/format.js';
+import { roomTitle } from './search-panel.js';
 
 function unverifiedBadge(i18n) {
   return h('span', { class: 'unverified', title: i18n.t('detail.unverifiedHint') }, i18n.t('detail.unverified'));
@@ -126,7 +127,7 @@ export function createDetailPanel({ places, i18n, onBack, onRoute, onIndoor, onS
       back(i18n, onBack),
       head({
         badge: h('span', { class: 'badge kind', 'aria-hidden': 'true' }, icon('room')),
-        title: `${i18n.t('detail.room', { room: r.label })} ${i18n.name(r.name)}`,
+        title: roomTitle(r, i18n),
         subtitle: `${i18n.name(b.name)} · ${floorLabel(r.floor, i18n.lang)}`,
         tag: h('p', { class: 'tag' }, i18n.t(`room.${r.category}`)),
       }),

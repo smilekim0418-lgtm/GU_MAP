@@ -6,7 +6,7 @@
 import { h, icon, clear, fill, showView } from './dom.js';
 import { search } from '../core/search.js';
 import { floorLabel, formatDistance, formatMinutes } from '../core/format.js';
-import { describeLocation } from './search-panel.js';
+import { describeLocation, roomTitle } from './search-panel.js';
 
 const TURN_ICON = {
   left: 'turn-left', right: 'turn-right', 'slight-left': 'slight-left',
@@ -23,7 +23,7 @@ export function endpointName(endpoint, places, i18n) {
     case 'unit': { const u = find(places.units); return u ? i18n.name(u.name) : ''; }
     case 'room': {
       const r = find(places.rooms);
-      return r ? `${i18n.t('detail.room', { room: r.label })} ${i18n.name(r.name)}` : '';
+      return r ? roomTitle(r, i18n) : '';
     }
     case 'point': return endpoint.name ? i18n.name(endpoint.name) : i18n.t('route.myLocation');
     default: return '';
