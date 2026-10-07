@@ -4,6 +4,7 @@
   "app.description": "Buildings, departments, facilities and walking directions for the Yangho Campus of Kumoh National Institute of Technology",
   "skip.toSearch": "Skip to search",
   "skip.toList": "Skip to building list",
+  "brand.homeLabel": "Kumoh National Institute of Technology website (new window)",
   "lang.switch": "한국어",
   "lang.switchLabel": "한국어로 보기",
 
@@ -135,6 +136,7 @@
 
   "indoor.title": "{building} indoor map",
   "indoor.exit": "Close indoor map",
+  "indoor.floorShort": "Floor",
   "indoor.floors": "Floor",
   "indoor.onRoute": "Floors on your route",
 

@@ -191,7 +191,7 @@ export function createRoutePanel({ places, getIndex, i18n, shell, plan, locate, 
         r.notes.length ? h('div', { class: 'route-notes' }, r.notes.map((note) =>
           h('p', { class: 'notice' }, icon(note === 'route.hasStairs' ? 'stairs' : 'info'),
             h('span', null, i18n.t(note))))) : null),
-      h('h4', { class: 'section-title', style: 'margin-top:20px' }, i18n.t('route.steps')),
+      h('h4', { class: 'section-title steps-title' }, i18n.t('route.steps')),
       h('ol', { class: 'steps' }, steps));
   }
 
@@ -211,8 +211,8 @@ export function createRoutePanel({ places, getIndex, i18n, shell, plan, locate, 
         h('input', { type: 'checkbox', checked: state.avoidStairs, onchange: (event) => {
           state.avoidStairs = event.target.checked; run();
         } }), i18n.t('route.avoidStairs')),
-      state.message ? h('p', { class: state.message.type === 'error' ? 'notice error' : 'notice',
-        role: state.message.type === 'error' ? 'alert' : 'status', style: 'margin-top:12px' },
+      state.message ? h('p', { class: state.message.type === 'error' ? 'notice error gap-top' : 'notice gap-top',
+        role: state.message.type === 'error' ? 'alert' : 'status' },
       icon(state.message.type === 'error' ? 'alert' : 'info'), h('span', null, state.message.text)) : null,
       renderResult(),
     );

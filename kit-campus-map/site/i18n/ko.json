@@ -4,6 +4,7 @@
   "app.description": "국립금오공과대학교 양호동캠퍼스 건물·학과·편의시설 안내와 교내 도보 길찾기",
   "skip.toSearch": "검색으로 바로가기",
   "skip.toList": "건물 목록으로 바로가기",
+  "brand.homeLabel": "국립금오공과대학교 홈페이지 (새 창)",
   "lang.switch": "English",
   "lang.switchLabel": "View in English",
 
@@ -128,13 +129,14 @@
   "step.walk.uturn": "{distance} 이동 후 되돌아가기",
   "step.enter": "건물 진입 · {place}",
   "step.exit": "건물 밖으로 · {place}",
-  "step.stairs": "{name} 계단 이용 · {to}",
-  "step.elevator": "{name} 엘리베이터 이용 · {to}",
+  "step.stairs": "계단 {name} 이용 · {to}",
+  "step.elevator": "엘리베이터 {name} 이용 · {to}",
   "step.arrive": "도착 · {place}",
   "step.arriveRoom": "도착 · {room}호 앞",
 
   "indoor.title": "{building} 실내지도",
   "indoor.exit": "실내지도 닫기",
+  "indoor.floorShort": "층",
   "indoor.floors": "층 선택",
   "indoor.onRoute": "경로가 지나는 층",
 

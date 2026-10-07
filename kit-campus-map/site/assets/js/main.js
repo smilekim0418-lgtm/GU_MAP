@@ -34,7 +34,7 @@ function showLoadError(error, retry) {
   fill(home,h('div', { class: 'section' },
     h('p', { class: 'notice error', role: 'alert' }, icon('alert'),
       h('span', null, document.documentElement.lang === 'en' ? 'Couldn’t load campus information.' : '캠퍼스 정보를 불러오지 못했습니다.')),
-    h('p', { style: 'margin-top:12px' }, h('button', { type: 'button', class: 'btn', onclick: retry },
+    h('p', { class: 'gap-top' }, h('button', { type: 'button', class: 'btn', onclick: retry },
       document.documentElement.lang === 'en' ? 'Try again' : '다시 시도'))));
 }
 
@@ -266,6 +266,7 @@ async function start() {
     app.target = target;
     app.route = null;
     if (routeLayer) routeLayer.clear();
+    shell.ensureSheet('half');
     const buildingId = target.type === 'building' ? target.id
       : target.type === 'unit' ? (places.units.find((u) => u.id === target.id) || {}).building
         : target.type === 'room' ? (places.rooms.find((r) => r.id === target.id) || {}).building
@@ -285,7 +286,6 @@ async function start() {
         }
       }
     }
-    shell.ensureSheet('half');
     if (!fromMap) detail.focusTitle();
     writeUrl(push);
     return true;

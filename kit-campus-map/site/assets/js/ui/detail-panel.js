@@ -68,7 +68,7 @@ export function createDetailPanel({ places, i18n, onBack, onRoute, onIndoor, onS
     const depts = units.filter((u) => u.kind !== 'facility');
     const facilities = units.filter((u) => u.kind === 'facility');
     const tagParts = [h('span', { class: `swatch cat-${b.category}`, 'aria-hidden': 'true',
-      style: 'display:inline-block;width:10px;height:10px;border-radius:2px;background:currentColor' }),
+    }),
     i18n.t(`cat.${b.category}`)];
     if (b.floors && b.floors.verified) {
       tagParts.push(' · ', b.floors.below

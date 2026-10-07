@@ -19,7 +19,7 @@ export function renderFloorSwitcher(root, { floors, current, routeFloors, i18n, 
       title: onRoute ? i18n.t('indoor.onRoute') : null },
     input, h('span', null, floorLabel(floor, 'en'))));
   }
-  root.append(h('div', { class: 'legend-title', 'aria-hidden': 'true' }, i18n.lang === 'ko' ? '층' : 'Floor'), group);
+  root.append(h('div', { class: 'legend-title', 'aria-hidden': 'true' }, i18n.t('indoor.floorShort')), group);
   root.hidden = false;
 }
 

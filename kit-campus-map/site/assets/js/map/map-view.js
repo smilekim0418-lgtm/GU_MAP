@@ -88,9 +88,12 @@ export function createMapView(container, { data, i18n, onSelect, onBackground })
 
   function padding() {
     // 좁은 화면에서는 바텀시트가 지도 아래를 가린다
+    // 시트가 열리는 중일 수 있으니 지금 높이가 아니라 목표 단계로 계산한다
     const panel = document.getElementById('panel');
     if (window.matchMedia('(max-width: 959px)').matches && panel) {
-      return { top: 70, bottom: panel.getBoundingClientRect().height + 24, left: 32, right: 64 };
+      const total = panel.parentElement.clientHeight;
+      const sheet = panel.dataset.sheet === 'peek' ? 148 : Math.round(total * 0.52);
+      return { top: 64, bottom: Math.min(sheet + 16, total - 120), left: 24, right: 64 };
     }
     return { top: 72, bottom: 72, left: 72, right: 96 };
   }
@@ -163,8 +166,11 @@ export function createMapView(container, { data, i18n, onSelect, onBackground })
 
     get is3D() { return is3D; },
 
-    setIndoorMode(on) {
+    setIndoorMode(on, buildingId = 'b2') {
       container.classList.toggle('is-indoor', on);
+      // 실내 도면 위에 그 건물 라벨이 겹치지 않게
+      const label = container.querySelector(`.label[data-id="${buildingId}"]`);
+      if (label) label.classList.toggle('is-indoor-building', on);
       if (on && is3D) view.toggle3D(false);
     },
 
