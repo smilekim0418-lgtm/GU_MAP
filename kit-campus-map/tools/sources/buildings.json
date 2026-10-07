@@ -1,0 +1,244 @@
+{
+  "_readme": [
+    "캠퍼스맵 수기 원천 데이터. build_data.py 가 학교 건물목록 스냅샷(번호·이름·좌표·전화)과 합친다.",
+    "official_id 가 있으면 번호·한글명·영문명·전화는 학교 API 가 기준이다. 여기서 name 을 주면 덮어쓴다.",
+    "units[].verified=false 이거나 name_override.verified=false 이면 확인필요목록.md 에 오른다.",
+    "osm 은 OpenStreetMap way id. 지도에 그릴 외곽선이다. parts 는 한 번호 안의 여러 동."
+  ],
+  "sources": {
+    "kumoh_map": "https://www.kumoh.ac.kr/ko/campusMap.do",
+    "welfare": "https://www.kumoh.ac.kr/ko/sub04_03_05_01.do",
+    "print": "https://www.kumoh.ac.kr/ko/sub04_03_05_04.do",
+    "auditorium": "https://www.kumoh.ac.kr/ko/sub04_03_01_01.do",
+    "parking": "https://www.kumoh.ac.kr/ko/sub04_03_06.do",
+    "medical": "https://www.kumoh.ac.kr/ko/sub04_02_02_01.do",
+    "bank": "https://www.kumoh.ac.kr/ko/sub04_02_05.do",
+    "disability": "https://www.kumoh.ac.kr/ko/sub04_02_10.do",
+    "cheongun": "https://www.kumoh.ac.kr/ko/sub04_03_02_01.do",
+    "outdoor_stage": "https://www.kumoh.ac.kr/ko/sub04_03_04.do",
+    "av_techno": "https://www.kumoh.ac.kr/ko/sub04_03_07_01.do",
+    "av_digital": "https://www.kumoh.ac.kr/ko/sub04_03_08_01.do",
+    "av_global": "https://www.kumoh.ac.kr/ko/sub04_03_09_01.do",
+    "iuc_hall": "https://www.kumoh.ac.kr/ko/sub04_03_10_01.do",
+    "gym": "https://www.kumoh.ac.kr/ko/sub04_03_12_01.do",
+    "fitness": "https://www.kumoh.ac.kr/ko/sub04_03_13.do",
+    "field": "https://www.kumoh.ac.kr/ko/sub04_03_14_01.do",
+    "tennis": "https://www.kumoh.ac.kr/ko/sub04_03_15_01.do",
+    "multi": "https://www.kumoh.ac.kr/ko/sub04_03_16_01.do",
+    "futsal": "https://www.kumoh.ac.kr/ko/sub04_03_17_01.do",
+    "golf": "https://www.kumoh.ac.kr/ko/sub04_03_18.do",
+    "restaurant": "https://www.kumoh.ac.kr/ko/restaurant02.do",
+    "dept_ce": "https://ce.kumoh.ac.kr/ce/index.do",
+    "dept_ai": "https://ai.kumoh.ac.kr/ai/index.do",
+    "dept_cs": "https://cs.kumoh.ac.kr/cs/index.do",
+    "dept_archi": "https://archi.kumoh.ac.kr/archi/index.do",
+    "dept_civil": "https://civil.kumoh.ac.kr/civil/index.do",
+    "dept_che": "https://che.kumoh.ac.kr/che/index.do",
+    "dept_polymer": "https://polymer.kumoh.ac.kr/polymer/index.do",
+    "dept_md": "https://www.kumoh.ac.kr/ko/sub02_01_05.do",
+    "dept_biz": "https://biz.kumoh.ac.kr/biz/index.do",
+    "dept_latt": "https://latt.kumoh.ac.kr/latt/index.do",
+    "dept_ie": "https://www.kumoh.ac.kr/ie/sub0104.do",
+    "dept_mecheng": "https://mecheng.kumoh.ac.kr/mecheng/index.do",
+    "dept_mx": "https://mx.kumoh.ac.kr/md/index.do",
+    "dept_mobility": "https://www.kumoh.ac.kr/smartmobility/sub0104.do",
+    "dept_bme": "https://www.kumoh.ac.kr/medicalit/sub0102.do",
+    "dept_sls": "https://sls.kumoh.ac.kr/sls/index.do",
+    "dept_edison": "https://www.kumoh.ac.kr/edison/sub0105.do",
+    "osm": "OpenStreetMap",
+    "blueprint": "학교 설계도 파일명 (GIS_DATA/금오공과대학교_학교_설계도)",
+    "techno_rooms": "GUMAP 테크노관 방 정보 (엑셀)"
+  },
+  "unlocated_departments": [
+    "화학생명소재전공", "환경공학전공", "IT융합학과", "신소재공학전공", "광시스템공학과",
+    "반도체시스템전공", "전자시스템전공", "수리빅데이터전공"
+  ],
+  "buildings": [
+    {
+      "id": "b1", "official_id": "1", "category": "admin", "aliases": ["본관"],
+      "osm": [472086566],
+      "floors": {"above": 6, "below": 2, "source": "blueprint", "verified": false},
+      "units": [
+        {"kind": "facility", "type": "hall", "name": {"ko": "대강당", "en": "Main Auditorium"}, "floor": "1F", "room": "111", "note": {"ko": "본관 동편 · 1층 500석, 2층 200석", "en": "East wing · 500 seats (1F), 200 seats (2F)"}, "phone": "054-478-7234", "source": "auditorium", "verified": true},
+        {"kind": "office", "name": {"ko": "주차행정실 (시설안전과)", "en": "Parking Office"}, "floor": "4F", "room": "403", "phone": "054-478-7903", "source": "parking", "verified": true}
+      ]
+    },
+    {
+      "id": "b2", "official_id": "2", "category": "academic",
+      "osm": [441414720], "indoor": "techno",
+      "floors": {"above": 6, "below": 1, "source": "techno_rooms", "verified": true},
+      "units": [
+        {"kind": "office", "name": {"ko": "테크노관 행정실", "en": "Techno Building Admin Office"}, "floor": "1F", "room": "105", "source": "dept_mobility", "verified": true},
+        {"kind": "dept", "name": {"ko": "기계공학전공", "en": "Mechanical Engineering"}, "floor": "1F", "room": "105", "source": "dept_mecheng", "verified": true},
+        {"kind": "dept", "name": {"ko": "기계시스템공학전공", "en": "Mechanical System Engineering"}, "floor": "1F", "room": "105", "source": "dept_mx", "verified": true},
+        {"kind": "dept", "name": {"ko": "스마트모빌리티전공", "en": "Smart Mobility Engineering"}, "floor": "1F", "room": "105", "phone": "054-478-7340", "source": "dept_mobility", "verified": true},
+        {"kind": "dept", "name": {"ko": "바이오메디컬공학과", "en": "Biomedical Engineering"}, "floor": "1F", "room": "105", "phone": "054-478-7289", "source": "dept_bme", "verified": true},
+        {"kind": "facility", "type": "hall", "name": {"ko": "테크노관 시청각실", "en": "Audiovisual Room"}, "floor": "3F", "room": "301", "note": {"ko": "160석", "en": "160 seats"}, "phone": "054-478-7234", "source": "av_techno", "verified": true},
+        {"kind": "facility", "type": "atm", "name": {"ko": "농협 ATM", "en": "NongHyup ATM"}, "floor": "1F", "source": "osm", "verified": false}
+      ]
+    },
+    {
+      "id": "b3", "official_id": "3", "category": "academic",
+      "osm": [441414739],
+      "floors": {"above": 6, "below": 1, "source": "blueprint", "verified": false},
+      "units": [
+        {"kind": "office", "name": {"ko": "디지털관 학사지원실", "en": "Digital Building Academic Office"}, "floor": "1F", "room": "124", "source": "dept_ce", "verified": true},
+        {"kind": "dept", "name": {"ko": "컴퓨터공학전공", "en": "Computer Engineering"}, "floor": "1F", "room": "124", "source": "dept_ce", "verified": true},
+        {"kind": "dept", "name": {"ko": "인공지능공학전공", "en": "Artificial Intelligence Engineering"}, "floor": "1F", "room": "124", "source": "dept_ai", "verified": true},
+        {"kind": "dept", "name": {"ko": "소프트웨어전공", "en": "Software Engineering"}, "floor": "1F", "room": "124", "source": "dept_cs", "verified": true},
+        {"kind": "facility", "type": "hall", "name": {"ko": "디지털관 시청각실", "en": "Audiovisual Room"}, "floor": "B1F", "room": "127", "note": {"ko": "180석", "en": "180 seats"}, "phone": "054-478-7234", "source": "av_digital", "verified": true}
+      ]
+    },
+    {
+      "id": "b4", "official_id": "4", "category": "academic",
+      "osm": [441414735],
+      "floors": {"above": 6, "below": 1, "source": "blueprint", "verified": false},
+      "units": [
+        {"kind": "office", "name": {"ko": "글로벌관 학사지원실", "en": "Global Building Academic Office"}, "floor": "1F", "room": "127", "source": "dept_archi", "verified": true},
+        {"kind": "dept", "name": {"ko": "건축공학전공", "en": "Architectural Engineering"}, "floor": "1F", "room": "127", "source": "dept_archi", "verified": true},
+        {"kind": "dept", "name": {"ko": "건축학전공(5년제)", "en": "Architecture (5-year)"}, "floor": "1F", "room": "127", "source": "dept_archi", "verified": true},
+        {"kind": "dept", "name": {"ko": "토목공학전공", "en": "Civil Engineering"}, "floor": "1F", "room": "127", "source": "dept_civil", "verified": true},
+        {"kind": "dept", "name": {"ko": "화학공학전공", "en": "Chemical Engineering"}, "floor": "1F", "room": "127", "source": "dept_che", "verified": true},
+        {"kind": "dept", "name": {"ko": "고분자공학전공", "en": "Polymer Science and Engineering"}, "floor": "1F", "room": "127", "source": "dept_polymer", "verified": true},
+        {"kind": "dept", "name": {"ko": "소재디자인공학전공", "en": "Materials Design Engineering"}, "floor": "1F", "room": "127", "source": "dept_md", "verified": false},
+        {"kind": "dept", "name": {"ko": "경영학과", "en": "Business Administration"}, "floor": "1F", "room": "127", "source": "dept_biz", "verified": true},
+        {"kind": "dept", "name": {"ko": "교양학부", "en": "School of Liberal Arts"}, "floor": "1F", "room": "103", "source": "dept_latt", "verified": true},
+        {"kind": "dept", "name": {"ko": "산업공학전공", "en": "Industrial Engineering"}, "floor": "6F", "room": "G623", "phone": "054-478-7650", "source": "dept_ie", "verified": true},
+        {"kind": "facility", "type": "hall", "name": {"ko": "글로벌관 시청각실", "en": "Audiovisual Room"}, "floor": "B1F", "room": "109", "note": {"ko": "155석", "en": "155 seats"}, "phone": "054-478-7234", "source": "av_global", "verified": true}
+      ]
+    },
+    {
+      "id": "b5", "official_id": "5", "category": "academic",
+      "osm": [441414726],
+      "floors": {"above": 5, "below": 0, "source": "blueprint", "verified": false},
+      "units": [
+        {"kind": "facility", "type": "print", "name": {"ko": "복사실", "en": "Copy Center"}, "floor": "1F", "room": "102", "hours": "09:00–18:00", "phone": "054-478-7175", "source": "print", "verified": true},
+        {"kind": "facility", "type": "cafe", "name": {"ko": "쿱카페", "en": "Co-op Café"}, "floor": "1F", "hours": "08:30–20:00", "note": {"ko": "방학 10:00–18:00", "en": "Vacation 10:00–18:00"}, "source": "welfare", "verified": true},
+        {"kind": "dept", "name": {"ko": "첨단산업융합학부", "en": "School of Advanced Industry Convergence"}, "floor": "2F", "room": "211", "source": "dept_edison", "verified": true}
+      ]
+    },
+    {
+      "id": "b6", "official_id": "6", "category": "welfare",
+      "osm": [441414732, 1353207295, 1353207289],
+      "osm_note": "OSM 의 이름 없는 건물 2동(1353207295, 1353207289)을 학생회관 일부로 본다. OSM '편의시설' 구역(441414729)·식당 위치와 겹친다.",
+      "floors": {"above": 4, "below": 2, "source": "blueprint", "verified": false},
+      "units": [
+        {"kind": "facility", "type": "food", "name": {"ko": "일품식당", "en": "Ilpum Cafeteria"}, "floor": "B1F", "room": "B104", "hours": "11:00–14:00, 16:00–18:00", "phone": "054-478-6979", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "food", "name": {"ko": "정찬식당", "en": "Jeongchan Cafeteria"}, "floor": "B1F", "room": "B106", "hours": "11:30–14:00", "phone": "054-478-6979", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "food", "name": {"ko": "분식당", "en": "Snack Bar"}, "floor": "B1F", "room": "B101", "hours": "11:00–14:00, 16:00–18:30", "phone": "054-478-6979", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "food", "name": {"ko": "프랭크 버거", "en": "Frank Burger"}, "floor": "B1F", "room": "B101", "hours": "11:00–18:30", "phone": "054-478-6979", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "store", "name": {"ko": "편의점", "en": "Convenience Store"}, "floor": "B1F", "room": "B122", "hours": "08:30–18:00", "note": {"ko": "24시간 무인 병행", "en": "24-hour self-service"}, "phone": "054-478-6971", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "store", "name": {"ko": "문구점", "en": "Stationery Store"}, "floor": "B1F", "room": "B122-1", "hours": "08:30–18:00", "phone": "054-478-6971", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "store", "name": {"ko": "서점", "en": "Bookstore"}, "note": {"ko": "학생회관 갤러리아", "en": "Student Union Galleria"}, "hours": "08:30–18:00", "phone": "054-478-6973", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "cafe", "name": {"ko": "북카페", "en": "Book Café"}, "floor": "B1F", "room": "B113", "hours": "08:30–18:00", "phone": "054-478-6991", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "bank", "name": {"ko": "농협 금오공대출장소", "en": "NongHyup Bank"}, "floor": "B1F", "note": {"ko": "북카페 옆 · 점심시간 12:00–13:00", "en": "Next to Book Café · Closed 12:00–13:00"}, "phone": "054-476-0283", "source": "bank", "verified": true},
+        {"kind": "facility", "type": "atm", "name": {"ko": "ATM (농협 · IM뱅크 · IBK기업은행)", "en": "ATMs (NongHyup, iM Bank, IBK)"}, "source": "osm", "verified": false},
+        {"kind": "facility", "type": "laundry", "name": {"ko": "kit 런드리 · 운동화빨래방", "en": "kit Laundry Service"}, "floor": "B1F", "room": "B109", "hours": "08:30–18:30", "phone": "054-478-6999", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "beauty", "name": {"ko": "미용실", "en": "Hair Salon"}, "floor": "B2F", "room": "B208", "hours": "10:00–19:30", "note": {"ko": "주말 휴무", "en": "Closed on weekends"}, "phone": "054-478-6974", "source": "print", "verified": true},
+        {"kind": "facility", "type": "health", "name": {"ko": "의료지원실", "en": "Health Center"}, "floor": "1F", "room": "103", "hours": "09:00–18:00", "note": {"ko": "평일 · 점심 12:00–13:00", "en": "Weekdays · Lunch 12:00–13:00"}, "phone": "054-478-7119", "source": "medical", "verified": true},
+        {"kind": "office", "name": {"ko": "생활협동조합", "en": "University Co-op"}, "floor": "1F", "room": "102", "source": "restaurant", "verified": true},
+        {"kind": "office", "name": {"ko": "장애학생지원센터", "en": "Disability Support Center"}, "floor": "2F", "room": "202", "phone": "054-478-7937", "source": "disability", "verified": true}
+      ]
+    },
+    {
+      "id": "b7", "official_id": "7", "category": "housing", "aliases": ["기숙사", "푸름관", "오름관"],
+      "parts": [
+        {"name": {"ko": "푸름관 1동", "en": "Pureum Hall 1"}, "osm": 493900647},
+        {"name": {"ko": "푸름관 2동", "en": "Pureum Hall 2"}, "osm": 493900649},
+        {"name": {"ko": "푸름관 3동", "en": "Pureum Hall 3"}, "osm": 493901321},
+        {"name": {"ko": "푸름관 4동", "en": "Pureum Hall 4"}, "osm": 493900646},
+        {"name": {"ko": "생활관 관리동", "en": "Dormitory Office"}, "osm": 493900645},
+        {"name": {"ko": "오름관 1동", "en": "Oreum Hall 1"}, "osm": 493902239},
+        {"name": {"ko": "오름관 2동", "en": "Oreum Hall 2"}, "osm": 494402339},
+        {"name": {"ko": "오름관 3동", "en": "Oreum Hall 3"}, "osm": 494409244}
+      ],
+      "units": [
+        {"kind": "facility", "type": "store", "name": {"ko": "생활관 편의점", "en": "Dormitory Convenience Store"}, "floor": "B1F", "room": "B105", "note": {"ko": "푸름관", "en": "Pureum Hall"}, "hours": "08:00–23:00", "phone": "054-478-6975", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "post", "name": {"ko": "우체국택배방", "en": "Post & Parcel Room"}, "floor": "B1F", "room": "B105", "note": {"ko": "푸름관", "en": "Pureum Hall"}, "hours": "09:00–18:00", "phone": "054-478-6975", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "cafe", "name": {"ko": "테이크아웃 커피전문점", "en": "Take-out Coffee"}, "floor": "B1F", "note": {"ko": "푸름관 지하 · 방학 10:00–18:00", "en": "Pureum Hall basement · Vacation 10:00–18:00"}, "hours": "08:30–21:00", "source": "welfare", "verified": true},
+        {"kind": "facility", "type": "food", "name": {"ko": "푸름관 식당", "en": "Pureum Hall Cafeteria"}, "source": "osm", "verified": false}
+      ]
+    },
+    {
+      "id": "b8", "official_id": "8", "category": "sports", "area": true,
+      "osm": [493899418, 493899419, 1518539244],
+      "description": {"ko": "클레이코트 2면, 인조잔디 코트 2면, 하드코트 2면 · 09:00–22:00 (휴일 18:00까지)", "en": "2 clay, 2 artificial turf and 2 hard courts · 09:00–22:00 (holidays until 18:00)"},
+      "description_source": "tennis"
+    },
+    {
+      "id": "b9", "official_id": "9", "category": "sports", "area": true,
+      "osm": [493899204],
+      "description": {"ko": "인조잔디 축구장, 400m 육상트랙(8레인), 농구장 2면, 스탠드 434석 · 09:00–22:00 (휴일 18:00까지)", "en": "Artificial turf soccer field, 400 m track (8 lanes), 2 basketball courts, 434-seat stand · 09:00–22:00 (holidays until 18:00)"},
+      "description_source": "field"
+    },
+    {
+      "id": "b10", "official_id": "10", "category": "sports",
+      "osm": [493899196],
+      "description": {"ko": "경기장, 객석 777석, 헬스장, 탁구장, 샤워장 · 09:00–22:00 (휴일 18:00까지)", "en": "Arena, 777 seats, fitness room, table tennis, showers · 09:00–22:00 (holidays until 18:00)"},
+      "description_source": "gym",
+      "units": [
+        {"kind": "facility", "type": "gym", "name": {"ko": "헬스장", "en": "Fitness Room"}, "hours": "평일 09:00–22:00", "note": {"ko": "학생·교직원 무료 · 토요일·공휴일 휴관", "en": "Free for students and staff · Closed Sat & holidays"}, "source": "fitness", "verified": true}
+      ]
+    },
+    {"id": "b11", "official_id": "11", "category": "admin", "osm": [493899197]},
+    {
+      "id": "b12", "official_id": "12", "category": "sports",
+      "osm": [493899198],
+      "description": {"ko": "평일 06:00–22:00 (12~2월 07:00부터) · 토·공휴일 07:00–19:00 · 일요일 휴무", "en": "Weekdays 06:00–22:00 (from 07:00 Dec–Feb) · Sat & holidays 07:00–19:00 · Closed Sundays"},
+      "description_source": "golf"
+    },
+    {
+      "id": "b13", "official_id": "13", "category": "sports", "area": true,
+      "osm": [494207620, 494207621],
+      "description": {"ko": "농구장, 배구장, 족구장, 배드민턴장 각 1면 · 산학협력관 앞", "en": "Basketball, volleyball, jokgu and badminton courts · In front of the Industry-University Cooperation Building"},
+      "description_source": "multi"
+    },
+    {"id": "b14", "official_id": "14", "category": "academic", "osm": [493907304]},
+    {
+      "id": "b15", "official_id": "15", "category": "admin",
+      "osm": [493907305],
+      "osm_note": "OSM 에는 '두레관'으로 올라 있다. 학교 캠퍼스맵 이름(대외협력관)을 쓴다.",
+      "name_override": {"en": "External Affairs Building", "verified": false, "reason": "학교 API 영문명이 'Warehouse' 로 되어 있다"}
+    },
+    {"id": "b16", "official_id": "16", "category": "academic", "osm": [493907891]},
+    {"id": "b17", "official_id": "17", "category": "academic", "osm": [181210690]},
+    {"id": "b18", "official_id": "18", "category": "welfare", "osm": [1518539246]},
+    {
+      "id": "b19", "official_id": "19", "category": "landmark",
+      "osm": [493441798],
+      "description": {"ko": "원형무대 254㎡ · 관람석 1,740석", "en": "Circular stage 254 m² · 1,740 seats"},
+      "description_source": "outdoor_stage"
+    },
+    {"id": "b20", "official_id": "20", "category": "landmark", "area": true, "osm": [181210774], "name_override": {"en": "Geumo Pond", "verified": false, "reason": "학교 API 영문명이 'Lotus pond' 다"}},
+    {"id": "b21", "official_id": "21", "category": "landmark", "osm": [493908908], "gate": "main"},
+    {
+      "id": "b22", "official_id": "22", "category": "admin",
+      "osm": [494410220],
+      "description": {"ko": "다목적홀 200인, 세미나실 20인, 접견실 · 09:00–22:00 (휴일 18:00까지)", "en": "Multipurpose hall (200), seminar room (20), reception room · 09:00–22:00 (holidays until 18:00)"},
+      "description_source": "cheongun"
+    },
+    {"id": "b23", "official_id": "23", "category": "sports", "area": true, "osm": [1112285731], "description": {"ko": "인조잔디 풋살장, 야간조명 · 운동장 뒤편", "en": "Artificial turf futsal pitch with floodlights · Behind the main field"}, "description_source": "futsal"},
+    {
+      "id": "b24", "official_id": "24", "category": "academic",
+      "osm": [1518535866],
+      "name_override": {"en": "Industry-University Cooperation Building", "verified": false, "reason": "학교 API 에 영문명이 없다"},
+      "units": [
+        {"kind": "facility", "type": "hall", "name": {"ko": "산학협력관 대회의실", "en": "Main Conference Hall"}, "floor": "1F", "room": "104", "note": {"ko": "239석", "en": "239 seats"}, "phone": "054-478-7234", "source": "iuc_hall", "verified": true}
+      ]
+    },
+    {
+      "id": "b25", "official_id": "25", "category": "admin",
+      "osm": [1112285728],
+      "name_override": {"en": "International Education Building", "verified": false, "reason": "학교 API 영문명이 한글로 되어 있다"}
+    },
+    {
+      "id": "edison", "category": "academic",
+      "osm": [1518534610],
+      "name": {"ko": "에디슨관", "en": "Edison Hall"},
+      "name_source": "osm", "name_verified": false,
+      "units": [
+        {"kind": "dept", "name": {"ko": "자율전공학부", "en": "School of Liberal Studies"}, "floor": "3F", "room": "302", "source": "dept_sls", "verified": true}
+      ]
+    }
+  ]
+}
