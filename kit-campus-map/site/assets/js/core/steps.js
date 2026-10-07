@@ -28,21 +28,52 @@ function angleBetween(from, to) {
   return delta;
 }
 
+/**
+ * 꺾인 뒤 JOG m 안에 원래 방향(±TURN°)으로 돌아오면 길을 옆으로 비켜 간 것이다.
+ * "오른쪽 → 12 m 뒤 왼쪽" 대신 그냥 직진으로 안내한다.
+ */
+const JOG = 25;
+
+function segmentsOf(coords) {
+  const out = [];
+  for (let i = 1; i < coords.length; i++) {
+    const length = meters(coords[i - 1], coords[i]);
+    if (length >= 0.01) out.push({ length, heading: bearing(coords[i - 1], coords[i]) });
+  }
+  return out;
+}
+
+/** i 번째 마디에서 시작한 꺾임이 JOG 안에 원래 방향으로 돌아오면, 돌아온 마디 번호 */
+function jogEnd(segments, i, heading) {
+  let travelled = 0;
+  for (let j = i; j < segments.length; j++) {
+    if (j > i && segments[j].length >= MIN_SEGMENT && !turnOf(angleBetween(heading, segments[j].heading))) return j;
+    travelled += segments[j].length;
+    if (travelled > JOG) return -1;
+  }
+  return -1;
+}
+
 export function walkSteps(coords) {
+  const segments = segmentsOf(coords);
   const steps = [];
   let run = 0;
   let heading = null;
-  for (let i = 1; i < coords.length; i++) {
-    const length = meters(coords[i - 1], coords[i]);
-    if (length < 0.01) continue;
+  for (let i = 0; i < segments.length; i++) {
+    const { length, heading: next } = segments[i];
     if (length < MIN_SEGMENT || heading === null) {
       run += length;
-      if (length >= MIN_SEGMENT) heading = bearing(coords[i - 1], coords[i]);
+      if (length >= MIN_SEGMENT) heading = next;
       continue;
     }
-    const next = bearing(coords[i - 1], coords[i]);
     const turn = turnOf(angleBetween(heading, next));
     if (turn) {
+      const back = jogEnd(segments, i, heading);
+      if (back > 0) {
+        for (let j = i; j < back; j++) run += segments[j].length;
+        i = back - 1;
+        continue;
+      }
       steps.push({ kind: 'walk', meters: run, turn });
       run = 0;
     }

@@ -95,6 +95,13 @@ def test_no_person_names_anywhere():
             assert not leaked, (path.name, leaked[:5])
 
 
+def test_corridors_keep_their_name():
+    imdf = load("techno/imdf.json")
+    for f in imdf["units"]["features"]:
+        if f["properties"]["category"] == "walkway":
+            assert f["properties"]["name"]["ko-KR"] == "복도"
+
+
 def test_rooms_point_to_techno():
     places = load("places.json")
     ids = {b["id"] for b in places["buildings"]}

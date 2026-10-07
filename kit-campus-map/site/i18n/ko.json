@@ -127,6 +127,7 @@
   "step.walk.slight-right": "{distance} 이동 후 오른쪽 방향",
   "step.walk.uturn": "{distance} 이동 후 되돌아가기",
   "step.enter": "건물 진입 · {place}",
+  "step.exit": "건물 밖으로 · {place}",
   "step.stairs": "{name} 계단 이용 · {to}",
   "step.elevator": "{name} 엘리베이터 이용 · {to}",
   "step.arrive": "도착 · {place}",

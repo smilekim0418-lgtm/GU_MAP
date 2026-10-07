@@ -127,6 +127,7 @@
   "step.walk.slight-right": "Walk {distance}, then bear right",
   "step.walk.uturn": "Walk {distance}, then turn around",
   "step.enter": "Enter the building · {place}",
+  "step.exit": "Exit the building · {place}",
   "step.stairs": "Take stairs {name} · {to}",
   "step.elevator": "Take elevator {name} · {to}",
   "step.arrive": "Arrive · {place}",

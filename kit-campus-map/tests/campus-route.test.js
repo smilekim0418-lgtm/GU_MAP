@@ -28,6 +28,19 @@ test('짧은 꺾임은 직진으로 묶는다', () => {
   assert.equal(s.length, 1);
 });
 
+test('옆 길로 비켜 갔다가 같은 방향으로 가는 짧은 꺾임은 회전으로 안내하지 않는다', () => {
+  // 북쪽 100 m → 동쪽 9 m → 다시 북쪽 100 m
+  const s = walkSteps([[128.39, 36.14], [128.39, 36.1409], [128.3901, 36.1409], [128.3901, 36.1418]]);
+  assert.equal(s.length, 1, JSON.stringify(s));
+  assert.ok(s[0].meters > 200);
+});
+
+test('진짜 모퉁이는 그대로 안내한다', () => {
+  // 북쪽 100 m → 동쪽 100 m
+  const s = walkSteps([[128.39, 36.14], [128.39, 36.1409], [128.3911, 36.1409]]);
+  assert.equal(s[0].turn, 'right');
+});
+
 test('출입구 이름 번역', () => {
   assert.deepEqual(entranceName('남동쪽 출입구 (1F)'), { ko: '남동쪽 출입구 (1층)', en: 'Southeast entrance (1F)' });
   assert.deepEqual(entranceName('서쪽 출입구 (B1F)'), { ko: '서쪽 출입구 (지하 1층)', en: 'West entrance (B1)' });

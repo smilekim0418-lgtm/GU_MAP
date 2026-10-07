@@ -54,3 +54,21 @@ export function bounds(coords) {
   }
   return [[west, south], [east, north]];
 }
+
+/** 다각형 바깥 링의 면적 가중 무게중심 [경도, 위도] */
+export function ringCentroid(ring) {
+  // 첫 꼭짓점을 원점으로 옮겨 큰 수끼리 빼는 오차를 피한다
+  const [x0, y0] = ring[0];
+  const k = scale(y0);
+  let area = 0, cx = 0, cy = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const x1 = (ring[j][0] - x0) * k, y1 = (ring[j][1] - y0) * M_PER_LAT;
+    const x2 = (ring[i][0] - x0) * k, y2 = (ring[i][1] - y0) * M_PER_LAT;
+    const cross = x1 * y2 - x2 * y1;
+    area += cross;
+    cx += (x1 + x2) * cross;
+    cy += (y1 + y2) * cross;
+  }
+  if (Math.abs(area) < 1e-9) return ring[0];
+  return [x0 + cx / (3 * area) / k, y0 + cy / (3 * area) / M_PER_LAT];
+}

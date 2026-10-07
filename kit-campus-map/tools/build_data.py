@@ -67,6 +67,8 @@ FLOOR_HEIGHT_M = 3.8
 # 개인 이름(교수 연구실)을 가려낼 때, 이 말로 끝나면 시설 이름이다.
 # 테크노관 방 이름에서 2~4 글자인데 이렇게 끝나지 않는 것은 전부 사람 이름이었다.
 FACILITY_SUFFIXES = ("실", "센터", "홀", "라운지", "카페", "창고", "로비")
+# 2~4 글자이고 '실' 로 끝나지 않지만 사람 이름이 아닌 공간 이름
+NOT_PEOPLE = {"복도", "계단", "현관", "로비", "매점", "창고", "통로"}
 
 # 방 정보 엑셀의 학과 칸은 손으로 적어 오타·옛 이름이 섞여 있다. 공식 이름으로 맞춘다.
 DEPT_CANON = {
@@ -390,7 +392,8 @@ def pick_entrances(graph: WalkGraph, rings, limit=3):
 # ───────────────────────── 방 이름 ─────────────────────────
 
 def looks_like_person(name: str) -> bool:
-    return bool(re.fullmatch(r"[가-힣]{2,4}", name)) and not name.endswith(FACILITY_SUFFIXES)
+    return (bool(re.fullmatch(r"[가-힣]{2,4}", name)) and name not in NOT_PEOPLE
+            and not name.endswith(FACILITY_SUFFIXES))
 
 
 # ───────────────────────── 본체 ─────────────────────────
@@ -410,6 +413,10 @@ def main():
     # ── 캠퍼스 경계
     campus_way = next(w for w in osm.tagged_ways() if w["tags"].get("amenity") == "university")
     campus_ring = osm.ring(campus_way["id"])
+    # 처음 화면·"캠퍼스 전체 보기"가 맞출 범위. 경계선에 바짝 붙지 않게 30 m 쯤 띄운다.
+    margin = 0.0003
+    campus_bbox = [round(min(p[0] for p in campus_ring) - margin, 6), round(min(p[1] for p in campus_ring) - margin, 6),
+                   round(max(p[0] for p in campus_ring) + margin, 6), round(max(p[1] for p in campus_ring) + margin, 6)]
 
     # ── 건물
     used_osm = set()
@@ -703,7 +710,7 @@ def main():
             "built_at": time.strftime("%Y-%m-%d"),
             "campus": CONFIG["campus_name"], "campus_label": CONFIG["campus_label"],
             "address": CONFIG["address"], "main_phone": CONFIG["main_phone"],
-            "bbox": CONFIG["bbox"], "bearing": CONFIG["bearing"],
+            "bbox": campus_bbox, "bearing": CONFIG["bearing"],
             "walk_speed_mpm": CONFIG["walk_speed_mpm"],
             "sources": {
                 "kumoh": {"url": official_snapshot["source"], "fetched_at": official_snapshot["fetched_at"]},

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { WalkGraph } from '../site/assets/js/core/walk-graph.js';
-import { meters, bearing, projectToSegment } from '../site/assets/js/core/geo.js';
+import { meters, bearing, projectToSegment, ringCentroid } from '../site/assets/js/core/geo.js';
 
 // 0 —— 1 —— 2      위 경로는 계단(1-2) 포함
 // |           |
@@ -25,6 +25,11 @@ test('geo: 거리·방위각·투영', () => {
   const p = projectToSegment([lng0 + d / 2, lat0 + 0.00001], nodes[0], nodes[1]);
   assert.ok(Math.abs(p.t - 0.5) < 0.01);
   assert.ok(p.meters > 1 && p.meters < 1.2);
+});
+
+test('geo: 사각형 무게중심', () => {
+  const c = ringCentroid([[lng0, lat0], [lng0 + 2 * d, lat0], [lng0 + 2 * d, lat0 + d], [lng0, lat0 + d]]);
+  assert.ok(Math.abs(c[0] - (lng0 + d)) < 1e-9 && Math.abs(c[1] - (lat0 + d / 2)) < 1e-9, String(c));
 });
 
 test('최단 경로는 계단을 쓴다', () => {

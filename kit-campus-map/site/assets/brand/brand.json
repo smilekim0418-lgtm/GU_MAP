@@ -1,0 +1,5 @@
+{
+  "_readme": "학교 공식 로고 파일을 이 폴더에 넣고 logo 에 파일 이름을 적으면 머리글에 표시된다. 없으면 학교 이름 글자만 쓴다.",
+  "logo": null,
+  "home": "https://www.kumoh.ac.kr/"
+}

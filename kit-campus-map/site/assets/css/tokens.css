@@ -1,0 +1,67 @@
+/*
+ * 디자인 토큰 — 색·글꼴·간격을 여기 한 곳에서 정한다.
+ * 학교 홍보팀이 공식 색을 정하면 이 파일만 바꾸면 된다.
+ *
+ * 대비 기준(KWCAG 2.2): 본문 글자 4.5:1 이상. 아래 짝은 흰 바탕 기준으로 확인했다.
+ *   --c-ink 16.1:1 · --c-ink-2 8.3:1 · --c-ink-3 5.8:1(회색 면 위 5.3:1) · --c-brand 11.0:1 · --c-accent-strong 5.8:1
+ *   --c-accent(#1c83d0)는 흰 글자와 4.0:1 이라 글자 바탕에는 쓰지 않는다 (선·강조선 전용).
+ */
+:root {
+  /* 학교 */
+  --c-brand: #343b58;
+  --c-brand-strong: #262b42;
+  --c-accent: #1c83d0;
+  --c-accent-strong: #1569a8;
+  --c-accent-soft: #e8f2fb;
+
+  /* 글자·선·면 */
+  --c-ink: #1d2129;
+  --c-ink-2: #474f5c;
+  --c-ink-3: #5f6672;
+  --c-line: #dde1e6;
+  --c-line-strong: #c4cad2;
+  --c-surface: #ffffff;
+  --c-surface-2: #f5f6f8;
+  --c-surface-3: #eceef1;
+  --c-focus: #1c83d0;
+  --c-danger: #b42318;
+  --c-notice-bg: #fff6e5;
+  --c-notice-ink: #7a4a00;
+  --c-notice-line: #f1d39a;
+
+  /* 건물 분류: strong 은 칩·배지 글자/점, fill·line 은 지도 */
+  --cat-academic: #3d63a0;
+  --cat-admin: #6a5a99;
+  --cat-welfare: #a4622b;
+  --cat-housing: #3f7a45;
+  --cat-sports: #2f7d86;
+  --cat-landmark: #6b6b63;
+
+  /* 글꼴 */
+  --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+          "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 21px;
+  --lh: 1.55;
+
+  /* 간격 (4px 배수) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --shadow-1: 0 1px 2px rgba(16, 24, 40, .08);
+  --shadow-2: 0 4px 16px rgba(16, 24, 40, .12);
+
+  --header-h: 60px;
+  --panel-w: 400px;
+}
