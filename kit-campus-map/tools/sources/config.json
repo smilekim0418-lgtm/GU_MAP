@@ -1,0 +1,35 @@
+{
+  "campus_name": {
+    "ko": "국립금오공과대학교",
+    "en": "Kumoh National Institute of Technology"
+  },
+  "campus_label": {
+    "ko": "양호동캠퍼스",
+    "en": "Yangho Campus"
+  },
+  "address": {
+    "ko": "(39177) 경북 구미시 대학로 61",
+    "en": "61 Daehak-ro, Gumi-si, Gyeongsangbuk-do 39177, Korea"
+  },
+  "main_phone": "054-478-7114",
+  "bbox": [
+    128.384,
+    36.1395,
+    128.3985,
+    36.1505
+  ],
+  "context_bbox": [
+    128.379,
+    36.1365,
+    128.404,
+    36.1535
+  ],
+  "bearing": 0,
+  "walk_speed_mpm": 75,
+  "show_person_names": false,
+  "bus_stop_names_en": {
+    "금오공과대학교종점": "KIT Terminus",
+    "금오공대입구(옥계중학교방면)": "KIT Entrance (toward Okgye Middle School)",
+    "금오공대입구(금오공대종점방면)": "KIT Entrance (toward KIT Terminus)"
+  }
+}
