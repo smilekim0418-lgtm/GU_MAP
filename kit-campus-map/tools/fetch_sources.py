@@ -118,7 +118,8 @@ def _now() -> str:
 def save(name: str, data: dict) -> None:
     SNAPSHOTS.mkdir(parents=True, exist_ok=True)
     path = SNAPSHOTS / name
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n",
+                    encoding="utf-8", newline="\n")
     print(f"저장: {path.relative_to(TOOLS.parent)} ({path.stat().st_size:,} bytes)")
 
 
