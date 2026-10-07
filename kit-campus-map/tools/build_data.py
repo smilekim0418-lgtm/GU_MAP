@@ -598,7 +598,7 @@ def main():
 
     rooms_out = []
     seen = set()
-    hidden_people = 0
+    hidden_people = shown_people = 0
     for row in load_json(TECHNO_ROOMS):
         key = (row["floor"], row["id"])
         if key in seen:
@@ -620,6 +620,7 @@ def main():
         else:
             room["name"] = {"ko": name_ko}
             if person:
+                shown_people += 1
                 room["person"] = True
         if row.get("dept"):
             dept = row["dept"].strip()
@@ -752,10 +753,10 @@ def main():
     sizes["techno/imdf.json"] = write("techno/imdf.json", imdf)
     shutil.copyfile(ROUTE_CORE, SITE / "vendor" / "techno-route-core.js")
 
-    write_review(review, buildings_out, units_out, manual, hidden_people)
+    write_review(review, buildings_out, units_out, manual, hidden_people, shown_people)
 
     print(f"건물 {len(buildings_out)} · 외곽선 {len(shapes)} · 학과/시설 {len(units_out)} · 방 {len(rooms_out)}"
-          f" (개인 이름 가림 {hidden_people})")
+          f" (개인 이름 {'공개 ' + str(shown_people) if show_person else '가림 ' + str(hidden_people)})")
     print(f"보행 그래프: 노드 {len(graph.nodes)} · 엣지 {len(graph.edges)} · 정문 {len(gates)} · 정류장 {len(bus_stops)}")
     for name, size in sizes.items():
         print(f"  {name:22s} {size:>9,} bytes")
@@ -774,7 +775,7 @@ def round_geometry(geometry):
     return {"type": geometry["type"], "coordinates": walk(geometry["coordinates"])}
 
 
-def write_review(review, buildings, units, manual, hidden_people):
+def write_review(review, buildings, units, manual, hidden_people, shown_people):
     lines = [
         "# 캠퍼스맵 확인 필요 목록",
         "",
@@ -818,8 +819,12 @@ def write_review(review, buildings, units, manual, hidden_people):
     lines.extend([
         "## 개인 이름",
         "",
-        f"테크노관 방 정보 중 교수 이름으로 보이는 {hidden_people}개는 '교수연구실'로 바꿔 표시한다.",
-        "공개해도 된다면 `tools/sources/config.json` 의 `show_person_names` 를 `true` 로 바꾼다.",
+        *([f"테크노관 방 정보 중 교수 이름 {shown_people}개를 그대로 공개한다 (`show_person_names: true`).",
+           "학교 공식 서비스에 올리기 전에 공개해도 되는지 담당 부서 확인을 받는다.",
+           "가리려면 `tools/sources/config.json` 의 `show_person_names` 를 `false` 로 바꾸고 다시 빌드한다."]
+          if shown_people else
+          [f"테크노관 방 정보 중 교수 이름으로 보이는 {hidden_people}개는 '교수연구실'로 바꿔 표시한다.",
+           "공개해도 된다면 `tools/sources/config.json` 의 `show_person_names` 를 `true` 로 바꾼다."]),
         "",
     ])
     (APP / "확인필요목록.md").write_text("\n".join(lines), encoding="utf-8", newline="\n")

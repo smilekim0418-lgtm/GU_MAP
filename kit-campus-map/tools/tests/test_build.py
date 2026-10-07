@@ -68,26 +68,41 @@ def test_edges_reference_real_nodes_and_lengths_are_sane():
         assert flags in (0, 1, 2, 3)
 
 
-def test_person_names_hidden_by_default():
-    rooms = load("places.json")["rooms"]
-    assert rooms, "테크노관 방 목록이 비었다"
-    assert not any("person" in r for r in rooms)
-    # 개인 이름처럼 보이는 2~4 글자 이름이 남아 있으면 안 된다
-    import re
-    suspicious = [r for r in rooms
-                  if re.fullmatch(r"[가-힣]{2,4}", r["name"]["ko"])
-                  and not r["name"]["ko"].endswith(("실", "센터", "홀", "라운지", "카페", "창고", "로비"))]
-    assert not suspicious, suspicious[:5]
+SHOW_PEOPLE = json.loads((ROOT / "tools" / "sources" / "config.json").read_text(encoding="utf-8"))[
+    "show_person_names"]
 
 
-def test_no_person_names_anywhere():
-    """방 정보 원본의 사람 이름이 어느 배포 파일에도 남지 않는다."""
+def source_people():
+    """방 정보 원본에서 사람 이름으로 보이는 것들"""
     import re
     source = ROOT.parent / "GUMAP-데이터" / "data" / "kumoh_techno_rooms.json"
-    people = {r["name"].strip() for r in json.loads(source.read_text(encoding="utf-8"))
-              if re.fullmatch(r"[가-힣]{2,4}", (r["name"] or "").strip())
-              and not r["name"].strip().endswith(("실", "센터", "홀", "라운지", "카페", "창고", "로비"))}
+    return {r["name"].strip() for r in json.loads(source.read_text(encoding="utf-8"))
+            if re.fullmatch(r"[가-힣]{2,4}", (r["name"] or "").strip())
+            and not r["name"].strip().endswith(("실", "센터", "홀", "라운지", "카페", "창고", "로비"))}
+
+
+def test_person_names_follow_config():
+    """show_person_names 설정대로 교수 이름이 보이거나 가려진다."""
+    rooms = load("places.json")["rooms"]
+    assert rooms, "테크노관 방 목록이 비었다"
+    people = source_people()
     assert len(people) > 50
+    flagged = [r for r in rooms if r.get("person")]
+    if SHOW_PEOPLE:
+        assert len(flagged) > 50
+        assert {r["name"]["ko"] for r in flagged} <= people
+    else:
+        assert not flagged
+        assert not [r for r in rooms if r["name"]["ko"] in people]
+
+
+def test_person_names_consistent_across_files():
+    """가리기로 했으면 어느 배포 파일에도 남지 않고, 공개하면 실내 도면에도 그대로 나온다."""
+    people = source_people()
+    imdf_text = (DATA / "techno" / "imdf.json").read_text(encoding="utf-8")
+    if SHOW_PEOPLE:
+        assert sum(1 for p in people if p in imdf_text) > 50
+        return
     for path in DATA.rglob("*"):
         if path.is_file():
             text = path.read_text(encoding="utf-8")

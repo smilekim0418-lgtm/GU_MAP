@@ -26,7 +26,7 @@
   ],
   "bearing": 0,
   "walk_speed_mpm": 75,
-  "show_person_names": false,
+  "show_person_names": true,
   "bus_stop_names_en": {
     "금오공과대학교종점": "KIT Terminus",
     "금오공대입구(옥계중학교방면)": "KIT Entrance (toward Okgye Middle School)",
