@@ -161,7 +161,6 @@ async function start() {
       h('p', null, h('a', { href: telHref(places.meta.main_phone) }, i18n.t('footer.phone', { phone: places.meta.main_phone })),
         ' · ', h('a', { href: brand.home || 'https://www.kumoh.ac.kr/', target: app.embed ? '_blank' : null, rel: 'noopener' },
           'kumoh.ac.kr')),
-      h('p', null, `${i18n.t('footer.updated', { date: places.meta.built_at })} · ${i18n.t('footer.note')}`),
     );
   }
 

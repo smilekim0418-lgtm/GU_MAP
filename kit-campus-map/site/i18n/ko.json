@@ -70,7 +70,6 @@
   "detail.copyFailed": "링크를 복사하지 못했습니다. 주소창의 주소를 이용해 주세요.",
   "detail.unverified": "확인 중",
   "detail.unverifiedHint": "학교의 확인을 거치지 않은 정보입니다.",
-  "detail.source": "출처",
   "detail.hours": "운영시간",
   "detail.location": "위치",
   "detail.room": "{room}호",
@@ -158,8 +157,6 @@
 
   "footer.address": "(39177) 경북 구미시 대학로 61",
   "footer.phone": "대표전화 {phone}",
-  "footer.updated": "자료 기준일 {date}",
-  "footer.note": "건물 번호는 학교 캠퍼스맵 기준입니다.",
 
   "sheet.expand": "목록 펼치기",
   "sheet.collapse": "목록 접기",

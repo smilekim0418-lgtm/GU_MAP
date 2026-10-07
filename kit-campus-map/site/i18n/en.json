@@ -70,7 +70,6 @@
   "detail.copyFailed": "Couldn’t copy the link. Please use the address bar.",
   "detail.unverified": "Unverified",
   "detail.unverifiedHint": "This information has not yet been confirmed by the university.",
-  "detail.source": "Source",
   "detail.hours": "Hours",
   "detail.location": "Location",
   "detail.room": "Room {room}",
@@ -158,8 +157,6 @@
 
   "footer.address": "61 Daehak-ro, Gumi, Gyeongbuk 39177, Korea",
   "footer.phone": "Main line {phone}",
-  "footer.updated": "Data as of {date}",
-  "footer.note": "Building numbers follow the university campus map.",
 
   "sheet.expand": "Expand panel",
   "sheet.collapse": "Collapse panel",

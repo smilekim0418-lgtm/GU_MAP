@@ -174,15 +174,8 @@ a { color: var(--c-accent-strong); }
 /* ───────────── 검색 ───────────── */
 
 .search {
-  padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
   border-bottom: 1px solid var(--c-line);
-}
-.search-label {
-  display: block;
-  margin-bottom: var(--sp-2);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--c-ink-2);
 }
 .search-field { position: relative; }
 .search-field input {
@@ -538,12 +531,6 @@ a { color: var(--c-accent-strong); }
 .phone-list a:hover { text-decoration: underline; }
 
 .description { font-size: var(--fs-sm); color: var(--c-ink-2); }
-.source-note {
-  margin-top: var(--sp-5);
-  font-size: var(--fs-xs);
-  color: var(--c-ink-3);
-}
-.source-note a { color: inherit; }
 
 /* ───────────── 길찾기 ───────────── */
 
@@ -1013,7 +1000,6 @@ body.embed .site-header { display: none; }
     background: var(--c-line-strong);
   }
   .search { padding: var(--sp-1) var(--sp-4) var(--sp-3); border-bottom: 0; }
-  .search-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .view { padding: 0 var(--sp-4) var(--sp-6); }
   .panel-footer { display: none; }
   .panel[data-sheet="peek"] .panel-body { overflow: hidden; }

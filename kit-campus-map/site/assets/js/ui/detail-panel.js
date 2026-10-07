@@ -106,12 +106,6 @@ export function createDetailPanel({ places, i18n, onBack, onRoute, onIndoor, onS
         h('ul', { class: 'phone-list' }, b.phones.map((p) => h('li', null,
           h('span', { class: 'label' }, i18n.name(p.label)),
           phoneLink(p.number, i18n.name(p.label), i18n))))) : null,
-      h('p', { class: 'source-note' }, `${i18n.t('detail.source')}: `,
-        h('a', { href: places.meta.sources.kumoh.url.replace('?mode=buildList', ''), rel: 'noopener', target: '_blank' },
-          i18n.lang === 'ko' ? '국립금오공과대학교 캠퍼스맵' : 'KIT campus map'),
-        b.description_source ? [' · ', h('a', { href: b.description_source, rel: 'noopener', target: '_blank' },
-          i18n.lang === 'ko' ? '시설 안내' : 'Facility guide')] : null,
-        ' · OpenStreetMap'),
     );
     showView('detail');
     const focused = focusUnitId && root.querySelector(`#unit-${CSS.escape(focusUnitId)}`);
