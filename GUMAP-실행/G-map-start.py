@@ -4,13 +4,18 @@ G-map Background Server Launcher
 - Starts all servers as HIDDEN background processes (no visible windows)
 - Servers survive even if this launcher window is closed
 - Logs written to G-map-logs/ folder
+- Opens a public https address with a Cloudflare quick tunnel (skip: --no-tunnel)
 - Run: py G-map-start.py
 """
+import json
+import re
+import shutil
 import subprocess
 import sys
 import os
 import time
 import socket
+import urllib.request
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -42,6 +47,14 @@ TILE_SERVERS = [
 CREATE_NO_WINDOW = 0x08000000
 DETACHED_PROCESS  = 0x00000008
 MY_PID = os.getpid()
+
+# 외부 접속 주소. 계정 없이 https://xxx.trycloudflare.com 을 받는 quick tunnel 을 쓴다.
+# G-map-종료.bat 은 이 대상 주소로 우리 터널을 골라 끈다. 바꾸면 거기도 같이 바꾼다.
+TUNNEL_TARGET = "http://127.0.0.1:3000"
+TUNNEL_LOG    = os.path.join(LOG_DIR, "tunnel.log")
+TUNNEL_STATE  = os.path.join(LOG_DIR, "tunnel.json")
+# 실패 로그에 나오는 api.trycloudflare.com 은 발급 주소가 아니다
+TUNNEL_URL_RE = re.compile(r"https://(?!api\.)[a-z0-9-]+\.trycloudflare\.com")
 
 
 def is_port_open(port):
@@ -109,25 +122,103 @@ def wait_for_port(port, timeout=60):
     return False
 
 
+def find_cloudflared():
+    found = shutil.which("cloudflared")
+    if found:
+        return found
+    for base in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles")):
+        if base and os.path.isfile(os.path.join(base, "cloudflared", "cloudflared.exe")):
+            return os.path.join(base, "cloudflared", "cloudflared.exe")
+    return None
+
+
+def is_cloudflared(pid):
+    out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                         capture_output=True, text=True).stdout
+    return out.strip().lower().startswith('"cloudflared.exe"')
+
+
+def url_alive(url):
+    # HEAD 는 안 된다: 서버의 "/" 는 GET 라우트라 HEAD 가 정적 마운트로 빠져 403 이 난다
+    req = urllib.request.Request(url + "/", headers={"User-Agent": "G-map-launcher"})
+    try:
+        with urllib.request.urlopen(req, timeout=8) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
+def running_tunnel():
+    """지난번에 띄운 터널이 아직 살아 있으면 (pid, url), 아니면 (None, None)."""
+    try:
+        with open(TUNNEL_STATE, encoding="utf-8") as f:
+            state = json.load(f)
+        pid, url = int(state["pid"]), state["url"]
+    except Exception:
+        return None, None
+    return (pid, url) if is_cloudflared(pid) else (None, None)
+
+
+def stop_tunnel(pid):
+    subprocess.run(["taskkill", "/F", "/PID", str(pid), "/T"], capture_output=True)
+
+
+def start_tunnel():
+    """외부 접속 주소를 (url, 상태) 로 돌려준다. 상태: reused / new / missing / failed.
+
+    quick tunnel 주소는 cloudflared 를 새로 띄울 때마다 바뀐다. 서버만 다시 켠 경우엔
+    살아 있는 터널이 새 서버에 그대로 붙으므로 그 터널을 계속 써서, 이미 나눠 준 주소가
+    런처를 다시 돌려도 바뀌지 않게 한다.
+    """
+    old_pid, old_url = running_tunnel()
+    if old_pid:
+        if url_alive(old_url):
+            return old_url, "reused"
+        stop_tunnel(old_pid)
+
+    exe = find_cloudflared()
+    if not exe:
+        return None, "missing"
+    with open(TUNNEL_LOG, "w", encoding="utf-8") as log_f:
+        p = subprocess.Popen(
+            [exe, "tunnel", "--no-autoupdate", "--url", TUNNEL_TARGET],
+            stdout=log_f,
+            stderr=log_f,
+            stdin=subprocess.DEVNULL,
+            creationflags=CREATE_NO_WINDOW | DETACHED_PROCESS,
+        )
+    deadline = time.time() + 30
+    while time.time() < deadline and p.poll() is None:
+        with open(TUNNEL_LOG, encoding="utf-8", errors="replace") as f:
+            found = TUNNEL_URL_RE.search(f.read())
+        if found:
+            with open(TUNNEL_STATE, "w", encoding="utf-8") as f:
+                json.dump({"pid": p.pid, "url": found.group(0)}, f)
+            return found.group(0), "new"
+        time.sleep(0.3)
+    return None, "failed"
+
+
 if __name__ == "__main__":
     import webbrowser
     py = sys.executable
+    want_tunnel = "--no-tunnel" not in sys.argv
 
     print("=" * 52)
     print("  G-map Server Launcher")
     print("=" * 52)
 
-    print("\n[1/5] Stopping old servers...")
+    print("\n[1/6] Stopping old servers...")
     kill_existing()
 
-    print("[2/5] Starting main server (port 3000)...")
+    print("[2/6] Starting main server (port 3000)...")
     if SERVER_SCRIPT:
         start_hidden([py, SERVER_SCRIPT], SERVER_DIR, "server-3000")
         print(f"       {SERVER_SCRIPT}")
     else:
         print("  WARNING: server.py not found!")
 
-    print("[3/5] Starting GIS tile servers...")
+    print("[3/6] Starting GIS tile servers...")
     for port, name, directory in TILE_SERVERS:
         if os.path.isdir(directory):
             start_hidden([py, CORS_SCRIPT, str(port), directory], SERVER_DIR, f"gis-{port}")
@@ -137,7 +228,7 @@ if __name__ == "__main__":
             print(f"         {directory}")
 
     # G-Route AI 그래프·ONNX 로딩 포함 실측 약 3초. 예전 "~25s" 안내는 낡았다.
-    print("[4/5] Waiting for port 3000 (G-Route AI loading, ~3s)...")
+    print("[4/6] Waiting for port 3000 (G-Route AI loading, ~3s)...")
     ok3000 = wait_for_port(3000, timeout=90)
     print(f"       Port 3000: {'READY' if ok3000 else 'TIMEOUT - check G-map-logs/server-3000.log'}")
 
@@ -145,7 +236,31 @@ if __name__ == "__main__":
         up = is_port_open(port)
         print(f"       Port {port} ({name}): {'OK' if up else 'not up yet'}")
 
-    print("[5/5] Opening browser...")
+    public_url = None
+    print("[5/6] Public address (Cloudflare tunnel)...")
+    if not want_tunnel:
+        old_pid, _ = running_tunnel()
+        if old_pid:
+            stop_tunnel(old_pid)
+        print("       SKIP (--no-tunnel)" + (" - old tunnel stopped" if old_pid else ""))
+    elif not ok3000:
+        print("       SKIP: server on port 3000 is not up")
+    else:
+        public_url, how = start_tunnel()
+        if how == "reused":
+            print("       Same address as before (tunnel was still running)")
+        elif how == "new":
+            print("       New address created")
+        elif how == "missing":
+            print("       SKIP: cloudflared not installed")
+            print("         install: winget install Cloudflare.cloudflared")
+        else:
+            print("       FAILED - check G-map-logs/tunnel.log")
+        if public_url:
+            # 메신저에 바로 붙여 넣을 수 있게 클립보드에도 넣는다
+            subprocess.run(["clip"], input=public_url.encode("ascii"), capture_output=True)
+
+    print("[6/6] Opening browser...")
     webbrowser.open("http://localhost:3000/")
 
     print()
@@ -153,5 +268,12 @@ if __name__ == "__main__":
     print("  All servers running in BACKGROUND.")
     print("  This window can be closed safely.")
     print("  Logs: G-map-logs/ folder")
+    if public_url:
+        print()
+        print("  Public URL (copied to clipboard):")
+        print(f"  {public_url}")
+        if how == "new":
+            print("  New addresses may take ~10s to start working.")
+        print("  Stop everything: G-map-종료.bat")
     print("=" * 52)
     input("\nPress Enter to close...")

@@ -14,6 +14,8 @@ FOR %%p IN (3000 8765 8766 8767) DO (
         )
     )
 )
+echo Stopping Cloudflare tunnel...
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'cloudflared.exe' -and $_.CommandLine -like '*127.0.0.1:3000*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
 echo.
 echo 모든 서버가 안전하게 종료되었습니다!
 echo.

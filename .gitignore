@@ -207,3 +207,6 @@ GUMAP-앱/node_modules/
 *등고선*.geojson
 *.zip
 GU_MAP_Release_Package.zip
+
+# 런처 로그·터널 상태(tunnel.json)
+GUMAP-실행/G-map-logs/
