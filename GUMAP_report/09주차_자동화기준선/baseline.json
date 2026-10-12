@@ -1,0 +1,2277 @@
+{
+ "unit_seconds": {
+  "redraw": 45,
+  "reshape": 25,
+  "relabel": 10,
+  "delete": 3,
+  "typed_space": 30,
+  "door": 12,
+  "vertical": 15
+ },
+ "action_name": {
+  "auto": "자동 완료",
+  "relabel": "라벨 수정",
+  "reshape": "도형 수정",
+  "redraw": "새로 그림",
+  "delete": "오검출 삭제",
+  "typed_space": "복도·계단·EV",
+  "door": "출입문",
+  "vertical": "층간 연결"
+ },
+ "floors": [
+  {
+   "floor": "B1F",
+   "final_rooms": 32,
+   "register_rooms": 32,
+   "register_missing_in_map": [],
+   "auto_polygons": 55,
+   "ocr_words": 156,
+   "ocr_matched": 7,
+   "counts": {
+    "redraw": 13,
+    "auto": 7,
+    "relabel": 12,
+    "delete": 35,
+    "typed_space": 7,
+    "door": 41,
+    "vertical": 6
+   },
+   "manual_actions": 114,
+   "total_elements": 80,
+   "auto_share": 0.0875,
+   "estimated_minutes": 26.7,
+   "rooms": [
+    {
+     "room_id": "B106",
+     "iou": 0.004,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B107",
+     "iou": 0.982,
+     "auto_label": "B107",
+     "action": "auto"
+    },
+    {
+     "room_id": "B108",
+     "iou": 0.003,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B113",
+     "iou": 0.005,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B112",
+     "iou": 0.828,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B111",
+     "iou": 0.003,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B110",
+     "iou": 0.933,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B109",
+     "iou": 0.001,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B104",
+     "iou": 0.003,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B103",
+     "iou": 0.8,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B101",
+     "iou": 0.959,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B114",
+     "iou": 0.958,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B105",
+     "iou": 0.008,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B102",
+     "iou": 0.98,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B115",
+     "iou": 0.958,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B116",
+     "iou": 0.941,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B117",
+     "iou": 0.932,
+     "auto_label": "B117",
+     "action": "auto"
+    },
+    {
+     "room_id": "B118",
+     "iou": 0.958,
+     "auto_label": "B118",
+     "action": "auto"
+    },
+    {
+     "room_id": "B119",
+     "iou": 0.953,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B120",
+     "iou": 0.953,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B121",
+     "iou": 0.946,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B122",
+     "iou": 0.947,
+     "auto_label": "B122",
+     "action": "auto"
+    },
+    {
+     "room_id": "B123",
+     "iou": 0.932,
+     "auto_label": "B123",
+     "action": "auto"
+    },
+    {
+     "room_id": "B124",
+     "iou": 0.938,
+     "auto_label": "B124",
+     "action": "auto"
+    },
+    {
+     "room_id": "B125",
+     "iou": 0.899,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "B132",
+     "iou": 0.92,
+     "auto_label": "B132",
+     "action": "auto"
+    },
+    {
+     "room_id": "B131",
+     "iou": 0.003,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B130",
+     "iou": 0.001,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B129",
+     "iou": 0.002,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B128",
+     "iou": 0.001,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B126",
+     "iou": 0.001,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "B127",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    }
+   ]
+  },
+  {
+   "floor": "1F",
+   "final_rooms": 60,
+   "register_rooms": 76,
+   "register_missing_in_map": [
+    "125-1",
+    "144-1",
+    "156",
+    "161",
+    "162",
+    "163",
+    "164",
+    "165",
+    "166",
+    "167",
+    "168",
+    "169",
+    "170",
+    "171",
+    "172",
+    "173",
+    "174"
+   ],
+   "auto_polygons": 60,
+   "ocr_words": 181,
+   "ocr_matched": 29,
+   "counts": {
+    "reshape": 3,
+    "redraw": 25,
+    "auto": 28,
+    "relabel": 4,
+    "delete": 26,
+    "typed_space": 10,
+    "door": 87,
+    "vertical": 9
+   },
+   "manual_actions": 164,
+   "total_elements": 157,
+   "auto_share": 0.1783,
+   "estimated_minutes": 46.6,
+   "rooms": [
+    {
+     "room_id": "101",
+     "iou": 0.322,
+     "auto_label": null,
+     "action": "reshape"
+    },
+    {
+     "room_id": "102",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "103",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "104",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "105",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "106",
+     "iou": 0.936,
+     "auto_label": "106",
+     "action": "auto"
+    },
+    {
+     "room_id": "107",
+     "iou": 0.864,
+     "auto_label": "107",
+     "action": "auto"
+    },
+    {
+     "room_id": "108",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "110",
+     "iou": 0.976,
+     "auto_label": "110",
+     "action": "auto"
+    },
+    {
+     "room_id": "111",
+     "iou": 0.963,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "112",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "113",
+     "iou": 0.632,
+     "auto_label": "114",
+     "action": "reshape"
+    },
+    {
+     "room_id": "114",
+     "iou": 0.303,
+     "auto_label": "114",
+     "action": "reshape"
+    },
+    {
+     "room_id": "115",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "116",
+     "iou": 0.882,
+     "auto_label": "116",
+     "action": "auto"
+    },
+    {
+     "room_id": "117",
+     "iou": 0.894,
+     "auto_label": "117",
+     "action": "auto"
+    },
+    {
+     "room_id": "118",
+     "iou": 0.954,
+     "auto_label": "118",
+     "action": "auto"
+    },
+    {
+     "room_id": "119",
+     "iou": 0.956,
+     "auto_label": "119",
+     "action": "auto"
+    },
+    {
+     "room_id": "120",
+     "iou": 0.952,
+     "auto_label": "120",
+     "action": "auto"
+    },
+    {
+     "room_id": "121",
+     "iou": 0.961,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "122",
+     "iou": 0.968,
+     "auto_label": "122",
+     "action": "auto"
+    },
+    {
+     "room_id": "125",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "126",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "127",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "109",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "160",
+     "iou": 0.984,
+     "auto_label": "160",
+     "action": "auto"
+    },
+    {
+     "room_id": "145",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "146",
+     "iou": 0.947,
+     "auto_label": "146",
+     "action": "auto"
+    },
+    {
+     "room_id": "147",
+     "iou": 0.833,
+     "auto_label": "147",
+     "action": "auto"
+    },
+    {
+     "room_id": "148",
+     "iou": 0.924,
+     "auto_label": "148",
+     "action": "auto"
+    },
+    {
+     "room_id": "149",
+     "iou": 0.956,
+     "auto_label": "149",
+     "action": "auto"
+    },
+    {
+     "room_id": "150",
+     "iou": 0.958,
+     "auto_label": "150",
+     "action": "auto"
+    },
+    {
+     "room_id": "151",
+     "iou": 0.947,
+     "auto_label": "151",
+     "action": "auto"
+    },
+    {
+     "room_id": "152",
+     "iou": 0.958,
+     "auto_label": "152",
+     "action": "auto"
+    },
+    {
+     "room_id": "153",
+     "iou": 0.958,
+     "auto_label": "153",
+     "action": "auto"
+    },
+    {
+     "room_id": "154",
+     "iou": 0.863,
+     "auto_label": "154",
+     "action": "auto"
+    },
+    {
+     "room_id": "157",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "158",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "159",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "144",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "143",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "142",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "141",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "140",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "139",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "138",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "128",
+     "iou": 0.948,
+     "auto_label": "128",
+     "action": "auto"
+    },
+    {
+     "room_id": "129",
+     "iou": 0.975,
+     "auto_label": "129",
+     "action": "auto"
+    },
+    {
+     "room_id": "130",
+     "iou": 0.831,
+     "auto_label": "130",
+     "action": "auto"
+    },
+    {
+     "room_id": "131",
+     "iou": 0.967,
+     "auto_label": "131",
+     "action": "auto"
+    },
+    {
+     "room_id": "132",
+     "iou": 0.833,
+     "auto_label": "132",
+     "action": "auto"
+    },
+    {
+     "room_id": "133",
+     "iou": 0.971,
+     "auto_label": "135",
+     "action": "relabel"
+    },
+    {
+     "room_id": "134",
+     "iou": 0.958,
+     "auto_label": "134",
+     "action": "auto"
+    },
+    {
+     "room_id": "135",
+     "iou": 0.969,
+     "auto_label": "135",
+     "action": "auto"
+    },
+    {
+     "room_id": "136",
+     "iou": 0.96,
+     "auto_label": "136",
+     "action": "auto"
+    },
+    {
+     "room_id": "137",
+     "iou": 0.965,
+     "auto_label": "137",
+     "action": "auto"
+    },
+    {
+     "room_id": "155",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "124",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "123",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "131-1",
+     "iou": 0.961,
+     "auto_label": null,
+     "action": "relabel"
+    }
+   ]
+  },
+  {
+   "floor": "2F",
+   "final_rooms": 70,
+   "register_rooms": 70,
+   "register_missing_in_map": [
+    "211",
+    "220-1"
+   ],
+   "auto_polygons": 49,
+   "ocr_words": 195,
+   "ocr_matched": 40,
+   "counts": {
+    "reshape": 1,
+    "auto": 38,
+    "relabel": 4,
+    "redraw": 27,
+    "delete": 6,
+    "typed_space": 10,
+    "door": 77,
+    "vertical": 9
+   },
+   "manual_actions": 134,
+   "total_elements": 157,
+   "auto_share": 0.242,
+   "estimated_minutes": 44.3,
+   "rooms": [
+    {
+     "room_id": "201",
+     "iou": 0.318,
+     "auto_label": "201",
+     "action": "reshape"
+    },
+    {
+     "room_id": "248",
+     "iou": 0.956,
+     "auto_label": "248",
+     "action": "auto"
+    },
+    {
+     "room_id": "237",
+     "iou": 0.941,
+     "auto_label": "237",
+     "action": "auto"
+    },
+    {
+     "room_id": "238",
+     "iou": 0.948,
+     "auto_label": "238",
+     "action": "auto"
+    },
+    {
+     "room_id": "238-1",
+     "iou": 0.953,
+     "auto_label": "238-1",
+     "action": "auto"
+    },
+    {
+     "room_id": "239",
+     "iou": 0.955,
+     "auto_label": "239",
+     "action": "auto"
+    },
+    {
+     "room_id": "240",
+     "iou": 0.941,
+     "auto_label": "240",
+     "action": "auto"
+    },
+    {
+     "room_id": "241",
+     "iou": 0.945,
+     "auto_label": "241",
+     "action": "auto"
+    },
+    {
+     "room_id": "241-1",
+     "iou": 0.951,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "242",
+     "iou": 0.917,
+     "auto_label": "242",
+     "action": "auto"
+    },
+    {
+     "room_id": "243",
+     "iou": 0.948,
+     "auto_label": "243",
+     "action": "auto"
+    },
+    {
+     "room_id": "236",
+     "iou": 0.957,
+     "auto_label": "236",
+     "action": "auto"
+    },
+    {
+     "room_id": "204",
+     "iou": 0.951,
+     "auto_label": "204",
+     "action": "auto"
+    },
+    {
+     "room_id": "235",
+     "iou": 0.972,
+     "auto_label": "235",
+     "action": "auto"
+    },
+    {
+     "room_id": "212",
+     "iou": 0.973,
+     "auto_label": "212",
+     "action": "auto"
+    },
+    {
+     "room_id": "231",
+     "iou": 0.965,
+     "auto_label": "231",
+     "action": "auto"
+    },
+    {
+     "room_id": "213",
+     "iou": 0.904,
+     "auto_label": "213",
+     "action": "auto"
+    },
+    {
+     "room_id": "214",
+     "iou": 0.947,
+     "auto_label": "214",
+     "action": "auto"
+    },
+    {
+     "room_id": "215",
+     "iou": 0.936,
+     "auto_label": "215",
+     "action": "auto"
+    },
+    {
+     "room_id": "216",
+     "iou": 0.937,
+     "auto_label": "216",
+     "action": "auto"
+    },
+    {
+     "room_id": "217",
+     "iou": 0.935,
+     "auto_label": "217",
+     "action": "auto"
+    },
+    {
+     "room_id": "218",
+     "iou": 0.939,
+     "auto_label": "218",
+     "action": "auto"
+    },
+    {
+     "room_id": "219",
+     "iou": 0.929,
+     "auto_label": "219",
+     "action": "auto"
+    },
+    {
+     "room_id": "220",
+     "iou": 0.871,
+     "auto_label": "220",
+     "action": "auto"
+    },
+    {
+     "room_id": "221",
+     "iou": 0.943,
+     "auto_label": "221",
+     "action": "auto"
+    },
+    {
+     "room_id": "222",
+     "iou": 0.954,
+     "auto_label": "222",
+     "action": "auto"
+    },
+    {
+     "room_id": "223",
+     "iou": 0.949,
+     "auto_label": "223",
+     "action": "auto"
+    },
+    {
+     "room_id": "224",
+     "iou": 0.938,
+     "auto_label": "224",
+     "action": "auto"
+    },
+    {
+     "room_id": "225",
+     "iou": 0.948,
+     "auto_label": "225",
+     "action": "auto"
+    },
+    {
+     "room_id": "226",
+     "iou": 0.944,
+     "auto_label": "226",
+     "action": "auto"
+    },
+    {
+     "room_id": "227",
+     "iou": 0.948,
+     "auto_label": "227",
+     "action": "auto"
+    },
+    {
+     "room_id": "232",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "233",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "234",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "230",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "229",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "228",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "212-1",
+     "iou": 0.936,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "212-2",
+     "iou": 0.898,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "210",
+     "iou": 0.89,
+     "auto_label": "210",
+     "action": "auto"
+    },
+    {
+     "room_id": "209",
+     "iou": 0.956,
+     "auto_label": "209",
+     "action": "auto"
+    },
+    {
+     "room_id": "205",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "203",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "206",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "247",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "246",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "245",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "244",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "249",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "250",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "202",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "207",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "208",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "251",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "251-1",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "252",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "253",
+     "iou": 0.91,
+     "auto_label": "253",
+     "action": "auto"
+    },
+    {
+     "room_id": "254",
+     "iou": 0.867,
+     "auto_label": "254",
+     "action": "auto"
+    },
+    {
+     "room_id": "255",
+     "iou": 0.955,
+     "auto_label": "255",
+     "action": "auto"
+    },
+    {
+     "room_id": "256",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "256-1",
+     "iou": 0.928,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "257",
+     "iou": 0.951,
+     "auto_label": "257",
+     "action": "auto"
+    },
+    {
+     "room_id": "258",
+     "iou": 0.729,
+     "auto_label": "258",
+     "action": "auto"
+    },
+    {
+     "room_id": "259",
+     "iou": 0.908,
+     "auto_label": "259",
+     "action": "auto"
+    },
+    {
+     "room_id": "262",
+     "iou": 0.974,
+     "auto_label": "262",
+     "action": "auto"
+    },
+    {
+     "room_id": "263",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "264",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "265",
+     "iou": 0.23,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "261",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "260",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    }
+   ]
+  },
+  {
+   "floor": "3F",
+   "final_rooms": 70,
+   "register_rooms": 69,
+   "register_missing_in_map": [
+    "305-1"
+   ],
+   "auto_polygons": 75,
+   "ocr_words": 248,
+   "ocr_matched": 45,
+   "counts": {
+    "redraw": 22,
+    "relabel": 5,
+    "auto": 42,
+    "reshape": 1,
+    "delete": 26,
+    "typed_space": 10,
+    "door": 96,
+    "vertical": 9
+   },
+   "manual_actions": 169,
+   "total_elements": 176,
+   "auto_share": 0.2386,
+   "estimated_minutes": 45.5,
+   "rooms": [
+    {
+     "room_id": "302",
+     "iou": 0.004,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "304",
+     "iou": 0.251,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "305",
+     "iou": 0.258,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "310",
+     "iou": 0.878,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "327",
+     "iou": 0.001,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "328",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "303",
+     "iou": 0.971,
+     "auto_label": "303",
+     "action": "auto"
+    },
+    {
+     "room_id": "313",
+     "iou": 0.949,
+     "auto_label": "313",
+     "action": "auto"
+    },
+    {
+     "room_id": "314",
+     "iou": 0.949,
+     "auto_label": "314",
+     "action": "auto"
+    },
+    {
+     "room_id": "315",
+     "iou": 0.951,
+     "auto_label": "315",
+     "action": "auto"
+    },
+    {
+     "room_id": "316",
+     "iou": 0.958,
+     "auto_label": "316",
+     "action": "auto"
+    },
+    {
+     "room_id": "317",
+     "iou": 0.964,
+     "auto_label": "317",
+     "action": "auto"
+    },
+    {
+     "room_id": "319",
+     "iou": 0.946,
+     "auto_label": "319",
+     "action": "auto"
+    },
+    {
+     "room_id": "318",
+     "iou": 0.948,
+     "auto_label": "318",
+     "action": "auto"
+    },
+    {
+     "room_id": "320",
+     "iou": 0.963,
+     "auto_label": "320",
+     "action": "auto"
+    },
+    {
+     "room_id": "321",
+     "iou": 0.947,
+     "auto_label": "321",
+     "action": "auto"
+    },
+    {
+     "room_id": "322",
+     "iou": 0.958,
+     "auto_label": "322",
+     "action": "auto"
+    },
+    {
+     "room_id": "323",
+     "iou": 0.958,
+     "auto_label": "323",
+     "action": "auto"
+    },
+    {
+     "room_id": "324",
+     "iou": 0.95,
+     "auto_label": "324",
+     "action": "auto"
+    },
+    {
+     "room_id": "325",
+     "iou": 0.958,
+     "auto_label": "325",
+     "action": "auto"
+    },
+    {
+     "room_id": "326",
+     "iou": 0.957,
+     "auto_label": "326",
+     "action": "auto"
+    },
+    {
+     "room_id": "301",
+     "iou": 0.195,
+     "auto_label": "301",
+     "action": "redraw"
+    },
+    {
+     "room_id": "307",
+     "iou": 0.001,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "308",
+     "iou": 0.983,
+     "auto_label": "308",
+     "action": "auto"
+    },
+    {
+     "room_id": "309",
+     "iou": 0.925,
+     "auto_label": "309",
+     "action": "auto"
+    },
+    {
+     "room_id": "311",
+     "iou": 0.513,
+     "auto_label": "311",
+     "action": "reshape"
+    },
+    {
+     "room_id": "312",
+     "iou": 0.979,
+     "auto_label": "312",
+     "action": "auto"
+    },
+    {
+     "room_id": "333",
+     "iou": 0.063,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "332",
+     "iou": 0.125,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "331",
+     "iou": 0.079,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "330",
+     "iou": 0.169,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "329",
+     "iou": 0.162,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "335",
+     "iou": 0.982,
+     "auto_label": "335",
+     "action": "auto"
+    },
+    {
+     "room_id": "334",
+     "iou": 0.994,
+     "auto_label": "334",
+     "action": "auto"
+    },
+    {
+     "room_id": "336",
+     "iou": 0.955,
+     "auto_label": "336",
+     "action": "auto"
+    },
+    {
+     "room_id": "337",
+     "iou": 0.955,
+     "auto_label": "337",
+     "action": "auto"
+    },
+    {
+     "room_id": "337-1",
+     "iou": 0.945,
+     "auto_label": "337-1",
+     "action": "auto"
+    },
+    {
+     "room_id": "338",
+     "iou": 0.947,
+     "auto_label": "338",
+     "action": "auto"
+    },
+    {
+     "room_id": "339",
+     "iou": 0.96,
+     "auto_label": "339",
+     "action": "auto"
+    },
+    {
+     "room_id": "340",
+     "iou": 0.96,
+     "auto_label": "340",
+     "action": "auto"
+    },
+    {
+     "room_id": "341",
+     "iou": 0.953,
+     "auto_label": "341",
+     "action": "auto"
+    },
+    {
+     "room_id": "342",
+     "iou": 0.962,
+     "auto_label": "342",
+     "action": "auto"
+    },
+    {
+     "room_id": "343",
+     "iou": 0.956,
+     "auto_label": "343",
+     "action": "auto"
+    },
+    {
+     "room_id": "350",
+     "iou": 0.933,
+     "auto_label": "350",
+     "action": "auto"
+    },
+    {
+     "room_id": "349",
+     "iou": 0.802,
+     "auto_label": "349",
+     "action": "auto"
+    },
+    {
+     "room_id": "348",
+     "iou": 0.165,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "348-1",
+     "iou": 0.165,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "345",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "344",
+     "iou": 0.001,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "367-1",
+     "iou": 0.141,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "367",
+     "iou": 0.121,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "366",
+     "iou": 0.278,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "365",
+     "iou": 0.946,
+     "auto_label": "365",
+     "action": "auto"
+    },
+    {
+     "room_id": "351",
+     "iou": 0.977,
+     "auto_label": "351",
+     "action": "auto"
+    },
+    {
+     "room_id": "352",
+     "iou": 0.962,
+     "auto_label": "352",
+     "action": "auto"
+    },
+    {
+     "room_id": "353",
+     "iou": 0.963,
+     "auto_label": "353",
+     "action": "auto"
+    },
+    {
+     "room_id": "354",
+     "iou": 0.948,
+     "auto_label": "354",
+     "action": "auto"
+    },
+    {
+     "room_id": "355",
+     "iou": 0.875,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "356",
+     "iou": 0.946,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "357",
+     "iou": 0.95,
+     "auto_label": "357",
+     "action": "auto"
+    },
+    {
+     "room_id": "358",
+     "iou": 0.954,
+     "auto_label": "358",
+     "action": "auto"
+    },
+    {
+     "room_id": "359",
+     "iou": 0.954,
+     "auto_label": "359",
+     "action": "auto"
+    },
+    {
+     "room_id": "360",
+     "iou": 0.953,
+     "auto_label": "360",
+     "action": "auto"
+    },
+    {
+     "room_id": "361",
+     "iou": 0.956,
+     "auto_label": "361",
+     "action": "auto"
+    },
+    {
+     "room_id": "362",
+     "iou": 0.953,
+     "auto_label": "362",
+     "action": "auto"
+    },
+    {
+     "room_id": "364",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "363",
+     "iou": 0.001,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "347",
+     "iou": 0.958,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "323-1",
+     "iou": 0.255,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "306",
+     "iou": 0.74,
+     "auto_label": null,
+     "action": "relabel"
+    }
+   ]
+  },
+  {
+   "floor": "4F",
+   "final_rooms": 70,
+   "register_rooms": 82,
+   "register_missing_in_map": [
+    "440",
+    "467",
+    "468",
+    "469",
+    "470",
+    "471",
+    "472",
+    "473",
+    "474",
+    "475",
+    "476",
+    "477",
+    "478",
+    "479"
+   ],
+   "auto_polygons": 75,
+   "ocr_words": 243,
+   "ocr_matched": 50,
+   "counts": {
+    "auto": 48,
+    "redraw": 17,
+    "relabel": 2,
+    "reshape": 3,
+    "delete": 22,
+    "typed_space": 10,
+    "door": 100,
+    "vertical": 9
+   },
+   "manual_actions": 163,
+   "total_elements": 180,
+   "auto_share": 0.2667,
+   "estimated_minutes": 42.7,
+   "rooms": [
+    {
+     "room_id": "466",
+     "iou": 0.94,
+     "auto_label": "466",
+     "action": "auto"
+    },
+    {
+     "room_id": "465",
+     "iou": 0.868,
+     "auto_label": "465",
+     "action": "auto"
+    },
+    {
+     "room_id": "464",
+     "iou": 0.967,
+     "auto_label": "464",
+     "action": "auto"
+    },
+    {
+     "room_id": "463",
+     "iou": 0.864,
+     "auto_label": "463",
+     "action": "auto"
+    },
+    {
+     "room_id": "462",
+     "iou": 0.964,
+     "auto_label": "462",
+     "action": "auto"
+    },
+    {
+     "room_id": "456",
+     "iou": 0.98,
+     "auto_label": "456",
+     "action": "auto"
+    },
+    {
+     "room_id": "457",
+     "iou": 0.951,
+     "auto_label": "457",
+     "action": "auto"
+    },
+    {
+     "room_id": "458-1",
+     "iou": 0.963,
+     "auto_label": "458-1",
+     "action": "auto"
+    },
+    {
+     "room_id": "458-2",
+     "iou": 0.961,
+     "auto_label": "458-2",
+     "action": "auto"
+    },
+    {
+     "room_id": "458-3",
+     "iou": 0.966,
+     "auto_label": "458-3",
+     "action": "auto"
+    },
+    {
+     "room_id": "459",
+     "iou": 0.942,
+     "auto_label": "459",
+     "action": "auto"
+    },
+    {
+     "room_id": "460",
+     "iou": 0.97,
+     "auto_label": "460",
+     "action": "auto"
+    },
+    {
+     "room_id": "461",
+     "iou": 0.955,
+     "auto_label": "461",
+     "action": "auto"
+    },
+    {
+     "room_id": "402",
+     "iou": 0.955,
+     "auto_label": "402",
+     "action": "auto"
+    },
+    {
+     "room_id": "401",
+     "iou": 0.968,
+     "auto_label": "401",
+     "action": "auto"
+    },
+    {
+     "room_id": "455",
+     "iou": 0.952,
+     "auto_label": "455",
+     "action": "auto"
+    },
+    {
+     "room_id": "454",
+     "iou": 0.976,
+     "auto_label": "454",
+     "action": "auto"
+    },
+    {
+     "room_id": "403",
+     "iou": 0.976,
+     "auto_label": "403",
+     "action": "auto"
+    },
+    {
+     "room_id": "453",
+     "iou": 0.963,
+     "auto_label": "453",
+     "action": "auto"
+    },
+    {
+     "room_id": "452",
+     "iou": 0.981,
+     "auto_label": "452",
+     "action": "auto"
+    },
+    {
+     "room_id": "404",
+     "iou": 0.976,
+     "auto_label": "404",
+     "action": "auto"
+    },
+    {
+     "room_id": "437",
+     "iou": 0.959,
+     "auto_label": "437",
+     "action": "auto"
+    },
+    {
+     "room_id": "438",
+     "iou": 0.964,
+     "auto_label": "438",
+     "action": "auto"
+    },
+    {
+     "room_id": "439",
+     "iou": 0.972,
+     "auto_label": "439",
+     "action": "auto"
+    },
+    {
+     "room_id": "441",
+     "iou": 0.956,
+     "auto_label": "441",
+     "action": "auto"
+    },
+    {
+     "room_id": "442",
+     "iou": 0.963,
+     "auto_label": "442",
+     "action": "auto"
+    },
+    {
+     "room_id": "443",
+     "iou": 0.964,
+     "auto_label": "443",
+     "action": "auto"
+    },
+    {
+     "room_id": "444",
+     "iou": 0.964,
+     "auto_label": "444",
+     "action": "auto"
+    },
+    {
+     "room_id": "445",
+     "iou": 0.964,
+     "auto_label": "445",
+     "action": "auto"
+    },
+    {
+     "room_id": "446",
+     "iou": 0.951,
+     "auto_label": "446",
+     "action": "auto"
+    },
+    {
+     "room_id": "436",
+     "iou": 0.968,
+     "auto_label": "436",
+     "action": "auto"
+    },
+    {
+     "room_id": "409",
+     "iou": 0.988,
+     "auto_label": "409",
+     "action": "auto"
+    },
+    {
+     "room_id": "435",
+     "iou": 0.993,
+     "auto_label": "435",
+     "action": "auto"
+    },
+    {
+     "room_id": "414",
+     "iou": 0.964,
+     "auto_label": "414",
+     "action": "auto"
+    },
+    {
+     "room_id": "415",
+     "iou": 0.964,
+     "auto_label": "415",
+     "action": "auto"
+    },
+    {
+     "room_id": "416",
+     "iou": 0.935,
+     "auto_label": "416",
+     "action": "auto"
+    },
+    {
+     "room_id": "417",
+     "iou": 0.964,
+     "auto_label": "417",
+     "action": "auto"
+    },
+    {
+     "room_id": "418",
+     "iou": 0.901,
+     "auto_label": "418",
+     "action": "auto"
+    },
+    {
+     "room_id": "419",
+     "iou": 0.952,
+     "auto_label": "419",
+     "action": "auto"
+    },
+    {
+     "room_id": "420",
+     "iou": 0.949,
+     "auto_label": "420",
+     "action": "auto"
+    },
+    {
+     "room_id": "421",
+     "iou": 0.937,
+     "auto_label": "421",
+     "action": "auto"
+    },
+    {
+     "room_id": "422",
+     "iou": 0.959,
+     "auto_label": "422",
+     "action": "auto"
+    },
+    {
+     "room_id": "423",
+     "iou": 0.958,
+     "auto_label": "423",
+     "action": "auto"
+    },
+    {
+     "room_id": "424",
+     "iou": 0.965,
+     "auto_label": "424",
+     "action": "auto"
+    },
+    {
+     "room_id": "425",
+     "iou": 0.936,
+     "auto_label": "425",
+     "action": "auto"
+    },
+    {
+     "room_id": "426",
+     "iou": 0.948,
+     "auto_label": "426",
+     "action": "auto"
+    },
+    {
+     "room_id": "427",
+     "iou": 0.957,
+     "auto_label": "427",
+     "action": "auto"
+    },
+    {
+     "room_id": "405",
+     "iou": 0.225,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "406",
+     "iou": 0.235,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "410",
+     "iou": 0.963,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "411",
+     "iou": 0.919,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "412",
+     "iou": 0.612,
+     "auto_label": "412",
+     "action": "reshape"
+    },
+    {
+     "room_id": "413",
+     "iou": 0.976,
+     "auto_label": "413",
+     "action": "auto"
+    },
+    {
+     "room_id": "428",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "429",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "430",
+     "iou": 0.269,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "431",
+     "iou": 0.161,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "432",
+     "iou": 0.079,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "433",
+     "iou": 0.123,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "434",
+     "iou": 0.062,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "407",
+     "iou": 0.095,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "451",
+     "iou": 0.32,
+     "auto_label": null,
+     "action": "reshape"
+    },
+    {
+     "room_id": "450",
+     "iou": 0.005,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "449",
+     "iou": 0.311,
+     "auto_label": null,
+     "action": "reshape"
+    },
+    {
+     "room_id": "447",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "448",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "458",
+     "iou": 0.015,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "462-2",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "462-1",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "408",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    }
+   ]
+  },
+  {
+   "floor": "5F",
+   "final_rooms": 26,
+   "register_rooms": 24,
+   "register_missing_in_map": [],
+   "auto_polygons": 46,
+   "ocr_words": 63,
+   "ocr_matched": 17,
+   "counts": {
+    "auto": 15,
+    "redraw": 6,
+    "reshape": 1,
+    "relabel": 4,
+    "delete": 21,
+    "typed_space": 8,
+    "door": 44,
+    "vertical": 7
+   },
+   "manual_actions": 91,
+   "total_elements": 78,
+   "auto_share": 0.1923,
+   "estimated_minutes": 21.2,
+   "rooms": [
+    {
+     "room_id": "509",
+     "iou": 0.961,
+     "auto_label": "509",
+     "action": "auto"
+    },
+    {
+     "room_id": "503",
+     "iou": 0.912,
+     "auto_label": "503",
+     "action": "auto"
+    },
+    {
+     "room_id": "510",
+     "iou": 0.748,
+     "auto_label": "510",
+     "action": "auto"
+    },
+    {
+     "room_id": "511",
+     "iou": 0.98,
+     "auto_label": "511",
+     "action": "auto"
+    },
+    {
+     "room_id": "525",
+     "iou": 0.934,
+     "auto_label": "525",
+     "action": "auto"
+    },
+    {
+     "room_id": "525-1",
+     "iou": 0.908,
+     "auto_label": "525-1",
+     "action": "auto"
+    },
+    {
+     "room_id": "505",
+     "iou": 0.931,
+     "auto_label": "505",
+     "action": "auto"
+    },
+    {
+     "room_id": "516",
+     "iou": 0.876,
+     "auto_label": "516",
+     "action": "auto"
+    },
+    {
+     "room_id": "518",
+     "iou": 0.929,
+     "auto_label": "518",
+     "action": "auto"
+    },
+    {
+     "room_id": "519",
+     "iou": 0.928,
+     "auto_label": "519",
+     "action": "auto"
+    },
+    {
+     "room_id": "520",
+     "iou": 0.943,
+     "auto_label": "520",
+     "action": "auto"
+    },
+    {
+     "room_id": "521",
+     "iou": 0.933,
+     "auto_label": "521",
+     "action": "auto"
+    },
+    {
+     "room_id": "522",
+     "iou": 0.895,
+     "auto_label": "522",
+     "action": "auto"
+    },
+    {
+     "room_id": "506",
+     "iou": 0.09,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "507",
+     "iou": 0.945,
+     "auto_label": "507",
+     "action": "auto"
+    },
+    {
+     "room_id": "501",
+     "iou": 0.325,
+     "auto_label": null,
+     "action": "reshape"
+    },
+    {
+     "room_id": "502",
+     "iou": 0.942,
+     "auto_label": "502",
+     "action": "auto"
+    },
+    {
+     "room_id": "504",
+     "iou": 0.275,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "512",
+     "iou": 0.929,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "513",
+     "iou": 0.856,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "514",
+     "iou": 0.847,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "515",
+     "iou": 0.834,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "517",
+     "iou": 0.279,
+     "auto_label": "517",
+     "action": "redraw"
+    },
+    {
+     "room_id": "523",
+     "iou": 0.006,
+     "auto_label": "517",
+     "action": "redraw"
+    },
+    {
+     "room_id": "524",
+     "iou": 0.0,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "508",
+     "iou": 0.054,
+     "auto_label": null,
+     "action": "redraw"
+    }
+   ]
+  },
+  {
+   "floor": "6F",
+   "final_rooms": 9,
+   "register_rooms": 8,
+   "register_missing_in_map": [],
+   "auto_polygons": 37,
+   "ocr_words": 65,
+   "ocr_matched": 1,
+   "counts": {
+    "auto": 1,
+    "relabel": 4,
+    "reshape": 2,
+    "redraw": 2,
+    "delete": 28,
+    "typed_space": 5,
+    "door": 15,
+    "vertical": 4
+   },
+   "manual_actions": 60,
+   "total_elements": 29,
+   "auto_share": 0.0345,
+   "estimated_minutes": 10.9,
+   "rooms": [
+    {
+     "room_id": "602-1",
+     "iou": 0.949,
+     "auto_label": "602-1",
+     "action": "auto"
+    },
+    {
+     "room_id": "602",
+     "iou": 0.938,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "601",
+     "iou": 0.939,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "603",
+     "iou": 0.541,
+     "auto_label": null,
+     "action": "reshape"
+    },
+    {
+     "room_id": "604",
+     "iou": 0.597,
+     "auto_label": null,
+     "action": "reshape"
+    },
+    {
+     "room_id": "606",
+     "iou": 0.951,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "606-1",
+     "iou": 0.874,
+     "auto_label": null,
+     "action": "relabel"
+    },
+    {
+     "room_id": "606-2",
+     "iou": 0.226,
+     "auto_label": null,
+     "action": "redraw"
+    },
+    {
+     "room_id": "605",
+     "iou": 0.052,
+     "auto_label": null,
+     "action": "redraw"
+    }
+   ]
+  }
+ ],
+ "total": {
+  "counts": {
+   "redraw": 112,
+   "auto": 179,
+   "relabel": 35,
+   "delete": 164,
+   "typed_space": 60,
+   "door": 460,
+   "vertical": 53,
+   "reshape": 11
+  },
+  "manual_actions": 895,
+  "elements": 857,
+  "auto_share": 0.2089,
+  "manual_share": 0.7911,
+  "estimated_minutes": 237.9,
+  "rooms": 337,
+  "room_auto_share": 0.5312,
+  "pipeline_seconds": 0.2
+ }
+}

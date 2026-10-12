@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>캠퍼스 통합 경로망 — GUMAP 13주차</title>
+<link rel="icon" href="/GUMAP-아이콘/app_icon_96.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="../_app/report-doc.css">
+<style>
+  .layout { display: grid; grid-template-columns: 1fr 440px; gap: 16px; }
+  #map { height: 690px; border-radius: 12px; }
+  .lg { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; margin-bottom: 8px; align-items: center; }
+  .lg i { display: inline-block; width: 18px; height: 4px; border-radius: 2px; margin-right: 4px; vertical-align: 2px; }
+  ol.steps { margin: 6px 0 0; padding-left: 18px; line-height: 1.8; font-size: 12.5px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } #map { height: 440px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="doc-head">
+    <img src="/GUMAP-아이콘/app_icon_96.png" alt="">
+    <div class="t">
+      <h1>캠퍼스 통합 경로망 — 건물 간 실외 보행망 연결 · 전역 병합</h1>
+      <p>테크노관(사람 검수 경로망) + 디지털관(12주차 자동 생성) + 글로벌관(초안)을 한 그래프로 합치고, 건물 출구와 출입구 사이를 OSM 보행 도로망 실측 경로로 이었다</p>
+    </div>
+    <div class="deliv">산출물 <b>캠퍼스 통합 경로망</b></div>
+    <span class="week-chip">13주차 · 12.04~12.10</span>
+  </div>
+  <div class="layout">
+    <div class="card" style="padding:12px">
+      <div class="lg">
+        <span>층</span><span class="tabs" id="floors" style="margin:0"></span>
+        <span><i style="background:#0891b2"></i>테크노관</span><span><i style="background:#7c3aed"></i>디지털관</span>
+        <span><i style="background:#db2777"></i>글로벌관</span><span><i style="background:#16a34a"></i>실외 연결</span>
+        <span><i style="background:#f97316;height:6px"></i>예시 경로</span>
+      </div>
+      <div id="map"></div>
+    </div>
+    <div>
+      <div class="grid g2" id="kpis" style="gap:12px"></div>
+      <div class="card" style="margin-top:12px">
+        <h2><span class="n">1</span>예시: 디지털관 1F 101 → 테크노관 3F 302</h2>
+        <div id="demo"></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h2><span class="n">2</span>건물별 경로망</h2>
+        <table>
+          <thead><tr><th>건물</th><th class="num">노드</th><th class="num">간선</th><th class="num">방</th><th class="num">층간</th><th>연결 상태</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="cap">가중치는 초 단위: 보행 1.2 m/s · 계단 층당 20 s · 엘리베이터 대기 25 s + 층당 6 s. 디지털관 층간 연결은 층마다 검출된 계단·비상구 표지를 묶은 계단실 4곳으로 만들었다.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">GUMAP · AX 기반 역량 강화 프로젝트 · 13주차 산출물 · 생성: _tools/ax/campus_graph.py</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const COL = { techno: '#0891b2', digital: '#7c3aed', global: '#db2777' };
+const map = L.map('map', { preferCanvas: true }).setView([36.1462, 128.3935], 18);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 21, maxNativeZoom: 19, opacity: 0.55, attribution: '© OpenStreetMap' }).addTo(map);
+let G, floor = '1F', layer;
+function draw() {
+  if (layer) map.removeLayer(layer);
+  layer = L.layerGroup().addTo(map);
+  Object.entries(G.lines).forEach(([k, segs]) => {
+    const [b, f] = k.split('|');
+    if (f !== floor && f !== 'vertical') return;
+    segs.forEach(s => layer.addLayer(L.polyline(s, { color: COL[b], weight: f === 'vertical' ? 3 : 1, opacity: f === 'vertical' ? 0.9 : 0.55 })));
+  });
+  G.outdoor.forEach(o => layer.addLayer(L.polyline(o.coords, { color: '#16a34a', weight: 3, opacity: 0.8, dashArray: '6,5' })
+    .bindTooltip('실외 연결 ' + Math.round(o.meters) + 'm (OSM 보행망)')));
+  G.techno_entrances.forEach(e => layer.addLayer(L.circleMarker([e.lat, e.lon], { radius: 4, color: '#fff', weight: 1, fillColor: '#0891b2', fillOpacity: 1 }).bindTooltip(e.name)));
+  document.querySelectorAll('#floors button').forEach(b => b.classList.toggle('on', b.dataset.f === floor));
+  if (window.DEMO) drawDemo();
+}
+function drawDemo() {
+  DEMO.segments.forEach(s => {
+    if (s.coords.length < 2) return;
+    layer.addLayer(L.polyline(s.coords, { color: '#0f172a', weight: 9, opacity: 0.25 }));
+    layer.addLayer(L.polyline(s.coords, { color: '#f97316', weight: 5, opacity: 0.95, dashArray: s.mode === 'outdoor' ? '10,6' : null }));
+  });
+  const first = DEMO.segments[0].coords[0], lastSeg = DEMO.segments[DEMO.segments.length - 1];
+  layer.addLayer(L.circleMarker(first, { radius: 8, color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }).bindTooltip('출발 디지털관 1F 101', { permanent: true, direction: 'left' }));
+  layer.addLayer(L.circleMarker(lastSeg.coords[lastSeg.coords.length - 1], { radius: 8, color: '#fff', weight: 3, fillColor: '#dc2626', fillOpacity: 1 }).bindTooltip('도착 테크노관 3F 302', { permanent: true, direction: 'right' }));
+}
+Promise.all([fetch('campus_graph.json').then(r => r.json()), fetch('demo_route.json').then(r => r.json())]).then(([g, d]) => {
+  G = g; window.DEMO = d;
+  const s = g.stats, bb = s.by_building;
+  const tiles = [
+    ['통합 경로망', s.nodes.toLocaleString(), '노드', '간선 ' + s.edges.toLocaleString() + '개 · 건물 3동'],
+    ['실외 연결', s.outdoor_links, '개', 'OSM 보행망 실측 ' + Math.round(s.outdoor_meters) + 'm'],
+    ['디지털관 방 연결', Math.round(s.reachability.digital.reachable / s.reachability.digital.rooms * 100), '%', s.reachability.digital.reachable + ' / ' + s.reachability.digital.rooms + '개 방이 테크노관과 이어짐'],
+    ['예시 경로', Math.round(d.meters), 'm', '약 ' + Math.round(d.seconds / 60) + '분 · 건물 2동 + 실외'],
+  ];
+  document.getElementById('kpis').innerHTML = tiles.map(x =>
+    '<div class="card stat"><div class="k">' + x[0] + '</div><div class="v">' + x[1] + '<small>' + x[2] + '</small></div><div class="d muted">' + x[3] + '</div></div>').join('');
+  const NAME = { techno: '테크노관', digital: '디지털관', outdoor: '실외' };
+  document.getElementById('demo').innerHTML = '<div style="font-size:18px;font-weight:800;color:#ea580c">' + Math.round(d.meters) + 'm · 약 ' + Math.round(d.seconds / 60) + '분</div><ol class="steps">' +
+    '<li>출발 · 디지털관 1F 101 문 앞</li>' +
+    d.segments.filter(x => x.meters > 1 || x.mode !== 'walk').map(x =>
+      '<li>' + (x.mode === 'outdoor' ? '<b style="color:#16a34a">건물 밖 도보 ' + Math.round(x.meters) + 'm</b> (OSM 보행 도로망)' :
+      x.mode === 'elevator' ? '<b style="color:#b45309">엘리베이터 → ' + x.floor + '</b>' :
+      x.mode === 'stair' ? '<b style="color:#b45309">계단 → ' + x.floor + '</b>' :
+      NAME[x.building] + ' ' + x.floor + ' 복도 ' + Math.round(x.meters) + 'm') + '</li>').join('') +
+    '<li>도착 · 테크노관 3F 302 문 앞</li></ol>';
+  const reach = s.reachability;
+  document.getElementById('rows').innerHTML = Object.entries(bb).map(([k, v]) =>
+    '<tr><td><b style="color:' + COL[k] + '">' + v.name + '</b></td><td class="num">' + v.nodes.toLocaleString() + '</td><td class="num">' + v.edges.toLocaleString() +
+    '</td><td class="num">' + v.rooms + '</td><td class="num">' + (v.vertical_links != null ? v.vertical_links : '엘리베이터·계단') + '</td><td class="small">' +
+    (k === 'techno' ? '<span class="tag ok">완성</span> 출입구 ' + v.entrances + '곳' :
+     k === 'digital' ? '<span class="tag ok">연결</span> ' + reach.digital.reachable + '/' + reach.digital.rooms + '실 · 출구 ' + v.exits :
+     '<span class="tag warn">초안</span> ' + v.floors.join('·') + ' 정합 · 방 연결은 검수 후') + '</td></tr>').join('');
+  document.getElementById('floors').innerHTML = ['B1F', '1F', '2F', '3F', '4F', '5F', '6F'].map(f => '<button data-f="' + f + '">' + f + '</button>').join('');
+  document.querySelectorAll('#floors button').forEach(b => b.onclick = () => { floor = b.dataset.f; draw(); });
+  draw();
+  map.fitBounds(L.latLngBounds(d.segments.flatMap(x => x.coords)), { padding: [40, 40] });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GUMAP 주차별 스냅샷</title>
+<link rel="icon" href="/GUMAP-아이콘/app_icon_96.png">
+<link rel="stylesheet" href="_app/report-doc.css">
+<style>
+  .month { margin-top: 22px; }
+  .month h2 { font-size: 17px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px; }
+  .month h2 .p { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .weeks { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+  .wk { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .wk .h { display: flex; align-items: center; gap: 8px; }
+  .wk .h b { font-size: 15px; }
+  .wk .h .d { font-size: 11.5px; color: var(--muted); margin-left: auto; }
+  .wk .plan { font-size: 12px; color: var(--muted); }
+  .wk .shows { font-size: 12.5px; line-height: 1.55; }
+  .wk .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .wk .links a { text-decoration: none; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--brand); color: var(--brand); }
+  .wk .links a.main { background: var(--brand); color: #fff; }
+  .note { font-size: 12.5px; line-height: 1.8; }
+  .note code { font-size: 11.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="doc-head">
+    <img src="/GUMAP-아이콘/app_icon_96.png" alt="">
+    <div class="t">
+      <h1>GUMAP 주차별 스냅샷 — 활동보고서 캡처용</h1>
+      <p>계획서(2026.09.04 제출) 추진 일정 1~15주차에 맞춰, 그 주차까지의 기능만 켜진 GUMAP 과 산출물 화면을 모았다. 각 링크는 열리면 캡처할 장면을 자동으로 펼친다.</p>
+    </div>
+    <span class="week-chip">AX 기반 역량 강화 · 팀 GUMAP</span>
+  </div>
+
+  <div class="card note">
+    <b>캡처 방법</b> — 서버를 켠 뒤(<code>G-map-시작.bat</code> 또는 <code>python server.py</code>) 이 페이지를 <code>http://localhost:3000/GUMAP_report/</code> 로 연다.
+    브라우저 창을 1600×900 정도로 두면 화면이 한 장에 들어간다.
+    · 앱 화면 주소 뒤에 <code>?badge=0</code> 를 붙이면 머리글의 "v0.x · N주차" 표시가 빠지고, <code>?scene=0</code> 이면 자동 장면 없이 기본 화면으로 열린다.
+    · <span class="tag ok">기존 구현</span> 은 저장소에 이미 있던 기능을 주차에 맞게 켜고 끈 것, <span class="tag brand">이번에 구현</span> 은 이 스냅샷을 만들며 새로 만든 것(보고서 폴더 안에만 있음), <span class="tag warn">부분</span> 은 결과가 초안 수준인 것이다.
+  </div>
+
+  <div id="months"></div>
+  <div class="foot">GUMAP_report · 원본 앱은 건드리지 않았다. 스냅샷용 프론트 사본은 _app/GUMAP-프론트 (변경 줄마다 [REPORT] 주석)</div>
+</div>
+<script>
+const W = [
+  { m: '9월', n: 1, d: '09.11~09.17', dir: '01주차_개발환경', plan: '프로젝트 OT, 팀 규칙·역할 확정, 개발환경 통일',
+    shows: '실외 지도 기반 GUMAP (구미 시가지·정류장·날씨) + 개발환경·팀 운영규칙 문서', tag: 'ok',
+    links: [['index.html', 'GUMAP 앱 (v0.1)'], ['개발환경.html', '개발환경·운영규칙']] },
+  { m: '9월', n: 2, d: '09.18~09.24', dir: '02주차_요구사항_아키텍처', plan: '요구사항 정의, 기존 서비스 문제점 분석, 아키텍처 설계',
+    shows: '4계층 시스템 아키텍처 · 기존 지도 앱 문제점 · 기능/비기능 요구사항', tag: 'brand',
+    links: [['index.html', '요구사항·아키텍처'], ['GUMAP.html', 'GUMAP 앱']] },
+  { m: '9월', n: 3, d: '09.25~10.01', dir: '03주차_도면추출', plan: '도면 확보, 도면 이미지 전처리 및 실 영역·벽선 추출',
+    shows: '테크노관 B1~6F 원본 래스터 → 벽선 마스크 → 실 영역 폴리곤 (파이프라인 재실행 결과)', tag: 'ok',
+    links: [['index.html', '도면 추출 결과'], ['GUMAP.html', 'GUMAP 앱']] },
+  { m: '10월', n: 4, d: '10.02~10.08', dir: '04주차_좌표정합', plan: '층별 도면 좌표 정합(축척·기준점·회전), 층간 정렬 검증',
+    shows: '위성영상 위 층별 외곽선 · 대응점 잔차 · 엘리베이터 샤프트 층간 편차(≤0.44 m)', tag: 'ok',
+    links: [['index.html', '좌표 정합'], ['GUMAP.html', 'GUMAP 앱']] },
+  { m: '10월', n: 5, d: '10.09~10.15', dir: '05주차_IMDF변환', plan: '방 번호·방 이름·출입문 라벨링, IMDF 변환',
+    shows: 'IMDF 실내지도(층 전환·호실 검색·호실 팝업) · 라벨링 편집기(읽기 전용)', tag: 'ok',
+    links: [['index.html', 'GUMAP 앱 (v0.3)'], ['라벨링편집기.html', '라벨링 편집기']] },
+  { m: '10월', n: 6, d: '10.16~10.22', dir: '06주차_실내길찾기', plan: '복도·계단·엘리베이터 연결, 실내 길찾기 경로망',
+    shows: '건물 안 출발 → 다른 층 방 (1F 120 → EV → 4F 435). 실외 출발은 아직 막혀 있음', tag: 'ok',
+    links: [['index.html', 'GUMAP 앱 (v0.4)']] },
+  { m: '10월', n: 7, d: '10.23~10.29', dir: '07주차_실내외통합', plan: '건물 출입구와 실외 보행망 연결, 실내외 연속 경로',
+    shows: '금오공대종점 정류장 → 보행 경로 → 남쪽 출입구 → EV → 3F 301', tag: 'ok',
+    links: [['index.html', 'GUMAP 앱 (v0.5)']] },
+  { m: '10월', n: 8, d: '10.30~11.05', dir: '08주차_실내지도완성', plan: '현장 검증·위치 보정, 통행 제약 반영, 품질 검수',
+    shows: 'CAD 도면선·실내 로드뷰 시점(CAD 합성)·3D 뷰어 + 통행 제약(212-1은 212 경유) + 품질 검수 대시보드', tag: 'brand',
+    links: [['index.html', 'GUMAP 앱 (v0.6)'], ['품질검수.html', '품질 검수']] },
+  { m: '11월', n: 9, d: '11.06~11.12', dir: '09주차_자동화기준선', plan: '구축 공정별 소요시간·수작업 비중 측정, 학습 데이터 구축',
+    shows: '자동 결과 vs 사람이 고친 최종본 대조(방 53% 자동, 수작업 895회·약 4시간) · 방 번호 학습 데이터', tag: 'brand',
+    links: [['index.html', '기준선·데이터셋'], ['GUMAP.html', 'GUMAP 앱']] },
+  { m: '11월', n: 10, d: '11.13~11.19', dir: '10주차_도면인식모델', plan: '방 번호 인식 모델 학습·평가, 벽선·출입문 검출',
+    shows: 'CRNN 시험층 인식률 84.8% (Windows OCR 75.2%, 6F 11%→89%) · 출입문 검출 재현율 81.7%', tag: 'brand',
+    links: [['index.html', '도면 인식 모델 v1'], ['GUMAP.html', 'GUMAP 앱']] },
+  { m: '11월', n: 11, d: '11.20~11.26', dir: '11주차_자동라벨링', plan: '신뢰도 기반 자동/수동 분기, 강의실 대장 대조, 건물별 설정 분리',
+    shows: '시험층 82.9% 자동 반영·오반영 0 · 검수 목록 · 대장 대조 · 건물 설정 파일', tag: 'brand',
+    links: [['index.html', '자동 라벨링'], ['GUMAP.html', 'GUMAP 앱']] },
+  { m: '11월', n: 12, d: '11.27~12.03', dir: '12주차_신규건물', plan: '신규 건물 도면 확보·자동 파이프라인 적용, 단축 효과 측정',
+    shows: '디지털관 B1~6F 피난안내도 사진 → AI 초안(자동 확정 59%, OSM 자동 정합 IoU 0.85~0.89) · 구축 시간 추정 70% 단축', tag: 'brand',
+    links: [['index.html', 'GUMAP 앱 (디지털관 초안)'], ['자동파이프라인.html', '자동 파이프라인']] },
+  { m: '12월', n: 13, d: '12.04~12.10', dir: '13주차_캠퍼스경로망', plan: '신규 건물 추가 확장, 건물 간 실외 보행망 연결, 경로망 병합',
+    shows: '3개 동 통합 경로망 5,052 노드 · 디지털관 1F 101 → 테크노관 3F 302 (442 m). 글로벌관은 초안(4개 층 정합, 경로 연결은 검수 후)', tag: 'warn',
+    links: [['index.html', 'GUMAP 앱 (캠퍼스 길찾기)'], ['경로망.html', '통합 경로망']] },
+  { m: '12월', n: 14, d: '12.11~12.17', dir: '14주차_대중교통통합', plan: '버스 실시간 도착 연동, 대중교통·실내 경로 결합',
+    shows: '구미역 → 버스 → 서쪽 출입구 → EV → 3F 302 (실내 패널에서 먼 출발지는 대중교통으로 자동 결합)', tag: 'ok',
+    links: [['index.html', 'GUMAP 앱 (v0.85)']] },
+  { m: '12월', n: 15, d: '12.18~12.24', dir: '15주차_자연어안내', plan: 'LLM 자연어 안내·지리 사전, 도착예측 모델 서빙, 모바일 앱 빌드',
+    shows: '"구미역에서 테크노관 302호 어떻게 가?" 한 줄 질의 → 경로 · 모바일 화면(APK)', tag: 'ok',
+    links: [['index.html', 'GUMAP 앱 (v0.9)'], ['모바일.html', '모바일 화면']] },
+];
+const TAG = { ok: ['기존 구현', 'ok'], brand: ['이번에 구현', 'brand'], warn: ['부분', 'warn'] };
+const PERIOD = { '9월': '1~3주차 · 09.11~10.01', '10월': '4~8주차 · 10.02~11.05', '11월': '9~12주차 · 11.06~12.03', '12월': '13~15주차 · 12.04~12.24 (16주차 베타 테스트는 계획)' };
+const months = [...new Set(W.map(w => w.m))];
+document.getElementById('months').innerHTML = months.map(m =>
+  '<div class="month"><h2>' + m + ' 활동보고서 <span class="p">' + PERIOD[m] + '</span></h2><div class="weeks">' +
+  W.filter(w => w.m === m).map(w =>
+    '<div class="wk"><div class="h"><span class="week-chip" style="padding:3px 10px">' + w.n + '주차</span>' +
+    '<span class="tag ' + TAG[w.tag][1] + '">' + TAG[w.tag][0] + '</span><span class="d">' + w.d + '</span></div>' +
+    '<div class="plan">계획: ' + w.plan + '</div><div class="shows">' + w.shows + '</div>' +
+    '<div class="links">' + w.links.map((l, i) => '<a class="' + (i ? '' : 'main') + '" href="' + encodeURI(w.dir) + '/' + encodeURI(l[0]) + '">' + l[1] + '</a>').join('') + '</div></div>').join('') +
+  '</div></div>').join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>층별 좌표 정합 — GUMAP 4주차</title>
+<link rel="icon" href="/GUMAP-아이콘/app_icon_96.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="../_app/report-doc.css">
+<style>
+  .layout { display: grid; grid-template-columns: 1fr 470px; gap: 16px; }
+  #map { height: 700px; border-radius: 12px; }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .legend-row label {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700;
+    padding: 3px 9px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+  }
+  .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kv div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .kv b { display: block; font-size: 17px; }
+  .kv span { font-size: 11.5px; color: var(--muted); font-weight: 700; }
+  .map-tag {
+    position: absolute; z-index: 500; left: 12px; bottom: 12px; background: rgba(15,23,42,.85);
+    color: #fff; font-size: 12px; padding: 6px 10px; border-radius: 8px; line-height: 1.5;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } #map { height: 460px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="doc-head">
+    <img src="/GUMAP-아이콘/app_icon_96.png" alt="">
+    <div class="t">
+      <h1>테크노관 층별 도면 좌표 정합 · 층간 정렬 검증</h1>
+      <p>층마다 다른 도면 축척(px/mm)·기준점을 따로 보정한 뒤, 정사영상 대응점으로 회전·축척·이동(닮음 변환)을 최소자승으로 풀어 위경도(WGS84)에 올림</p>
+    </div>
+    <div class="deliv">산출물 <b>좌표 정합 데이터</b></div>
+    <span class="week-chip">4주차 · 10.02~10.08</span>
+  </div>
+
+  <div class="layout">
+    <div class="card" style="padding:12px">
+      <div class="legend-row" id="floor-toggles"></div>
+      <div style="position:relative">
+        <div id="map"></div>
+        <div class="map-tag">● 대응점(색 = 잔차) · 흰 선 = 잔차 벡터 ×5 · ◆ 엘리베이터 샤프트(층 평균)</div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2><span class="n">T</span>변환 파라미터 (Umeyama 닮음 변환)</h2>
+        <div class="kv" id="tf"></div>
+        <div class="small muted" style="margin-top:8px">도면 픽셀 → (원점·px/mm) → 건물 로컬 미터 → 회전 θ·축척 s·이동 → 위경도. 층마다 원점과 px/mm 를 따로 두어 층간 어긋남을 없앴다.</div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2><span class="n">1</span>층별 축척·기준점</h2>
+        <table>
+          <thead><tr><th>층</th><th class="num">px/mm</th><th class="num">1px =</th><th class="num">기준점 (px)</th><th class="num">대응점</th><th class="num">RMSE</th></tr></thead>
+          <tbody id="floor-rows"></tbody>
+        </table>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2><span class="n">2</span>층간 정렬 검증 — 엘리베이터 샤프트</h2>
+        <table>
+          <thead><tr><th>샤프트</th><th class="num">층 수</th><th>층별 편차 (m)</th><th class="num">최대</th></tr></thead>
+          <tbody id="align-rows"></tbody>
+        </table>
+        <div class="cap">수직으로 관통하는 엘리베이터는 모든 층에서 같은 자리에 있어야 한다. 층별 중심이 층 평균에서 벗어난 거리가 곧 층간 정렬 오차다.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">GUMAP · AX 기반 역량 강화 프로젝트 · 4주차 산출물 · 생성: GUMAP_report/_tools/week04_georef.py</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const COLORS = { B1F: '#6366f1', '1F': '#f59e0b', '2F': '#10b981', '3F': '#06b6d4', '4F': '#8b5cf6', '5F': '#ec4899', '6F': '#ef4444' };
+const map = L.map('map', { zoomControl: true, attributionControl: true }).setView([36.14665, 128.39435], 19);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 21, maxNativeZoom: 19, attribution: 'Imagery © Esri'
+}).addTo(map);
+
+function residualColor(r) { return r < 2 ? '#22c55e' : r < 4 ? '#eab308' : '#ef4444'; }
+
+fetch('georef.json').then(r => r.json()).then(d => {
+  const t = d.transform;
+  document.getElementById('tf').innerHTML =
+    '<div><span>회전 θ</span><b>' + t.theta_deg.toFixed(3) + '°</b></div>' +
+    '<div><span>축척 s</span><b>' + t.scale.toFixed(5) + '</b></div>' +
+    '<div><span>원점 경도</span><b>' + t.t_lon.toFixed(6) + '</b></div>' +
+    '<div><span>원점 위도</span><b>' + t.t_lat.toFixed(6) + '</b></div>' +
+    '<div><span>대응점 잔차 RMSE</span><b>' + d.overall.rmse_m.toFixed(2) + ' m</b></div>' +
+    '<div><span>층간 정렬 최대 편차</span><b>' + Math.max(...d.elevator_alignment.map(a => a.max_m)).toFixed(2) + ' m</b></div>';
+
+  // 층 외곽선
+  const layers = {};
+  Object.keys(COLORS).forEach(f => {
+    const rings = d.outlines[f] || [];
+    layers[f] = L.layerGroup(rings.map(ring => L.polygon(ring.map(p => [p[1], p[0]]), {
+      color: COLORS[f], weight: 2.2, fill: false, opacity: 0.95
+    }))).addTo(map);
+  });
+  document.getElementById('floor-toggles').innerHTML = Object.keys(COLORS).map(f =>
+    '<label><input type="checkbox" data-f="' + f + '" checked> <span class="sw" style="background:' + COLORS[f] + '"></span>' + f + '</label>').join('') +
+    '<label><input type="checkbox" id="cp-toggle" checked> 대응점</label>';
+  document.querySelectorAll('#floor-toggles input[data-f]').forEach(cb => cb.onchange = () => {
+    cb.checked ? layers[cb.dataset.f].addTo(map) : map.removeLayer(layers[cb.dataset.f]);
+  });
+
+  // 대응점과 잔차 벡터(×5)
+  const cps = L.layerGroup().addTo(map);
+  const mLat = 110540, mLon = 111320 * Math.cos(36.1466 * Math.PI / 180);
+  d.control_points.forEach((c, i) => {
+    const actual = [c.lat, c.lon];
+    const tip = [c.lat + c.dn * 5 / mLat, c.lon + c.de * 5 / mLon];
+    cps.addLayer(L.polyline([actual, tip], { color: '#fff', weight: 2, opacity: 0.9 }));
+    cps.addLayer(L.circleMarker(actual, { radius: 5, color: '#fff', weight: 1.5, fillColor: residualColor(c.residual_m), fillOpacity: 1 })
+      .bindTooltip('대응점 #' + (i + 1) + ' (' + c.floor + ')<br>잔차 ' + c.residual_m.toFixed(2) + ' m'));
+  });
+  document.getElementById('cp-toggle').onchange = e => e.target.checked ? cps.addTo(map) : map.removeLayer(cps);
+
+  // 엘리베이터 샤프트
+  // EV-1·EV-2 는 붙어 있어 이름표를 좌우로 벌린다
+  const SHIFT = { 'EV-1': 'translate(-105%,-50%)', 'EV-2': 'translate(5%,-50%)' };
+  d.elevator_alignment.forEach(a => {
+    L.marker([a.center[1], a.center[0]], { icon: L.divIcon({ className: '', html:
+      '<div style="background:#0f172a;color:#fff;font:700 11px Noto Sans KR;padding:2px 6px;border-radius:6px;white-space:nowrap;transform:' +
+      (SHIFT[a.shaft] || 'translate(-50%,-50%)') + '">◆ ' + a.shaft + '</div>' }) }).addTo(map);
+  });
+
+  document.getElementById('floor-rows').innerHTML = d.floors.map(f =>
+    '<tr><td><span class="sw" style="background:' + COLORS[f.floor] + '"></span> <b>' + f.floor + '</b></td>' +
+    '<td class="num">' + f.px_per_mm.toFixed(5) + '</td>' +
+    '<td class="num">' + (1 / f.px_per_mm).toFixed(1) + ' mm</td>' +
+    '<td class="num">' + f.origin_px.join(', ') + '</td>' +
+    '<td class="num">' + (f.n || '—') + '</td>' +
+    '<td class="num">' + (f.rmse_m != null ? f.rmse_m.toFixed(2) + ' m' : '공통 변환') + '</td></tr>').join('');
+
+  document.getElementById('align-rows').innerHTML = d.elevator_alignment.map(a =>
+    '<tr><td><b>' + a.shaft + '</b></td><td class="num">' + a.floors + '</td><td class="small">' +
+    Object.entries(a.deviation_m).map(([f, v]) => f + ' ' + v.toFixed(2)).join(' · ') +
+    '</td><td class="num"><span class="tag ' + (a.max_m <= 0.5 ? 'ok' : 'warn') + '">' + a.max_m.toFixed(2) + ' m</span></td></tr>').join('');
+});
+</script>
+</body>
+</html>

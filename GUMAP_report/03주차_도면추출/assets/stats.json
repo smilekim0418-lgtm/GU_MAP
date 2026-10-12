@@ -1,0 +1,114 @@
+[
+ {
+  "floor": "B1F",
+  "source": "테크노관B1F~2F.pdf",
+  "dpi": 400,
+  "size": [
+   4678,
+   3308
+  ],
+  "wall_ratio": 0.033,
+  "polygons": 55,
+  "frames": 2,
+  "expected_rooms": 32,
+  "extract_rate": 1.719,
+  "wall_ms": 45,
+  "room_ms": 877
+ },
+ {
+  "floor": "1F",
+  "source": "테크노관1,2층.pdf",
+  "dpi": 400,
+  "size": [
+   4678,
+   3308
+  ],
+  "wall_ratio": 0.0302,
+  "polygons": 60,
+  "frames": 0,
+  "expected_rooms": 76,
+  "extract_rate": 0.789,
+  "wall_ms": 39,
+  "room_ms": 944
+ },
+ {
+  "floor": "2F",
+  "source": "테크노관2층.pdf",
+  "dpi": 400,
+  "size": [
+   4678,
+   3308
+  ],
+  "wall_ratio": 0.0294,
+  "polygons": 49,
+  "frames": 0,
+  "expected_rooms": 70,
+  "extract_rate": 0.7,
+  "wall_ms": 38,
+  "room_ms": 1084
+ },
+ {
+  "floor": "3F",
+  "source": "테크노관3층.pdf",
+  "dpi": 400,
+  "size": [
+   4678,
+   3308
+  ],
+  "wall_ratio": 0.0509,
+  "polygons": 75,
+  "frames": 1,
+  "expected_rooms": 69,
+  "extract_rate": 1.087,
+  "wall_ms": 58,
+  "room_ms": 1894
+ },
+ {
+  "floor": "4F",
+  "source": "테크노관2,4층.pdf",
+  "dpi": 400,
+  "size": [
+   4678,
+   3308
+  ],
+  "wall_ratio": 0.038,
+  "polygons": 75,
+  "frames": 0,
+  "expected_rooms": 82,
+  "extract_rate": 0.915,
+  "wall_ms": 60,
+  "room_ms": 2476
+ },
+ {
+  "floor": "5F",
+  "source": "테크노관4,5층.pdf",
+  "dpi": 400,
+  "size": [
+   4678,
+   3308
+  ],
+  "wall_ratio": 0.0323,
+  "polygons": 46,
+  "frames": 0,
+  "expected_rooms": 24,
+  "extract_rate": 1.917,
+  "wall_ms": 70,
+  "room_ms": 1533
+ },
+ {
+  "floor": "6F",
+  "source": "테크노관5.6층.pdf",
+  "dpi": 400,
+  "size": [
+   4678,
+   3308
+  ],
+  "wall_ratio": 0.0399,
+  "polygons": 37,
+  "frames": 0,
+  "expected_rooms": 8,
+  "extract_rate": 4.625,
+  "wall_ms": 59,
+  "room_ms": 1283
+ }
+]

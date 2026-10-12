@@ -1,0 +1,216 @@
+{
+ "imdf": {
+  "venue": 1,
+  "building": 1,
+  "levels": 7,
+  "units": 397,
+  "footprint": 7,
+  "occupants": 289,
+  "openings": 460,
+  "anchors": 0
+ },
+ "units_by_floor": {
+  "B1F": 39,
+  "1F": 70,
+  "2F": 80,
+  "3F": 80,
+  "4F": 80,
+  "5F": 34,
+  "6F": 14
+ },
+ "nav": {
+  "nodes": 1192,
+  "edges": 7439,
+  "entrances": 11
+ },
+ "cost": {
+  "walk_speed_mps": 1.2,
+  "stair_seconds_per_floor": 20.0,
+  "elevator_wait_seconds": 25.0,
+  "elevator_seconds_per_floor": 6.0,
+  "floor_height_m": 4.0
+ },
+ "pano": {
+  "B1F": 149,
+  "1F": 188,
+  "2F": 172,
+  "3F": 185,
+  "4F": 145,
+  "5F": 94,
+  "6F": 70
+ },
+ "validation": {
+  "errors": 0,
+  "warnings": 196,
+  "by_code": [
+   {
+    "code": "outside_extent",
+    "label": "도면 범위 밖 꼭짓점",
+    "n": 79
+   },
+   {
+    "code": "area_out_of_range",
+    "label": "면적 이상치",
+    "n": 42
+   },
+   {
+    "code": "overlap",
+    "label": "공간 겹침",
+    "n": 36
+   },
+   {
+    "code": "missing_geometry",
+    "label": "대장에만 있는 방(도형 없음)",
+    "n": 34
+   },
+   {
+    "code": "vertical_misalignment",
+    "label": "층간 수직동선 불일치",
+    "n": 5
+   }
+  ],
+  "vertical": [
+   "4F 계단-D 에서 가장 가까운 5F 수직동선까지 70.8m (허용 2.0m). 좌표 변환을 의심하라.",
+   "4F 계단-E 에서 가장 가까운 5F 수직동선까지 38.9m (허용 2.0m). 좌표 변환을 의심하라.",
+   "5F EV-3 에서 가장 가까운 6F 수직동선까지 30.9m (허용 2.0m). 좌표 변환을 의심하라.",
+   "5F 계단-C 에서 가장 가까운 6F 수직동선까지 26.0m (허용 2.0m). 좌표 변환을 의심하라.",
+   "5F 계단-F 에서 가장 가까운 6F 수직동선까지 63.0m (허용 2.0m). 좌표 변환을 의심하라."
+  ]
+ },
+ "cad": [
+  {
+   "floor": "B1F",
+   "room_labels": 35,
+   "door_arcs": 97,
+   "matched": 32,
+   "median_residual_m": 0.215,
+   "cad_only": [
+    "B107-1",
+    "B107-2",
+    "B133"
+   ],
+   "legacy_only": [],
+   "objects": 5442
+  },
+  {
+   "floor": "1F",
+   "room_labels": 60,
+   "door_arcs": 170,
+   "matched": 59,
+   "median_residual_m": 0.528,
+   "cad_only": [
+    "125-1"
+   ],
+   "legacy_only": [
+    "131-1"
+   ],
+   "objects": 11624
+  },
+  {
+   "floor": "2F",
+   "room_labels": 71,
+   "door_arcs": 162,
+   "matched": 70,
+   "median_residual_m": 0.301,
+   "cad_only": [
+    "221-1"
+   ],
+   "legacy_only": [],
+   "objects": 10679
+  },
+  {
+   "floor": "3F",
+   "room_labels": 77,
+   "door_arcs": 153,
+   "matched": 70,
+   "median_residual_m": 0.509,
+   "cad_only": [
+    "301-1",
+    "301-2",
+    "301-3",
+    "305-1",
+    "346",
+    "365-1",
+    "366-1"
+   ],
+   "legacy_only": [],
+   "objects": 13494
+  },
+  {
+   "floor": "4F",
+   "room_labels": 72,
+   "door_arcs": 150,
+   "matched": 70,
+   "median_residual_m": 0.297,
+   "cad_only": [
+    "430-1",
+    "464-1"
+   ],
+   "legacy_only": [],
+   "objects": 12478
+  },
+  {
+   "floor": "5F",
+   "room_labels": 28,
+   "door_arcs": 66,
+   "matched": 26,
+   "median_residual_m": 0.459,
+   "cad_only": [
+    "517-1",
+    "526"
+   ],
+   "legacy_only": [],
+   "objects": 7043
+  },
+  {
+   "floor": "6F",
+   "room_labels": 10,
+   "door_arcs": 36,
+   "matched": 9,
+   "median_residual_m": 0.676,
+   "cad_only": [
+    "607"
+   ],
+   "legacy_only": [],
+   "objects": 3755
+  }
+ ],
+ "cad_checks": [
+  "valid candidate geometry",
+  "unique room labels",
+  "64,515 objects round-trip to DXF coordinates within 0.001 mm",
+  "external restroom label exclusion",
+  "partial room flags",
+  "all floor switches",
+  "cross-floor search",
+  "facility coverage, search, click and visibility",
+  "facility SVG and GeoJSON export",
+  "legacy overlay",
+  "10 m measurement",
+  "SVG download",
+  "GeoJSON download",
+  "responsive canvas",
+  "root entry and current-floor link"
+ ],
+ "access_via": [
+  {
+   "floor": "2F",
+   "room": "212-1",
+   "via": "212"
+  },
+  {
+   "floor": "2F",
+   "room": "212-2",
+   "via": "212"
+  },
+  {
+   "floor": "2F",
+   "room": "262",
+   "via": "263"
+  }
+ ],
+ "tests": {
+  "passed": 245,
+  "failed": 0
+ }
+}

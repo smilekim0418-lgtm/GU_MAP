@@ -1,0 +1,559 @@
+/* ============================================================
+ * 📁 파일명: css/indoor.css
+ * 📌 역할: 테크노관 실내지도 패널 · 지도 우측 버튼 열 · 실내 로드뷰 창 배치
+ * ============================================================
+ *
+ * [왜 따로 뺐나]
+ *   실내지도 패널은 map-techno-indoor.js 가 만들고, CAD 레이어·길찾기·로드뷰
+ *   모듈이 각자 그 안에 조작부를 끼워 넣는다. 예전에는 모듈마다 인라인 스타일로
+ *   위치와 색을 정해서 두 가지가 깨졌다.
+ *     1) 패널이 top:75px left:20px 에 떠서 왼쪽 메인 사이드바를 그대로 덮었다.
+ *     2) 어두운 배경을 전제로 한 흰색 반투명 색이 라이트 테마에서 안 보였다.
+ *   그래서 자리와 색은 여기서만 정한다. 모듈은 클래스만 붙인다.
+ *
+ * [배치 규칙 — 데스크톱]
+ *   왼쪽 열 : 메인 사이드바(#routing-panel) 와 경로 상세 패널.
+ *   오른쪽 열: 원형 버튼(🌙 📍 🗂️ 🏛️) → 그 아래 지도 종류 선택.
+ *   그 사이 : 실내지도 패널은 오른쪽 버튼 열 **바로 왼쪽**에 붙는다.
+ *   로드뷰 작은 창은 실내지도 패널 아래를 쓰고, 열리면 패널이 그만큼 줄어든다.
+ *
+ * [배치 규칙 — 모바일(≤768px)]
+ *   아래 : 메인 바텀시트.
+ *   위   : 실내지도는 접힌 카드(제목 + 층 버튼 한 줄)로 뜬다. 눌러야 펼쳐진다.
+ *   바텀시트를 끝까지 올리면 실내지도 카드는 비켜 준다.
+ * ============================================================ */
+
+:root {
+    --fab-size: 44px;
+    --fab-gap: 8px;
+    --fab-edge: 20px;
+    --dock-gap: 12px;
+    --ui-radius: 16px;
+    --ui-radius-sm: 10px;
+    --ui-line: rgba(15, 23, 42, 0.08);
+    --ui-soft: rgba(15, 23, 42, 0.04);
+    --ui-soft-hover: rgba(99, 102, 241, 0.08);
+    --ui-surface: rgba(255, 255, 255, 0.92);
+    --ui-accent: #4f46e5;
+    --ui-accent-soft: rgba(79, 70, 229, 0.10);
+}
+
+body.dark-theme {
+    --ui-line: rgba(255, 255, 255, 0.08);
+    --ui-soft: rgba(255, 255, 255, 0.05);
+    --ui-soft-hover: rgba(129, 140, 248, 0.14);
+    --ui-surface: rgba(15, 23, 42, 0.92);
+    --ui-accent: #818cf8;
+    --ui-accent-soft: rgba(129, 140, 248, 0.16);
+}
+
+/* ── 오른쪽 원형 버튼 열: 한 줄로 세우고 지도 종류 선택을 그 아래로 ── */
+#dark-mode-toggle,
+#cplace-add-btn,
+#cplace-list-btn,
+#open-3d-btn {
+    right: var(--fab-edge) !important;
+    width: var(--fab-size) !important;
+    height: var(--fab-size) !important;
+    bottom: auto !important;
+}
+#dark-mode-toggle { top: 20px !important; }
+#cplace-add-btn   { top: calc(20px + 1 * (var(--fab-size) + var(--fab-gap))) !important; }
+#cplace-list-btn  { top: calc(20px + 2 * (var(--fab-size) + var(--fab-gap))) !important; }
+#open-3d-btn      { top: calc(20px + 3 * (var(--fab-size) + var(--fab-gap))) !important; }
+.leaflet-top.leaflet-right {
+    top: calc(20px + 4 * (var(--fab-size) + var(--fab-gap))) !important;
+    right: var(--fab-edge) !important;
+}
+/* Leaflet 은 오른쪽 컨트롤에 margin 10px 을 준다. 그만큼 버튼 열보다 안쪽으로
+   튀어나와 실내지도 패널과 겹쳤다. 버튼 열과 같은 선에 맞춘다. */
+.leaflet-top.leaflet-right .leaflet-control {
+    margin-right: 0 !important;
+    margin-top: 0 !important;
+}
+#cplace-list-panel {
+    right: calc(var(--fab-edge) + var(--fab-size) + var(--dock-gap)) !important;
+}
+
+/* ── 실내지도 패널 ─────────────────────────────────────────── */
+#techno-indoor-panel {
+    position: fixed !important;
+    top: 20px !important;
+    left: auto !important;
+    right: calc(var(--fab-edge) + var(--fab-size) + var(--dock-gap)) !important;
+    width: 340px !important;
+    max-height: calc(100vh - 100px) !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+    border-radius: var(--ui-radius) !important;
+    background: var(--ui-surface) !important;
+    color: var(--text-main) !important;
+    font-family: 'Pretendard', 'Noto Sans KR', 'Outfit', sans-serif !important;
+    flex-direction: column;
+    transition: max-height 0.25s ease;
+}
+body.pano-open #techno-indoor-panel {
+    max-height: calc(100vh - 20px - 300px - 20px - var(--dock-gap)) !important;
+}
+
+#techno-indoor-panel .ti-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 14px 12px 16px;
+    border-bottom: 1px solid var(--ui-line);
+    flex: 0 0 auto;
+}
+#techno-indoor-panel .ti-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    background: var(--primary-grad);
+    color: #fff;
+}
+#techno-indoor-panel .ti-mark svg { width: 18px; height: 18px; }
+#techno-indoor-panel .ti-title { flex: 1; min-width: 0; }
+#techno-indoor-panel .ti-title strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    color: var(--text-main);
+}
+#techno-indoor-panel .ti-title span {
+    display: block;
+    margin-top: 1px;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#techno-indoor-panel .ti-icon-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    padding: 0;
+}
+#techno-indoor-panel .ti-icon-btn:hover { background: var(--ui-soft-hover); color: var(--text-main); }
+#techno-indoor-panel .ti-icon-btn svg { width: 16px; height: 16px; }
+#techno-indoor-panel #ti-expand { display: none; }
+
+#techno-indoor-panel .ti-body {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 12px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+/* 검색 */
+#techno-indoor-panel .ti-search { position: relative; }
+#techno-indoor-panel .ti-search svg {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    width: 15px;
+    height: 15px;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+#techno-indoor-panel input[type="text"],
+#techno-indoor-panel select {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    height: 38px;
+    padding: 0 12px !important;
+    margin: 0 !important;
+    border-radius: var(--ui-radius-sm) !important;
+    border: 1px solid var(--ui-line) !important;
+    background: var(--ui-soft) !important;
+    color: var(--text-main) !important;
+    font-size: 13px !important;
+    font-family: inherit !important;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+#techno-indoor-panel #ti-search { padding-left: 34px !important; }
+#techno-indoor-panel input[type="text"]:focus,
+#techno-indoor-panel select:focus {
+    border-color: var(--ui-accent) !important;
+    background: transparent !important;
+}
+#techno-indoor-panel #ti-results {
+    background: var(--ui-surface) !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: var(--ui-radius-sm) !important;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18) !important;
+    backdrop-filter: blur(16px);
+}
+#techno-indoor-panel #ti-results > div { color: var(--text-main) !important; }
+
+/* 소제목 */
+#techno-indoor-panel .ti-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    letter-spacing: -0.1px;
+}
+
+/* 층 버튼 */
+#techno-indoor-panel #ti-floor-btns {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 4px !important;
+    padding: 3px;
+    border-radius: 12px;
+    background: var(--ui-soft);
+}
+#techno-indoor-panel .ti-fbtn {
+    height: 32px;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 9px !important;
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s !important;
+}
+#techno-indoor-panel .ti-fbtn:hover { color: var(--text-main) !important; }
+#techno-indoor-panel .ti-fbtn.is-active {
+    background: var(--ui-surface) !important;
+    color: var(--ui-accent) !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14), inset 0 -2px 0 var(--floor-color, var(--ui-accent));
+}
+body.dark-theme #techno-indoor-panel .ti-fbtn.is-active { background: rgba(255, 255, 255, 0.12) !important; }
+
+/* 접었다 펴는 구획 */
+#techno-indoor-panel details.ti-acc {
+    border-top: 1px solid var(--ui-line);
+    margin: 0 -16px;
+    padding: 0 16px;
+}
+#techno-indoor-panel details.ti-acc > summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    user-select: none;
+}
+#techno-indoor-panel details.ti-acc > summary::-webkit-details-marker { display: none; }
+#techno-indoor-panel details.ti-acc > summary::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-right: 1.8px solid var(--text-muted);
+    border-bottom: 1.8px solid var(--text-muted);
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform 0.2s;
+}
+#techno-indoor-panel details.ti-acc[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
+#techno-indoor-panel details.ti-acc > .ti-acc-body {
+    padding-bottom: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* 범례 */
+#techno-indoor-panel .ti-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+#techno-indoor-panel .ti-legend span {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--ui-soft);
+}
+
+/* 레이어 켜고 끄기 (CAD · 출입문 · 촬영 지점) */
+#techno-indoor-panel #ti-cad-box {
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 2px !important;
+}
+#techno-indoor-panel #ti-cad-box > div:first-child { display: none; } /* 구획 제목과 겹친다 */
+#techno-indoor-panel .ti-switch {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px !important;
+    padding: 7px 0;
+    font-size: 13px !important;
+    color: var(--text-main) !important;
+    cursor: pointer;
+}
+#techno-indoor-panel .ti-switch input {
+    appearance: none;
+    -webkit-appearance: none;
+    order: 2;
+    flex: 0 0 auto;
+    width: 34px !important;
+    height: 20px !important;
+    margin: 0;
+    border-radius: 999px;
+    background: rgba(100, 116, 139, 0.35);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+#techno-indoor-panel .ti-switch input::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s;
+}
+#techno-indoor-panel .ti-switch input:checked { background: var(--ui-accent); }
+#techno-indoor-panel .ti-switch input:checked::after { transform: translateX(14px); }
+#techno-indoor-panel .ti-switch input:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+#techno-indoor-panel .ti-hint {
+    font-size: 11px !important;
+    line-height: 1.5 !important;
+    color: var(--text-muted) !important;
+    margin: 2px 0 4px;
+}
+
+/* 버튼류 */
+#techno-indoor-panel .ti-btn,
+#techno-indoor-panel #ti-cad-tour,
+#techno-indoor-panel #ti-official-cad,
+#techno-indoor-panel #tr-pick,
+#techno-indoor-panel #tr-go {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100% !important;
+    box-sizing: border-box;
+    min-height: 38px;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    border-radius: var(--ui-radius-sm) !important;
+    border: 1px solid var(--ui-line) !important;
+    background: var(--ui-soft) !important;
+    color: var(--text-main) !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    font-family: inherit;
+    text-decoration: none !important;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+#techno-indoor-panel #ti-cad-tour:hover,
+#techno-indoor-panel #ti-official-cad:hover,
+#techno-indoor-panel #tr-pick:hover { background: var(--ui-soft-hover) !important; border-color: transparent !important; }
+#techno-indoor-panel #tr-go,
+#techno-indoor-panel .ti-btn-primary {
+    border: none !important;
+    background: var(--ui-accent) !important;
+    color: #fff !important;
+}
+#techno-indoor-panel #tr-go:hover { filter: brightness(1.08); }
+#techno-indoor-panel #tr-pick.is-picking {
+    background: var(--ui-accent-soft) !important;
+    border-color: var(--ui-accent) !important;
+    color: var(--ui-accent) !important;
+}
+
+/* 길찾기 조작부 */
+#techno-indoor-panel #techno-route-controls {
+    border: none !important;
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px !important;
+}
+#techno-indoor-panel #techno-route-controls > div:first-child { display: none; } /* 구획 제목과 겹친다 */
+#techno-indoor-panel #techno-route-controls label {
+    font-size: 12px;
+    margin: 0 !important;
+    color: var(--text-muted) !important;
+}
+#techno-indoor-panel #techno-route-controls input[type="checkbox"] { accent-color: var(--ui-accent); }
+#techno-indoor-panel #techno-route-box:empty { display: none; }
+#techno-indoor-panel #techno-route-box { font-size: 12px !important; line-height: 1.55; }
+
+/* ── 실내 로드뷰 작은 창 ─────────────────────────────────── */
+#techno-pano-panel {
+    width: 340px !important;
+    height: 300px !important;
+    border-radius: var(--ui-radius) !important;
+    border: 1px solid var(--ui-line) !important;
+    background: #0b1020 !important;
+    box-shadow: 0 20px 48px rgba(15, 23, 42, 0.35) !important;
+}
+/* 기본 자리: 실내지도 패널 바로 아래. 끌어 옮기면(.is-moved) 인라인 left/top 을 쓴다. */
+#techno-pano-panel:not(.is-moved):not(.is-full) {
+    right: calc(var(--fab-edge) + var(--fab-size) + var(--dock-gap)) !important;
+    bottom: 20px !important;
+    left: auto !important;
+    top: auto !important;
+}
+#techno-pano-panel.is-moved:not(.is-full) { right: auto !important; bottom: auto !important; }
+#techno-pano-panel.is-full {
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    border: none !important;
+}
+#techno-pano-panel .tp-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 8px 8px 12px;
+    background: var(--ui-surface);
+    color: var(--text-main);
+    border-bottom: 1px solid var(--ui-line);
+    cursor: move;
+    user-select: none;
+    flex: 0 0 auto;
+    font-family: 'Pretendard', 'Noto Sans KR', 'Outfit', sans-serif;
+}
+#techno-pano-panel.is-full .tp-bar { cursor: default; }
+#techno-pano-panel .tp-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#techno-pano-panel .tp-tag {
+    flex: 0 0 auto;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: #b45309;
+    background: rgba(245, 158, 11, 0.16);
+}
+#techno-pano-panel .tp-btn {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+#techno-pano-panel .tp-btn:hover { background: var(--ui-soft-hover); color: var(--text-main); }
+#techno-pano-panel .tp-btn svg { width: 16px; height: 16px; }
+body.pano-open #weather-panel { opacity: 0; pointer-events: none; }
+
+/* ── 좁은 데스크톱(노트북) : 사이드바와 실내지도가 가로로 안 들어가면 ── */
+@media (min-width: 769px) and (max-width: 1100px) {
+    #techno-indoor-panel { width: 300px !important; }
+    #techno-pano-panel { width: 300px !important; }
+}
+
+/* ── 모바일 ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    :root {
+        --fab-size: 40px;
+        --fab-gap: 8px;
+        --fab-edge: 12px;
+        --dock-gap: 8px;
+    }
+    #dark-mode-toggle { top: 20px !important; font-size: 17px !important; }
+
+    /* 실내지도: 위쪽 접힌 카드 */
+    #techno-indoor-panel {
+        top: 20px !important;
+        left: 12px !important;
+        right: calc(var(--fab-edge) + var(--fab-size) + var(--dock-gap)) !important;
+        width: auto !important;
+        max-height: calc(100vh - 15vh - 40px) !important;
+        border-radius: 14px !important;
+        z-index: 1003 !important;
+    }
+    #techno-indoor-panel .ti-head { padding: 10px 8px 8px 12px; gap: 8px; border-bottom: none; }
+    #techno-indoor-panel .ti-mark { width: 30px; height: 30px; border-radius: 9px; }
+    #techno-indoor-panel .ti-title strong { font-size: 14px; }
+    #techno-indoor-panel .ti-title span { font-size: 10px; }
+    #techno-indoor-panel #ti-expand { display: grid; }
+    #techno-indoor-panel .ti-body { padding: 0 12px 12px; gap: 12px; }
+
+    /* 접혀 있을 때는 층 버튼 한 줄만 */
+    #techno-indoor-panel:not(.is-open) .ti-body > :not(.ti-floors) { display: none !important; }
+    #techno-indoor-panel:not(.is-open) .ti-floors .ti-label { display: none; }
+    #techno-indoor-panel .ti-fbtn { height: 34px; font-size: 12px !important; }
+    #techno-indoor-panel.is-open #ti-expand svg { transform: rotate(180deg); }
+
+    /* 바텀시트를 끝까지 올리면 비켜 준다 */
+    body:has(#routing-panel.panel-expanded) #techno-indoor-panel,
+    body:has(#route-detail-panel.panel-expanded) #techno-indoor-panel,
+    body:has(#transit-detail-panel.panel-expanded) #techno-indoor-panel {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transform: translateY(-12px);
+    }
+    /* 실내지도가 떠 있으면 날씨 칩은 가려지니 숨긴다 */
+    body.indoor-open #weather-panel { display: none !important; }
+
+    /* 로드뷰 작은 창: 접힌 바텀시트 바로 위 */
+    /* 데스크톱 규칙(:not(.is-moved):not(.is-full))과 같은 무게로 써야 이긴다 */
+    #techno-pano-panel:not(.is-moved):not(.is-full),
+    #techno-pano-panel.is-moved:not(.is-full) {
+        left: 12px !important;
+        right: 12px !important;
+        top: auto !important;
+        width: auto !important;
+        bottom: calc(15vh + 12px) !important;
+        height: min(42vh, 320px) !important;
+        z-index: 1004 !important;
+    }
+    #techno-pano-panel.is-full { inset: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 10050 !important; }
+    #techno-pano-panel .tp-bar { cursor: default; }
+}
+
+/* 메인 검색 버튼 글자가 두 줄로 쪼개지던 것('검/색') */
+#search-container .glass-btn {
+    white-space: nowrap;
+    flex: 0 0 auto;
+    padding-left: 14px;
+    padding-right: 14px;
+}
+/* 다크 테마 강조색(#818cf8)은 흰 글자와 대비가 모자라다. 채운 버튼만 한 단계 진하게 */
+body.dark-theme #techno-indoor-panel #tr-go,
+body.dark-theme #techno-indoor-panel .ti-btn-primary { background: #6366f1 !important; }
