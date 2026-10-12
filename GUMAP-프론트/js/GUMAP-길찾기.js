@@ -27,83 +27,182 @@
 var currentRoutingRenderId = window.currentRoutingRenderId || 0;
 var currentRoutingPolylines = window.currentRoutingPolylines || [];
 
-// ── G-Route AI vs 상용 네비 벤치마크 비교 카드 렌더러 ──
-window.renderBenchmarkCard = function(containerId, benchmarkData, mode) {
+// ── G-Route 결과 요약 ──
+// 서버(/groute-api)가 경로 거리(m)·예상 소요시간(초)과 그 계산 근거를 함께 준다.
+// 예전에는 화면이 좌표 길이에 시속 40km 같은 고정 계수를 곱해 시간을 지어냈다.
+window.summarizeGRouteResult = function(data, minutesPerKm) {
+    var km = 0;
+    if (typeof data.distance_m === 'number') {
+        km = data.distance_m / 1000;
+    } else {
+        var route = data.route || [];
+        for (var i = 0; i < route.length - 1; i++) {
+            km += L.latLng(route[i]).distanceTo(L.latLng(route[i + 1])) / 1000;
+        }
+    }
+    var minutes = (typeof data.duration_sec === 'number')
+        ? Math.max(1, Math.round(data.duration_sec / 60))
+        : Math.max(1, Math.ceil(km * minutesPerKm));
+    return { distKm: km.toFixed(1), timeMin: minutes, basis: data.time_basis || '' };
+};
+
+// 그래프가 끊겨 목적지 노드까지 못 간 경로. 성공처럼 보이면 사용자가 엉뚱한 곳에서 멈춘다.
+window.renderPartialRouteNotice = function(data) {
+    if (!data || !data.partial) return '';
+    var gap = data.gap_m ? ` 목적지까지 직선으로 약 ${Math.round(data.gap_m)}m 남습니다.` : '';
+    return `<div style="margin-bottom:10px; padding:8px; border-radius:8px; font-size:11px; line-height:1.5;
+        background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.4); color:#ef4444; font-weight:700;">
+        ⚠️ 이 경로는 목적지까지 이어지지 않았습니다.${gap} 다른 길찾기(일반 경로)를 함께 확인하세요.</div>`;
+};
+
+// 두 지점 사이 보행 경로. 보행 API 가 실패하면 직선으로 둔다.
+async function fetchWalkLeg(from, to) {
+    var line = [[from.lat, from.lng], [to.lat, to.lng]];
+    var meters = Math.round(L.latLng(line[0]).distanceTo(L.latLng(line[1])));
+    var seconds = null;
+    try {
+        var data = await window.fetchTmapWithOSRMFallback(`${window.PROXY_URL}/tmap-routes?endpoint=pedestrian&version=1`, {
+            startX: from.lng, startY: from.lat, endX: to.lng, endY: to.lat,
+            reqCoordType: "WGS84GEO", resCoordType: "WGS84GEO",
+            startName: encodeURIComponent("출발"), endName: encodeURIComponent("도착")
+        }, 'walk');
+        var walked = [];
+        (data.features || []).forEach(function(feature) {
+            if (feature.geometry && feature.geometry.type === "LineString") {
+                feature.geometry.coordinates.forEach(function(coord) { walked.push([coord[1], coord[0]]); });
+            }
+        });
+        // 보행 도로망에 붙은 점과 실제 정류장·도착지 사이 틈도 잇는다
+        if (walked.length > 1) line = [line[0]].concat(walked, [line[1]]);
+        var props = data.features && data.features[0] && data.features[0].properties;
+        if (props && props.totalDistance > 0) {
+            // 보행 API 는 도로에 붙인 뒤 거리만 세어 직선보다 짧게 줄 때가 있다
+            meters = Math.max(meters, Math.round(props.totalDistance));
+            seconds = props.totalTime > 0 ? props.totalTime : null;
+        }
+    } catch (e) {
+        console.warn('보행 구간 조회 실패, 직선으로 표시합니다:', e);
+    }
+    // 보행 API 가 시간을 안 주면 G-Route 도보와 같은 시속 4km 로 잡는다
+    var minutes = Math.max(1, Math.round((seconds || meters / (4000 / 3600)) / 60));
+    return { line: line, meters: meters, minutes: minutes };
+}
+
+// G-Route 도로망(OSM 차도)에 없는 곳은 가장 가까운 도로 지점에 붙어서 경로가 거기서 끝난다.
+// 금오공대 교내가 그렇다 - 자가용·자전거로 테크노관을 찾으면 선이 출입구 575m 앞에서
+// 끊기고 실내 경로와 이어지지 않았다. 끊긴 앞뒤를 보행 경로 점선으로 잇고 결과 카드에 적는다.
+// 도로에 붙이는 보통의 오차(수십 m)는 잇지 않는다. 그것까지 그리면 출발지마다 군더더기가 붙는다.
+var GROUTE_GAP_MIN_M = 80;
+
+window.connectGRouteEnds = function(route, renderId, noteId) {
+    if (!Array.isArray(route) || route.length < 2) return;
+    var first = route[0], last = route[route.length - 1];
+    var legs = [];
+    if (window.startCoord) legs.push({ where: 'start', from: window.startCoord, to: { lat: first[0], lng: first[1] } });
+    if (window.endCoord) legs.push({ where: 'end', from: { lat: last[0], lng: last[1] }, to: window.endCoord });
+    legs = legs.filter(function(leg) {
+        return L.latLng(leg.from.lat, leg.from.lng).distanceTo(L.latLng(leg.to.lat, leg.to.lng)) >= GROUTE_GAP_MIN_M;
+    });
+    if (!legs.length) return;
+    Promise.all(legs.map(function(leg) { return fetchWalkLeg(leg.from, leg.to); })).then(function(walks) {
+        if (renderId !== currentRoutingRenderId) return;
+        var parts = walks.map(function(walk, i) {
+            drawPolyline(walk.line, '#475569', 'shortdash', 5);
+            return (legs[i].where === 'start' ? '출발지에서 도로까지 ' : '도로가 끝나는 곳에서 도착지까지 ') +
+                walk.meters.toLocaleString() + 'm(걸어서 약 ' + walk.minutes + '분)';
+        });
+        var box = document.getElementById(noteId);
+        if (!box) return;
+        box.textContent = '🚶 G-Route 도로망 밖 구간: ' + parts.join(', ') +
+            '. 점선 도보 경로로 이었고, 위 소요시간에는 들어 있지 않습니다.';
+        box.style.display = 'block';
+    });
+};
+
+function gapNoteHtml(id) {
+    return `<div id="${id}" style="display:none; margin-bottom:10px; padding:8px; border-radius:8px; font-size:11px; line-height:1.5;
+        background:rgba(71,85,105,0.08); border:1px solid rgba(71,85,105,0.35); color:var(--text-main);"></div>`;
+}
+
+function formatBenchMinutes(seconds) {
+    return window.formatTime(Math.max(1, Math.round(seconds / 60)));
+}
+
+// ── G-Route vs 외부 길찾기 비교 카드 ──
+// 서버가 같은 출발·도착지로 두 경로를 실제로 계산해 준 값만 보여 준다.
+// 두 시간은 계산 근거가 다를 수 있어(예: G-Route 자동차는 제한속도 추정, TMAP 은 실시간 교통)
+// "절감" 같은 판정 대신 근거를 나란히 적는다.
+window.renderBenchmarkCard = function(containerId, benchmarkData) {
     var b = benchmarkData;
     var container = document.getElementById(containerId);
-    if (!container) {
-        container = document.createElement('div');
-        container.id = containerId;
-        var resultDiv = document.getElementById('route-result');
-        if (resultDiv) resultDiv.appendChild(container);
-    }
+    if (!container) return;
+    var esc = function(s) { return DOMPurify.sanitize(String(s == null ? '' : s)); };
 
-    var modeIcons = { car: '🚗', walk: '🚶', bike: '🚲', bicycle: '🚲', pm: '🛴', shared: '🛴' };
-    var modeIcon = modeIcons[mode] || '🚗';
+    var ref = b.reference;
+    var refColumn = ref ? `
+            <div style="flex:1; text-align:center; padding:10px 6px; border-radius:10px; background:var(--bg-input); border:1px solid var(--border-panel);">
+                <div style="font-size:10px; color:var(--text-muted);">${esc(ref.provider)}</div>
+                <div style="font-size:20px; font-weight:800; color:var(--text-main);">${formatBenchMinutes(ref.duration_sec)}</div>
+                <div style="font-size:10px; color:var(--text-muted);">${(ref.distance_m / 1000).toFixed(1)} km</div>
+            </div>` : `
+            <div style="flex:1; display:flex; align-items:center; justify-content:center; text-align:center; padding:10px 6px; border-radius:10px; background:var(--bg-input); border:1px dashed var(--border-panel); font-size:10px; color:var(--text-muted);">
+                ${esc(b.reference_error || '비교할 외부 경로가 없습니다')}
+            </div>`;
 
-    var extraRows = '';
-    if (b.slope_avoid_pct > 0) {
-        extraRows += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-top:1px solid rgba(168,85,247,0.15);">
-            <span>⛰️ 급경사 회피율</span>
-            <span style="font-weight:700; color:#22c55e;">${b.slope_avoid_pct}%</span>
-        </div>`;
-    }
-    if (b.safe_sidewalk_pct > 0) {
-        extraRows += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-top:1px solid rgba(168,85,247,0.15);">
-            <span>🛡️ 안전 인도 확보율</span>
-            <span style="font-weight:700; color:#3b82f6;">${b.safe_sidewalk_pct}%</span>
-        </div>`;
+    var diffRows = '';
+    if (ref) {
+        var dMin = Math.round((b.groute.duration_sec - ref.duration_sec) / 60);
+        var dKm = (b.groute.distance_m - ref.distance_m) / 1000;
+        diffRows = `
+            <div style="display:flex; justify-content:space-between; padding:4px 0;">
+                <span>거리 차이 (G-Route − 비교)</span><b>${dKm >= 0 ? '+' : ''}${dKm.toFixed(1)} km</b>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:4px 0;">
+                <span>시간 차이 (G-Route − 비교)</span><b>${dMin >= 0 ? '+' : ''}${dMin}분</b>
+            </div>`;
     }
 
     container.innerHTML = `
-    <div style="margin-top:12px; padding:14px; border-radius:14px;
-        background: linear-gradient(135deg, rgba(168,85,247,0.08) 0%, rgba(99,102,241,0.08) 100%);
-        border: 1px solid rgba(168,85,247,0.25);
-        box-shadow: 0 0 20px rgba(168,85,247,0.1); animation: fadeIn 0.6s ease;">
-        <div style="font-size:12px; font-weight:800; color:#7c3aed; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
-            🏆 G-Route AI vs 상용 네비 실시간 벤치마크
+    <div style="margin-top:12px; padding:12px; border-radius:12px; background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.25);">
+        <div style="font-size:12px; font-weight:800; color:var(--primary-color); margin-bottom:8px;">📊 같은 출발·도착지 경로 비교</div>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <div style="flex:1; text-align:center; padding:10px 6px; border-radius:10px; background:var(--primary-grad); color:white;">
+                <div style="font-size:10px; opacity:0.9;">G-Route (자체 경로)</div>
+                <div style="font-size:20px; font-weight:800;">${formatBenchMinutes(b.groute.duration_sec)}</div>
+                <div style="font-size:10px; opacity:0.9;">${(b.groute.distance_m / 1000).toFixed(1)} km</div>
+            </div>
+            ${refColumn}
         </div>
-        <div style="display:flex; gap:8px; margin-bottom:10px;">
-            <div style="flex:1; text-align:center; padding:10px 6px; border-radius:10px;
-                background:linear-gradient(135deg, #7c3aed, #a855f7); color:white; box-shadow:0 4px 15px rgba(124,58,237,0.3);">
-                <div style="font-size:10px; opacity:0.85;">🤖 G-Route AI</div>
-                <div style="font-size:20px; font-weight:800;">${b.ai_time_min}분</div>
-                <div style="font-size:10px; opacity:0.8;">${b.ai_dist_km} km</div>
-            </div>
-            <div style="flex:1; text-align:center; padding:10px 6px; border-radius:10px;
-                background:linear-gradient(135deg, #64748b, #94a3b8); color:white;">
-                <div style="font-size:10px; opacity:0.85;">${modeIcon} 상용 네비</div>
-                <div style="font-size:20px; font-weight:800;">${b.tmap_time_min}분</div>
-                <div style="font-size:10px; opacity:0.8;">${b.tmap_dist_km} km</div>
-            </div>
+        <div style="font-size:11px; color:var(--text-main);">${diffRows}</div>
+        <div style="margin-top:6px; font-size:10px; color:var(--text-muted); line-height:1.5;">
+            G-Route 시간: ${esc(b.groute.basis)}${ref ? `<br>비교 시간: ${esc(ref.basis)}` : ''}
+            ${ref && b.mode === 'car' ? '<br>※ 두 시간은 계산 근거가 달라 직접 우열을 가리는 값이 아닙니다.' : ''}
         </div>
-        <div style="font-size:11px; color:#334155; line-height:1.7;">
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0;">
-                <span>⏱ 소요시간 절감</span>
-                <span style="font-weight:700; color:#ef4444;">-${b.time_saved_min}분 (${b.time_saved_pct}% ↓)</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-top:1px solid rgba(168,85,247,0.15);">
-                <span>🚦 혼잡 구간 우회율</span>
-                <span style="font-weight:700; color:#f59e0b;">${b.congestion_avoid_pct}%</span>
-            </div>
-            ${extraRows}
-        </div>
-        <div style="margin-top:8px; font-size:9px; color:#94a3b8; text-align:right;">※ G-Route GNN + DQN 강화학습 기반 실시간 혼잡 우회 추론</div>
     </div>`;
+
+    // 자동차 결과 카드의 택시 요금 칸은 TMAP 예상 요금으로 채운다.
+    var fareEl = document.getElementById('groute-taxi-fare');
+    if (fareEl) {
+        fareEl.textContent = (ref && ref.taxi_fare) ? ref.taxi_fare.toLocaleString() + '원' : '요금 정보 없음';
+    }
 };
 
-// ── G-Route 벤치마크 백그라운드 호출 ──
+// ── G-Route 비교 결과 백그라운드 호출 ──
 window.fetchBenchmark = function(mode) {
     if (!window.startCoord || !window.endCoord) return;
+    var profileEl = document.querySelector('input[name="route-profile"]:checked');
     var payload = {
         start_lat: window.startCoord.lat, start_lng: window.startCoord.lng,
         end_lat: window.endCoord.lat, end_lng: window.endCoord.lng,
-        mode: mode
+        mode: mode,
+        profile: (mode === 'car' && profileEl) ? profileEl.value : 'fast',
+        hour: new Date().getHours()
     };
     if (window.wayCoord) {
         payload.way_lat = window.wayCoord.lat;
         payload.way_lng = window.wayCoord.lng;
     }
+    var renderId = currentRoutingRenderId;
     fetch(`${window.PROXY_URL}/groute-benchmark`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,11 +210,12 @@ window.fetchBenchmark = function(mode) {
     })
     .then(r => r.json())
     .then(data => {
+        if (renderId !== currentRoutingRenderId) return;
         if (data.status === 'success' && data.benchmark) {
-            window.renderBenchmarkCard('groute-benchmark-card', data.benchmark, mode);
+            window.renderBenchmarkCard('groute-benchmark-card', data.benchmark);
         }
     })
-    .catch(err => console.warn('[Benchmark] 벤치마크 호출 실패:', err));
+    .catch(err => console.warn('[Benchmark] 비교 경로 호출 실패:', err));
 };
 
 // OSRM의 /foot 문자열만으로는 자동차 서버가 보행 서버로 바뀌지 않는다.
@@ -345,20 +445,10 @@ window.calcRoute = function(mode, option) {
                 
                 var routeCoords = data.route;
                 if (!routeCoords || routeCoords.length === 0) throw new Error("AI 경로 좌표를 수신하지 못했습니다.");
-                
-                var totalDist = 0;
-                for (var i = 0; i < routeCoords.length - 1; i++) {
-                    var p1 = routeCoords[i];
-                    var p2 = routeCoords[i+1];
-                    var latDiff = (p2[0] - p1[0]) * 111.32;
-                    var lngDiff = (p2[1] - p1[1]) * 88.64;
-                    totalDist += Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                }
-                
-                var dist = totalDist.toFixed(1);
-                var time = Math.max(3, Math.ceil(totalDist * 1.5)); 
-                var taxiFare = 4800 + Math.ceil(totalDist * 1000) * 0.85; 
-                var tollFare = 0; 
+
+                var summary = window.summarizeGRouteResult(data, 1.5);
+                var dist = summary.distKm;
+                var time = summary.timeMin;
 
                 // G-Route AI 전용 매치 색상 적용 드로잉 기동
                 drawGRouteAiPath(routeCoords, 'car', profile);
@@ -370,13 +460,13 @@ window.calcRoute = function(mode, option) {
 
                 var taxiCardHtml = `
                 <div style="margin-top:10px; background:linear-gradient(135deg, #eff6ff, #f8fafc); border:1px solid #93c5fd; border-radius:10px; padding:10px;">
-                    <div style="font-size:13px; font-weight:700; color:#1e40af; margin-bottom:6px;">🚕 AI 안심 택시 호출 시</div>
+                    <div style="font-size:13px; font-weight:700; color:#1e40af; margin-bottom:6px;">🚕 택시 이용 시 (TMAP 예상 요금)</div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <div>
-                            <div style="font-size:18px; font-weight:800; color:#2563eb;">${Math.round(taxiFare/100)*100}원</div>
-                            <div style="font-size:11px; color:#1e40af;">⏱ ${window.formatTime(time)} | 📏 ${dist}km (AI 정체 최적 회피)</div>
+                            <div id="groute-taxi-fare" style="font-size:18px; font-weight:800; color:#2563eb;">계산 중…</div>
+                            <div style="font-size:11px; color:#1e40af;">📏 G-Route 경로 ${dist}km</div>
                         </div>
-                        <button onclick="simulateTaxiCall()" style="padding:8px 14px; background:#3b82f6; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:12px; box-shadow:0 2px 4px rgba(59,130,246,0.3); transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">🚕 호출하기</button>
+                        <button onclick="simulateTaxiCall()" title="실제 택시를 부르지 않는 화면 체험입니다" style="padding:8px 14px; background:#3b82f6; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:12px; box-shadow:0 2px 4px rgba(59,130,246,0.3); transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">🚕 가상 호출</button>
                     </div>
                 </div>`;
 
@@ -397,21 +487,24 @@ window.calcRoute = function(mode, option) {
                 }
 
                 resultDiv.innerHTML = `
-                <div style="padding:15px; border-radius:12px; background:white; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
-                    <div style="font-size:13px; font-weight:700; color:var(--text-muted); margin-bottom:8px;">🚗 G-Route AI 추천 안내</div>
-                    <div style="margin-bottom:12px; font-size:14px; color:#1e293b;">
+                <div style="padding:15px; border-radius:12px; background:var(--bg-card); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <div style="font-size:13px; font-weight:700; color:var(--text-muted); margin-bottom:8px;">🚗 G-Route 자체 경로</div>
+                    ${window.renderPartialRouteNotice(data)}
+                    ${gapNoteHtml('groute-gap-note')}
+                    <div style="margin-bottom:12px; font-size:14px; color:var(--text-main);">
                         <span style="font-size:26px; font-weight:800; color:${themeColor}; letter-spacing:-0.5px;">${window.formatTime(time)}</span>
-                        <span style="margin-left:8px; font-weight:600; color:#64748b;">${dist} km</span>
+                        <span style="margin-left:8px; font-weight:600; color:var(--text-muted);">${dist} km</span>
                     </div>
                     <div style="font-size:11px; color:#1e3a8a; margin-bottom:10px; line-height:1.5; background:#eff6ff; border:1px dashed #bfdbfe; padding:8px; border-radius:8px;">
-                        🧠 <b>G-Route AI 최적 라우팅 가동</b> [프로파일: ${profileName}]<br>
-                        - 실시간 신호 연동 및 구간 교통상황을 최우선 연산하였습니다.<br>
-                        - 구글 클라우드 VM 실시간 데이터로 상시 훈련된 ONNX망이 사용됩니다.
+                        🧠 <b>G-Route 경로 탐색</b> [프로파일: ${profileName}]<br>
+                        - 구미시 도로망(OpenStreetMap)에서 A*로 찾은 경로입니다. 학습한 교차로 선호도(연결 수·고도·인도 유무)를 가중치에 더합니다.<br>
+                        - 시간: ${summary.basis || '도로 제한속도 기준 추정'}. 실시간 정체는 아래 TMAP 비교를 참고하세요.
                     </div>
                     ${guidanceHtml}
                     ${taxiCardHtml}
                     <div id="groute-benchmark-card"></div>
                 </div>`;
+                window.connectGRouteEnds(routeCoords, myRoutingRenderId, 'groute-gap-note');
                 // 벤치마크 비교 카드 백그라운드 호출
                 window.fetchBenchmark('car');
             })
@@ -458,9 +551,9 @@ window.calcRoute = function(mode, option) {
                 </div>`;
 
                 resultDiv.innerHTML = `
-                <div style="padding:15px; border-radius:12px; background:white; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                <div style="padding:15px; border-radius:12px; background:var(--bg-card); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
                     🏁 <b>자가용 길찾기 (티맵 실시간 우회)</b><br>
-                    <div style="margin-bottom:12px; font-size:14px; color:#1e293b; margin-top:8px;">
+                    <div style="margin-bottom:12px; font-size:14px; color:var(--text-main); margin-top:8px;">
                         ⏱ 소요시간: <b style="color:#3b82f6; font-size:24px;">${window.formatTime(time)}</b><br>
                         📏 이동거리: ${dist}km
                     </div>
@@ -496,139 +589,117 @@ window.calcRoute = function(mode, option) {
         window.lastWayKey = wayKey;
         window.currentSelectedPathIndex = 0; // 기본적으로 첫 번째 경로 선택
 
-        if (true) {
+        // ── 경유지가 있는 경우: 출발→경유, 경유→도착 두 구간으로 분할 조회 ──
+        if (window.wayCoord) {
+            var odsayUrl1 = `${window.PROXY_URL}/odsay?SX=${window.startCoord.lng}&SY=${window.startCoord.lat}&EX=${window.wayCoord.lng}&EY=${window.wayCoord.lat}`;
+            var odsayUrl2 = `${window.PROXY_URL}/odsay?SX=${window.wayCoord.lng}&SY=${window.wayCoord.lat}&EX=${window.endCoord.lng}&EY=${window.endCoord.lat}`;
 
-            // ── 경유지가 있는 경우: 출발→경유, 경유→도착 두 구간으로 분할 조회 ──
-            if (window.wayCoord) {
-                var odsayUrl1 = `${window.PROXY_URL}/odsay?SX=${window.startCoord.lng}&SY=${window.startCoord.lat}&EX=${window.wayCoord.lng}&EY=${window.wayCoord.lat}`;
-                var odsayUrl2 = `${window.PROXY_URL}/odsay?SX=${window.wayCoord.lng}&SY=${window.wayCoord.lat}&EX=${window.endCoord.lng}&EY=${window.endCoord.lat}`;
-
-                Promise.all([
-                    fetch(odsayUrl1).then(r => r.json()),
-                    fetch(odsayUrl2).then(r => r.json())
-                ])
-                .then(([data1, data2]) => {
-                    if (myRoutingRenderId !== currentRoutingRenderId) return;
-                    if (!data1.result || !data1.result.path || data1.result.path.length === 0) {
-                        var msg1 = (data1.error && data1.error.length > 0) ? data1.error[0].message : "출발→경유지 대중교통 경로를 찾을 수 없습니다.";
-                        throw new Error(msg1);
-                    }
-                    if (!data2.result || !data2.result.path || data2.result.path.length === 0) {
-                        var msg2 = (data2.error && data2.error.length > 0) ? data2.error[0].message : "경유지→도착 대중교통 경로를 찾을 수 없습니다.";
-                        throw new Error(msg2);
-                    }
-
-                    var best1 = data1.result.path[0];
-                    var best2 = data2.result.path[0];
-
-                    // 두 구간의 정보를 합산
-                    var totalTime = best1.info.totalTime + best2.info.totalTime;
-                    var payment   = best1.info.payment + best2.info.payment;
-                    var totalWalk = best1.info.totalWalk + best2.info.totalWalk;
-                    var totalDist = best1.info.totalDistance + best2.info.totalDistance;
-
-                    // 두 구간의 polyline 그리기
-                    [best1, best2].forEach(function(seg) {
-                        seg.subPath.forEach(function(sub) {
-                            if (sub.trafficType === 1 || sub.trafficType === 2) {
-                                var color = (sub.trafficType === 2) ? '#10b981' : '#f97316';
-                                var points = [];
-                                if (sub.passStopList && sub.passStopList.stations) {
-                                    sub.passStopList.stations.forEach(function(st) {
-                                        points.push([parseFloat(st.y), parseFloat(st.x)]);
-                                    });
-                                }
-                                if (points.length > 0) drawPolyline(points, color, 'solid', 7);
-                            }
-                        });
-                    });
-
-                    var wayLabel = window.wayCoord.addr || '경유지';
-                    resultDiv.innerHTML = `🏁 <b>대중교통 경유지 경로</b><br>
-                        📍 경유: <b style="color:#8b5cf6;">${wayLabel}</b><br>
-                        ⏱ 소요시간: <b style="color:#ef4444; font-size:16px;">${window.formatTime(totalTime)}</b><br>
-                        📏 이동거리: ${(totalDist / 1000).toFixed(1)}km<br>
-                        💵 요금: <b>${payment.toLocaleString()}원</b><br>
-                        🚶 도보: ${totalWalk}m`;
-                })
-                .catch(function(e) {
-                    if (myRoutingRenderId !== currentRoutingRenderId) return;
-                    console.error("ODsay 경유지 대중교통 에러:", e);
-                    resultDiv.innerHTML = `<span style="color:#ef4444; font-size:12px; display:block; line-height:1.4;">
-                        🚨 <b>대중교통 경유지 API 에러:</b> ${e.message}<br>
-                        <span style="color:#64748b; font-size:11px; display:block; margin-top:4px;">※ ODSAY_KEY 설정 및 네트워크 상태를 확인해주세요.</span>
-                    </span>`;
-                });
-                return;
-            }
-
-            // ── 경유지 없는 기존 로직 ──
-            var odsayUrl = `${window.PROXY_URL}/odsay?SX=${window.startCoord.lng}&SY=${window.startCoord.lat}&EX=${window.endCoord.lng}&EY=${window.endCoord.lat}`;
-            
-            fetch(odsayUrl)
-            .then(res => res.json())
-            .then(data => {
+            Promise.all([
+                fetch(odsayUrl1).then(r => r.json()),
+                fetch(odsayUrl2).then(r => r.json())
+            ])
+            .then(([data1, data2]) => {
                 if (myRoutingRenderId !== currentRoutingRenderId) return;
-                if (!data.result || !data.result.path || data.result.path.length === 0) {
-                    var msg = (data.error && data.error.length > 0) ? data.error[0].message : "대중교통 경로를 찾을 수 없습니다.";
-                    throw new Error(msg);
+                if (!data1.result || !data1.result.path || data1.result.path.length === 0) {
+                    var msg1 = (data1.error && data1.error.length > 0) ? data1.error[0].message : "출발→경유지 대중교통 경로를 찾을 수 없습니다.";
+                    throw new Error(msg1);
                 }
-                window.transitPaths = data.result.path;
-                renderTransitRouteList(window.transitPaths, option || 'best', false);
+                if (!data2.result || !data2.result.path || data2.result.path.length === 0) {
+                    var msg2 = (data2.error && data2.error.length > 0) ? data2.error[0].message : "경유지→도착 대중교통 경로를 찾을 수 없습니다.";
+                    throw new Error(msg2);
+                }
+
+                var best1 = data1.result.path[0];
+                var best2 = data2.result.path[0];
+
+                // 두 구간의 정보를 합산
+                var totalTime = best1.info.totalTime + best2.info.totalTime;
+                var payment   = best1.info.payment + best2.info.payment;
+                var totalWalk = best1.info.totalWalk + best2.info.totalWalk;
+                var totalDist = best1.info.totalDistance + best2.info.totalDistance;
+
+                // 두 구간의 polyline 그리기
+                [best1, best2].forEach(function(seg) {
+                    seg.subPath.forEach(function(sub) {
+                        if (sub.trafficType === 1 || sub.trafficType === 2) {
+                            var color = (sub.trafficType === 2) ? '#10b981' : '#f97316';
+                            var points = [];
+                            if (sub.passStopList && sub.passStopList.stations) {
+                                sub.passStopList.stations.forEach(function(st) {
+                                    points.push([parseFloat(st.y), parseFloat(st.x)]);
+                                });
+                            }
+                            if (points.length > 0) drawPolyline(points, color, 'solid', 7);
+                        }
+                    });
+                });
+
+                var wayLabel = window.wayCoord.addr || '경유지';
+                resultDiv.innerHTML = `🏁 <b>대중교통 경유지 경로</b><br>
+                    📍 경유: <b style="color:#8b5cf6;">${wayLabel}</b><br>
+                    ⏱ 소요시간: <b style="color:#ef4444; font-size:16px;">${window.formatTime(totalTime)}</b><br>
+                    📏 이동거리: ${(totalDist / 1000).toFixed(1)}km<br>
+                    💵 요금: <b>${payment.toLocaleString()}원</b><br>
+                    🚶 도보: ${totalWalk}m`;
             })
-            .catch(e => {
+            .catch(function(e) {
                 if (myRoutingRenderId !== currentRoutingRenderId) return;
-                console.error("ODsay 대중교통 에러:", e);
+                console.error("ODsay 경유지 대중교통 에러:", e);
                 resultDiv.innerHTML = `<span style="color:#ef4444; font-size:12px; display:block; line-height:1.4;">
-                    🚨 <b>대중교통 API 에러:</b> ${e.message}<br>
-                    <span style="color:#64748b; font-size:11px; display:block; margin-top:4px;">※ ODSAY_KEY 설정 및 네트워크 상태를 확인해주세요.</span>
+                    🚨 <b>대중교통 경유지 API 에러:</b> ${e.message}<br>
+                    <span style="color:var(--text-muted); font-size:11px; display:block; margin-top:4px;">※ ODSAY_KEY 설정 및 네트워크 상태를 확인해주세요.</span>
                 </span>`;
             });
             return;
         }
 
-        // TMAP 대중교통 API Fallback
-        var payload = {
-            startX: window.startCoord.lng.toString(), startY: window.startCoord.lat.toString(),
-            endX: window.endCoord.lng.toString(), endY: window.endCoord.lat.toString(),
-            count: 1, format: "json"
-        };
-        var proxyUrl = `${window.PROXY_URL}/transit`;
-        var directUrl = "https://apis.openapi.sk.com/transit/routes";
 
-        fetch(proxyUrl, {
-            method: "POST",
-            headers: { "accept": "application/json", "content-type": "application/json", },
-            body: JSON.stringify(payload)
-        })
-        .catch(err => {
-            console.warn("로컬 프록시 가동되지 않아 직접 호출을 시도합니다.", err);
-            return fetch(directUrl, {
-                method: "POST",
-                headers: { "accept": "application/json", "content-type": "application/json", },
-                body: JSON.stringify(payload)
-            });
-        })
-        .then(res => {
-            if (myRoutingRenderId !== currentRoutingRenderId) return;
-            if (res.status === 403 || res.status === 401) {
-                throw new Error("TMAP 대중교통 API 사용 권한이 없거나 키 오류입니다.");
-            }
-            return res.json();
-        })
+        // ── 경유지 없는 경우: ODsay, 실패하면 서버의 대체 경로(TMAP → 자체 버스 그래프) ──
+        window.transitPathsNote = '';
+        var odsayUrl = `${window.PROXY_URL}/odsay?SX=${window.startCoord.lng}&SY=${window.startCoord.lat}&EX=${window.endCoord.lng}&EY=${window.endCoord.lat}`;
+
+        fetch(odsayUrl)
+        .then(res => res.json())
         .then(data => {
-            if (!data) return;
-            if (data.metaData && data.metaData.plan && data.metaData.plan.itineraries) {
-                renderTransitRouteList(data.metaData.plan.itineraries, option || 'best', true);
-            } else {
-                throw new Error("대중교통 경로를 찾을 수 없습니다.");
+            if (myRoutingRenderId !== currentRoutingRenderId) return;
+            if (!data.result || !data.result.path || data.result.path.length === 0) {
+                var msg = (data.error && data.error.length > 0) ? data.error[0].message : "대중교통 경로를 찾을 수 없습니다.";
+                throw new Error(msg);
             }
+            window.transitPaths = data.result.path;
+            renderTransitRouteList(window.transitPaths, option || 'best', false);
+        })
+        .catch(odsayError => {
+            if (myRoutingRenderId !== currentRoutingRenderId) return;
+            console.warn("ODsay 대중교통 실패, 대체 경로 시도:", odsayError);
+            resultDiv.innerHTML = "⏳ 대중교통 경로를 다른 방법으로 찾는 중...";
+            return fetch(`${window.PROXY_URL}/transit`, {
+                method: "POST",
+                headers: { "accept": "application/json", "content-type": "application/json" },
+                body: JSON.stringify({
+                    startX: String(window.startCoord.lng), startY: String(window.startCoord.lat),
+                    endX: String(window.endCoord.lng), endY: String(window.endCoord.lat)
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (myRoutingRenderId !== currentRoutingRenderId) return;
+                if (!data.result || !data.result.path || data.result.path.length === 0) {
+                    throw new Error(data.error || odsayError.message);
+                }
+                window.transitPathsNote = data.source === 'tmap'
+                    ? 'ODsay 응답이 없어 TMAP 대중교통 결과를 보여 드립니다.'
+                    : (data.note || '대체 경로입니다.') + ' 실제 배차 시각은 정류장 도착 정보를 확인하세요.';
+                window.transitPaths = data.result.path;
+                renderTransitRouteList(window.transitPaths, option || 'best', false);
+            });
         })
         .catch(e => {
             if (myRoutingRenderId !== currentRoutingRenderId) return;
-            console.error("대중교통 API 에러:", e);
+            console.error("대중교통 경로 에러:", e);
             resultDiv.innerHTML = `<span style="color:#ef4444; font-size:12px; display:block; line-height:1.4;">
-                🚨 <b>대중교통 API 에러:</b> ${e.message}
+                🚨 <b>대중교통 경로를 찾지 못했습니다:</b> ${DOMPurify.sanitize(e.message)}<br>
+                <span style="color:var(--text-muted); font-size:11px; display:block; margin-top:4px;">※ ODSAY_KEY 설정 및 네트워크 상태를 확인해주세요.</span>
             </span>`;
         });
 
@@ -670,21 +741,11 @@ window.calcRoute = function(mode, option) {
                 var routeCoords = data.route;
                 if (!routeCoords || routeCoords.length === 0) throw new Error("AI 경로 좌표를 수신하지 못했습니다.");
                 
-                var totalDist = 0;
-                for (var i = 0; i < routeCoords.length - 1; i++) {
-                    var p1 = routeCoords[i];
-                    var p2 = routeCoords[i+1];
-                    var latDiff = (p2[0] - p1[0]) * 111.32;
-                    var lngDiff = (p2[1] - p1[1]) * 88.64;
-                    totalDist += Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-                }
-                
-                var dist = totalDist.toFixed(1);
-                var time = 0;
-                if (mode === 'walk') time = Math.max(3, Math.ceil(totalDist * 15.0)); 
-                else if (mode === 'bike') time = Math.max(2, Math.ceil(totalDist * 4.0)); 
-                else if (mode === 'shared') time = Math.max(2, Math.ceil(totalDist * 3.0)); 
-                
+                var minutesPerKm = (mode === 'walk') ? 15.0 : (mode === 'bike') ? 4.0 : 3.0;
+                var summary = window.summarizeGRouteResult(data, minutesPerKm);
+                var dist = summary.distKm;
+                var time = summary.timeMin;
+
                 // 모드 맞춤형 색상으로 턴그리기
                 drawGRouteAiPath(routeCoords, mode, 'fast');
 
@@ -715,7 +776,10 @@ window.calcRoute = function(mode, option) {
                     window._lastSharedDist = parseFloat(dist);
                     window._lastSharedTime = time;
                     window._lastSharedFeatures = null;
-                    renderSharedResult(parseFloat(dist), time, null, viaHtml, "", data.guidance);
+                    renderSharedResult(parseFloat(dist), time, null,
+                                       window.renderPartialRouteNotice(data) + gapNoteHtml('groute-gap-note') + viaHtml,
+                                       "", data.guidance);
+                    window.connectGRouteEnds(routeCoords, myRoutingRenderId, 'groute-gap-note');
                 } else {
                     var badgeStyle = (mode === 'walk') 
                         ? 'background:#fff7ed; border:1px dashed #fed7aa; color:#7c2d12;'
@@ -723,25 +787,29 @@ window.calcRoute = function(mode, option) {
                         
                     var brainBadge = (window.currentMapMode === 'research') ? `
                     <div style="font-size:11px; line-height:1.5; padding:8px; border-radius:8px; margin-bottom:10px; ${badgeStyle}">
-                        🧠 <b>G-Route AI 멀티모달 엔진</b><br>
-                        - ${mode === 'walk' ? '경사 우회 및 도보 보도가 확보된 도로로 연산되었습니다.' : mode === 'bike' ? '오르막 경사를 회피하고 자전거 도로를 선호하는 경로입니다.' : '배터리 소모를 최적화하고 자전거 도로를 위주로 우회 매핑하였습니다.'}
+                        🧠 <b>G-Route 경로 탐색</b><br>
+                        - ${mode === 'walk' ? '큰길에서 인도가 없는 구간과 급경사를 피하도록 가중치를 준 경로입니다.' : '오르막 경사를 피하고 자전거 도로를 선호하도록 가중치를 준 경로입니다.'}<br>
+                        - 시간: ${summary.basis}
                     </div>` : '';
 
                     var modeIcon = (mode === 'walk') ? '🚶' : '🚲';
                     var modeLabel = (mode === 'walk') ? '도보' : '자전거';
 
                     resultDiv.innerHTML = `
-                    <div style="padding:15px; border-radius:12px; background:white; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <div style="padding:15px; border-radius:12px; background:var(--bg-card); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
                         <div style="font-size:13px; font-weight:700; color:var(--text-muted); margin-bottom:8px;">${modeIcon} G-Route 길찾기 안내</div>
+                        ${window.renderPartialRouteNotice(data)}
+                        ${gapNoteHtml('groute-gap-note')}
                         ${viaHtml}
-                        <div style="margin-bottom:12px; font-size:14px; color:#1e293b; margin-top:8px;">
+                        <div style="margin-bottom:12px; font-size:14px; color:var(--text-main); margin-top:8px;">
                             <span style="font-size:26px; font-weight:800; color:${themeColor}; letter-spacing:-0.5px;">${window.formatTime(time)}</span>
-                            <span style="margin-left:8px; font-weight:600; color:#64748b;">${dist} km</span>
+                            <span style="margin-left:8px; font-weight:600; color:var(--text-muted);">${dist} km</span>
                         </div>
                         ${brainBadge}
                         ${guidanceHtml}
                         <div id="groute-benchmark-card"></div>
                     </div>`;
+                    window.connectGRouteEnds(routeCoords, myRoutingRenderId, 'groute-gap-note');
                     // 벤치마크 비교 카드 백그라운드 호출
                     window.fetchBenchmark(mode);
                     openRouteDetailPanel(`${modeLabel} AI 경로 상세`, time, dist, data.guidance || []);
@@ -793,7 +861,7 @@ window.calcRoute = function(mode, option) {
                 if (mode === 'walk') {
                     var time = Math.ceil(totalTimeSec / 60);
                     resultDiv.innerHTML = `
-                    <div style="padding:15px; border-radius:12px; background:white; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <div style="padding:15px; border-radius:12px; background:var(--bg-card); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
                         ${optionTabsHtml}
                         🏁 <b>도보 (경유)</b><br>${viaHtml}
                         ⏱ 소요시간: <b style="color:#ef4444; font-size:16px;">${window.formatTime(time)}</b><br>
@@ -802,7 +870,7 @@ window.calcRoute = function(mode, option) {
                 } else if (mode === 'bike') {
                     var time = Math.ceil(dist / 250);
                     resultDiv.innerHTML = `
-                    <div style="padding:15px; border-radius:12px; background:white; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <div style="padding:15px; border-radius:12px; background:var(--bg-card); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
                         ${optionTabsHtml}
                         🏁 <b>일반자전거 (경유)</b><br>${viaHtml}
                         ⏱ 소요시간: <b style="color:#ef4444; font-size:16px;">${window.formatTime(time)}</b><br>
@@ -842,7 +910,7 @@ window.calcRoute = function(mode, option) {
                 if (mode === 'walk') {
                     var time = Math.ceil(props.totalTime / 60);
                     resultDiv.innerHTML = `
-                    <div style="padding:15px; border-radius:12px; background:white; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <div style="padding:15px; border-radius:12px; background:var(--bg-card); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
                         ${optionTabsHtml}
                         🏁 <b>도보</b><br>
                         ⏱ 소요시간: <b style="color:#ef4444; font-size:16px;">${window.formatTime(time)}</b><br>
@@ -852,7 +920,7 @@ window.calcRoute = function(mode, option) {
                 } else if (mode === 'bike') {
                     var time = Math.ceil(dist / 250); 
                     resultDiv.innerHTML = `
-                    <div style="padding:15px; border-radius:12px; background:white; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <div style="padding:15px; border-radius:12px; background:var(--bg-card); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
                         ${optionTabsHtml}
                         🏁 <b>일반자전거</b><br>
                         ⏱ 소요시간: <b style="color:#ef4444; font-size:16px;">${window.formatTime(time)}</b><br>
@@ -977,11 +1045,11 @@ function renderSharedResult(distKm, timeMin, features, viaHtml, optionTabsHtml, 
     resultDiv.innerHTML = `
         ${optionTabsHtml || ''}
         ${viaHtml ? viaHtml : ''}
-        <div style="padding:15px; border-radius:12px; background:white; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+        <div style="padding:15px; border-radius:12px; background:var(--bg-card); box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
             <div style="font-size:13px; font-weight:700; color:var(--text-muted); margin-bottom:8px;">🛴 G-Route 길찾기 안내</div>
-            <div style="margin-bottom:12px; font-size:14px; color:#1e293b; margin-top:8px;">
+            <div style="margin-bottom:12px; font-size:14px; color:var(--text-main); margin-top:8px;">
                 <span style="font-size:26px; font-weight:800; color:#8b5cf6; letter-spacing:-0.5px;">${window.formatTime(timeMin)}</span>
-                <span style="margin-left:8px; font-weight:600; color:#64748b;">${distKm.toFixed(1)} km</span>
+                <span style="margin-left:8px; font-weight:600; color:var(--text-muted);">${distKm.toFixed(1)} km</span>
             </div>
             ${brainBadge}
             ${presetBtns}
@@ -1542,7 +1610,12 @@ window.renderTransitRouteList = function(paths, sortType, showDetailPanel) {
 
     var detailHtml = '<div id="transit-detail-container" style="font-size:12px; color:var(--text-muted); padding:8px; text-align:center; background:var(--bg-input); border-radius:8px; border:1px solid var(--border-panel);">👉 옆의 <b>상세 경로 우측 패널</b>에서 정류장 목록 및 실시간 버스 시간을 체계적으로 확인할 수 있습니다!</div>';
 
-    resultDiv.innerHTML = DOMPurify.sanitize(tabsHtml + listHtml + detailHtml, window.DOM_PURIFY_CONFIG);
+    // ODsay 대신 대체 경로를 보여 줄 때는 그 사실을 맨 위에 적는다.
+    var noteHtml = window.transitPathsNote
+        ? '<div style="margin-bottom:8px; padding:6px 8px; border-radius:6px; font-size:11px; line-height:1.4; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.4); color:var(--text-main);">ℹ️ ' + window.transitPathsNote + '</div>'
+        : '';
+
+    resultDiv.innerHTML = DOMPurify.sanitize(noteHtml + tabsHtml + listHtml + detailHtml, window.DOM_PURIFY_CONFIG);
 
     renderTransitDetail(window.currentSelectedPathIndex, showDetailPanel);
 };
@@ -1588,26 +1661,9 @@ window.renderTransitDetail = function(index, showPanel) {
     });
 
     async function drawTransitWalk(from, to, renderId) {
-        var line = [[from.lat, from.lng], [to.lat, to.lng]];
-        try {
-            var data = await window.fetchTmapWithOSRMFallback(`${window.PROXY_URL}/tmap-routes?endpoint=pedestrian&version=1`, {
-                startX: from.lng, startY: from.lat, endX: to.lng, endY: to.lat,
-                reqCoordType: "WGS84GEO", resCoordType: "WGS84GEO",
-                startName: encodeURIComponent("출발"), endName: encodeURIComponent("도착")
-            }, 'walk');
-            var walked = [];
-            (data.features || []).forEach(function(feature) {
-                if (feature.geometry && feature.geometry.type === "LineString") {
-                    feature.geometry.coordinates.forEach(function(coord) { walked.push([coord[1], coord[0]]); });
-                }
-            });
-            // 보행 도로망에 붙은 점과 실제 정류장·도착지 사이 틈도 잇는다
-            if (walked.length > 1) line = [line[0]].concat(walked, [line[1]]);
-        } catch (e) {
-            console.warn('대중교통 도보 구간 조회 실패, 직선으로 표시합니다:', e);
-        }
+        var walk = await fetchWalkLeg(from, to);
         if (renderId !== currentRoutingRenderId) return;
-        drawPolyline(line, '#475569', 'shortdash', 5);
+        drawPolyline(walk.line, '#475569', 'shortdash', 5);
     }
 
     // 대중교통 정류장 간 도로 스냅 함수

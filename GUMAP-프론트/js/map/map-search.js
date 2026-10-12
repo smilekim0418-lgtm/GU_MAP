@@ -82,237 +82,16 @@ window.searchPlace = function() {
 
         resultDiv.innerHTML = '<div style="padding:10px; text-align:center; color:#64748b;">🔍 검색 중...</div>';
         
-        // ── 2. Gemini / OpenAI AI 자연어 검색 연동 ──
-    var isNaturalLanguage = query.includes(' ') || query.includes('알려줘') || query.includes('가는') || query.includes('어떻게') || query.includes('추천') || query.includes('찾아줘') || query.includes('맛집') || query.includes('근처') || query.includes('주변') || query.includes('켜') || query.includes('보여') || query.includes('보여줘') || query.includes('지도') || query.length > 10;
-    
-    if (isNaturalLanguage) {
-        resultDiv.innerHTML = '<div style="padding:10px; text-align:center; color:#8b5cf6;">✨ AI(Gemini)가 문맥을 파악 중입니다...</div>';
-        
-        var center = window.map ? window.map.getCenter() : { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
-        var promptText = `
-너는 대중교통 및 교통지도 AI 에이전트야.
-사용자가 현재 지도로 바라보고 있는 중심 좌표(지리적 맥락)는 다음과 같아:
-- 위도: ${center.lat}
-- 경도: ${center.lng}
-
-사용자의 검색어/질문: "${query}"
-
-이 질문이 어떤 교통 지도 기능/의도인지 파악해서 반드시 JSON 포맷으로만 응답해. 백틱(\`\`\`json) 쓰지 말고 순수 JSON만 출력해. 설명이나 텍스트는 절대 포함하지 마.
-
-가능한 의도(intent) 목록과 JSON 구조는 다음과 같아:
-
-1. [지도 레이어 온/오프 토글] (CCTV, 실시간 교통정보, 도로 공사/통제, 공유 킥보드, 사고다발지역 등)
-   - CCTV 켜달라/꺼달라, cctv 보여줘: {"intent": "toggle_layer", "layer": "cctv", "active": true/false}
-   - 실시간 교통망 정보, 막히는 길, 교통 상황: {"intent": "toggle_layer", "layer": "traffic", "active": true/false}
-   - 도로 통제/공사 정보, 통제구간: {"intent": "toggle_layer", "layer": "event", "active": true/false}
-   - 공유 킥보드/자전거 찾기, 씽씽이, 타슈: {"intent": "toggle_layer", "layer": "pm", "active": true/false}
-   - 교통사고 다발지역 표시: {"intent": "toggle_layer", "layer": "wms_accident", "active": true/false}
-   - 보행자사고 다발지역 표시: {"intent": "toggle_layer", "layer": "wms_pedestrian", "active": true/false}
-   - 치안/안전정보 표시, 치안지도: {"intent": "toggle_layer", "layer": "wms_safety", "active": true/false}
-
-2. [특정 편의시설/주유소 반경 검색]
-   - 휘발유 가격, 싼 주유소, 주유소 검색, lpg 충전소: {"intent": "search_category", "category": "주유소"}
-   - 경로당, 실버센터, 노인정: {"intent": "search_category", "category": "경로당"}
-   - 음식점, 식당, 맛집: {"intent": "search_category", "category": "음식점"}
-   - 편의점, 마트, 슈퍼마켓: {"intent": "search_category", "category": "편의점"}
-   - 병원, 의원, 약국: {"intent": "search_category", "category": "약국"}
-
-3. [실시간 버스 노선 조회] (버스 번호가 언급된 경우)
-   - 170번 버스 노선, 11번 버스 어디있어: {"intent": "search_bus", "route": "버스번호"}
-
-4. [나의 즐겨찾기 목록 조회]
-   - 즐겨찾기 보여줘, 저장한 곳: {"intent": "show_favorites"}
-
-5. [MaaS 정책 연구 레이어 제어] (DRT, 승하차 히트맵, 인구 리포트 등)
-   - 행복버스(DRT) 노선 가시화: {"intent": "toggle_research", "feature": "drt", "active": true/false}
-   - 승하차 인원 밀도 히트맵: {"intent": "toggle_research", "feature": "heatmap", "active": true/false}
-   - 인구 및 교통수요 리포트 열기: {"intent": "toggle_research", "feature": "report"}
-
-6. [길찾기] (출발지에서 도착지까지 어떻게 가는지 묻는 경우)
-   - {"intent": "route", "start": "출발지명(없거나 '내위치'면 '현위치'로)", "end": "도착지명"}
-
-7. [일반 장소/건물 검색] (위 항목에 해당하지 않는 경우)
-   - {"intent": "search", "keyword": "검색 키워드", "location_context": "지명 랜드마크(없으면 null)"}
-`;
-        fetch(`${window.PROXY_URL}/gemini-api`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: promptText }] }]
-            })
-        })
-        .then(res => {
-            if (!res.ok) {
-                return res.json().then(errData => {
-                    throw new Error(errData.error?.message || `HTTP ${res.status}`);
-                });
-            }
-            return res.json();
-        })
-        .then(data => {
-            if (data.candidates && data.candidates.length > 0) {
-                var text = data.candidates[0].content.parts[0].text.trim();
-                
-                var jsonStart = text.indexOf('{');
-                var jsonEnd = text.lastIndexOf('}');
-                if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-                    text = text.substring(jsonStart, jsonEnd + 1);
-                }
-                
-                var aiResult = JSON.parse(text);
-                console.log("[AI Agent Response Intent]", aiResult);
-                
-                if (aiResult.intent === 'toggle_layer') {
-                    var layer = aiResult.layer;
-                    var active = aiResult.active !== false;
-                    var layerObj = null;
-                    var layerName = "";
-                    
-                    if (layer === 'cctv') {
-                        layerObj = window.cctvLayerGroup;
-                        layerName = "📹 실시간 CCTV";
-                        if (window.toggleCctvLayer) window.toggleCctvLayer(active);
-                    } else if (layer === 'traffic') {
-                        layerObj = window.trafficLayer;
-                        layerName = "🚦 실시간 교통망 정보";
-                        if (window.toggleTrafficLayer) window.toggleTrafficLayer(active);
-                    } else if (layer === 'event') {
-                        layerObj = window.eventLayerGroup;
-                        layerName = "🚧 실시간 도로 통제/공사";
-                        window.isEventLayerOn = active;
-                        if (active) {
-                            window.map.addLayer(window.eventLayerGroup);
-                            if (window.fetchAndRenderEvent) window.fetchAndRenderEvent();
-                        } else {
-                            window.map.removeLayer(window.eventLayerGroup);
-                            window.eventMarkers.forEach(m => m.remove());
-                            window.eventMarkers = [];
-                        }
-                    } else if (layer === 'pm') {
-                        layerObj = window.sharedPmLayerGroup;
-                        layerName = "🛴 공유 킥보드/자전거";
-                        if (window.toggleSharedPmLayer) window.toggleSharedPmLayer(active);
-                    } else if (layer === 'wms_accident') {
-                        layerObj = window.wmsTrafficAccident;
-                        layerName = "⚠️ 교통사고 다발지역 (WMS)";
-                    } else if (layer === 'wms_pedestrian') {
-                        layerObj = window.wmsPedestrianHazard;
-                        layerName = "🚶 보행자사고 다발지역 (WMS)";
-                    } else if (layer === 'wms_safety') {
-                        layerObj = window.wmsSafetyInfo;
-                        layerName = "🚨 생활밀착 치안/안전정보 (WMS)";
-                    }
-                    
-                    if (layerObj) {
-                        if (active) {
-                            if (!window.map.hasLayer(layerObj)) window.map.addLayer(layerObj);
-                            resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#8b5cf6; font-weight:700;">✅ [AI 완료] "${layerName}" 레이어를 활성화했습니다!</div>`;
-                        } else {
-                            if (window.map.hasLayer(layerObj)) window.map.removeLayer(layerObj);
-                            resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#64748b; font-weight:700;">🚫 [AI 완료] "${layerName}" 레이어를 비활성화했습니다!</div>`;
-                        }
-                    } else {
-                        resultDiv.innerHTML = `<div style="padding:10px; text-align:center; color:#ef4444;">⚠️ 알 수 없는 레이어 요청입니다.</div>`;
-                    }
-                    
-                } else if (aiResult.intent === 'search_category') {
-                    var cat = aiResult.category;
-                    resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#8b5cf6; font-weight:700;">🧭 [AI 연동] 주변 "${cat}" 검색을 자동 시작합니다...</div>`;
-                    setTimeout(() => {
-                        window.searchCategory(cat);
-                    }, 600);
-                    
-                } else if (aiResult.intent === 'search_bus') {
-                    var route = aiResult.route.replace(/번|버스/g, '').trim();
-                    resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#8b5cf6; font-weight:700;">🚌 [AI 연동] "${route}번" 버스 노선 상세 조회를 시작합니다...</div>`;
-                    setTimeout(() => {
-                        if (window.selectRoute) window.selectRoute(route);
-                        resultDiv.style.display = 'none';
-                    }, 600);
-                    
-                } else if (aiResult.intent === 'show_favorites') {
-                    resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#8b5cf6; font-weight:700;">⭐ [AI 연동] 나의 즐겨찾기 목록을 보여드립니다!</div>`;
-                    if (window.expandPanel) window.expandPanel();
-                    setTimeout(() => {
-                        var favList = document.getElementById('favorites-list');
-                        if (favList) favList.scrollIntoView({ behavior: 'smooth' });
-                    }, 500);
-                    
-                } else if (aiResult.intent === 'toggle_research') {
-                    var feature = aiResult.feature;
-                    var active = aiResult.active !== false;
-                    
-                    if (feature === 'drt') {
-                        var toggle = document.getElementById('research-drt-toggle');
-                        if (toggle) {
-                            toggle.checked = active;
-                            if (window.toggleResearchDrt) window.toggleResearchDrt(active);
-                        }
-                        resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#8b5cf6; font-weight:700;">📊 [AI 연동] 행복버스(DRT) 노선을 ${active ? '표시합니다' : '해제합니다'}.</div>`;
-                    } else if (feature === 'heatmap') {
-                        var toggle = document.getElementById('research-heatmap-toggle');
-                        if (toggle) {
-                            toggle.checked = active;
-                            if (window.toggleResearchHeatmap) window.toggleResearchHeatmap(active);
-                        }
-                        resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#8b5cf6; font-weight:700;">📊 [AI 연동] 승하차 밀도 히트맵을 ${active ? '표시합니다' : '해제합니다'}.</div>`;
-                    } else if (feature === 'report') {
-                        resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#8b5cf6; font-weight:700;">📊 [AI 연동] 인구 및 교통수요 리포트를 불러옵니다...</div>`;
-                        if (window.openPopulationReport) window.openPopulationReport();
-                    }
-                    
-                } else if (aiResult.intent === 'route') {
-                    window.handleAiRouting(aiResult.start, aiResult.end);
-                } else {
-                    if (aiResult.location_context) {
-                        resultDiv.innerHTML = `<div style="padding:10px; text-align:center; color:#8b5cf6;">📍 먼저 "${aiResult.location_context}"의 위치를 조회하고 있습니다...</div>`;
-                        var contextUrl = `${window.PROXY_URL}/vworld-search?service=search&request=search&version=2.0&crs=EPSG:4326&size=1&page=1&query=${encodeURIComponent(aiResult.location_context)}&type=place&format=json&errorformat=json&domain=${window.location.host}`;
-                        fetch(contextUrl)
-                            .then(res => res.json())
-                            .then(data => {
-                                if (data.response && data.response.status === "OK" && data.response.result && data.response.result.items && data.response.result.items.length > 0) {
-                                    var item = data.response.result.items[0];
-                                    var lat = parseFloat(item.point.y);
-                                    var lng = parseFloat(item.point.x);
-                                    if (window.map) {
-                                        window.map.setView([lat, lng], 15);
-                                    }
-                                    console.log(`[AI Location Context] 지도 중심 이동: ${aiResult.location_context} (${lat}, ${lng})`);
-                                    setTimeout(() => {
-                                        executeStandardSearch(aiResult.keyword || query);
-                                    }, 300);
-                                } else {
-                                    console.log(`[AI Location Context] "${aiResult.location_context}" 위치 조회 실패. 일반 검색 진행.`);
-                                    executeStandardSearch(aiResult.keyword || query);
-                                }
-                            })
-                            .catch(err => {
-                                console.warn(`[AI Location Context] 에러 발생:`, err);
-                                executeStandardSearch(aiResult.keyword || query);
-                            });
-                    } else {
-                        executeStandardSearch(aiResult.keyword || query);
-                    }
-                }
-            } else {
-                if (data.error) {
-                    throw new Error(data.error.message);
-                }
-                fallbackToLocalParser(query);
-            }
-        })
-        .catch(err => {
-            console.error("Gemini AI API 호출 실패:", err);
-            resultDiv.innerHTML = `<div style="padding:10px; text-align:center; color:#ef4444;">
-                ⚠️ AI(Gemini) 인식 오류: ${err.message}<br>
-                <span style="font-size:11px; color:#64748b;">(로컬 검색 파서로 전환하여 지능형 검색을 시도합니다)</span>
-            </div>`;
-            setTimeout(() => {
-                fallbackToLocalParser(query);
-            }, 1500);
-        });
-        return;
-    }
+        // ── 2. 자연어 질문은 AI 비서(GUMAP-AI비서.js) 한 곳에서 처리한다 ──
+        // 예전에는 여기에 의도 체계가 다른 Gemini 프롬프트가 하나 더 있었다. 검색창은
+        // 같은 조건으로 먼저 AI 비서에 넘기므로 이 분기는 실제로 쓰이지 않았고, 레이어
+        // 켜기·즐겨찾기 보기 같은 기능은 AI 비서 쪽 프롬프트로 옮겼다.
+        var isNaturalLanguage = query.includes(' ') || query.includes('알려줘') || query.includes('가는') || query.includes('어떻게') || query.includes('추천') || query.includes('찾아줘') || query.includes('맛집') || query.includes('근처') || query.includes('주변') || query.includes('켜') || query.includes('보여') || query.includes('보여줘') || query.includes('지도') || query.length > 10;
+        if (isNaturalLanguage && window.sendAiMessage) {
+            resultDiv.style.display = 'none';
+            window.sendAiMessage(query);
+            return;
+        }
 
     // AI 조건에 맞지 않거나 AI 키가 없는 경우 로컬 파서 확인 후 일반 검색 실행
     fallbackToLocalParser(query);
@@ -807,11 +586,12 @@ window.handleAiRouting = async function(startStr, endStr) {
 
     async function getCoordFromStr(placeStr) {
         if (!placeStr) return null;
-        if (placeStr.includes("현위치") || placeStr.includes("내위치") || placeStr.includes("현재위치")) {
-            if (window.userLocation) {
-                return { lat: window.userLocation.lat, lng: window.userLocation.lng, addr: "현위치" };
-            } else {
-                alert("GPS 현위치를 찾을 수 없습니다.");
+        if (/현위치|내\s*위치|현재\s*위치/.test(placeStr)) {
+            try {
+                var here = await window.getUserLocation();
+                return { lat: here.lat, lng: here.lng, addr: "내 위치" };
+            } catch (error) {
+                if (window.showToast) window.showToast('📍 ' + error.message);
                 return null;
             }
         }

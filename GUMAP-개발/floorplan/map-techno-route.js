@@ -238,6 +238,25 @@
         }
     }
 
+    /**
+     * 실외 도착지가 다른 곳으로 바뀌면 전에 고른 방과 그 방까지의 실내 경로를 버린다.
+     * 남겨 두면 새 경로 옆에 옛 실내 경로가 그대로 보이고, 다음에 출발지를 바꿀 때
+     * (useOutdoorStart → runFromControls) 그 방까지 경로를 다시 그렸다.
+     * 버스로 와서 들어갈 출입구를 도착지로 잡는 경우(routeTechnoFromArrival 다음)는 그대로 둔다.
+     */
+    function forgetRoomUnlessEntrance(lat, lng) {
+        var door = result && !result.error && result.entrance && result.entrance.latlng;
+        if (door && Math.abs(door[0] - lat) < 1e-7 && Math.abs(door[1] - lng) < 1e-7) return;
+        var select = document.getElementById('tr-dest');
+        if (select) select.value = '';
+        if (!result && !outdoorLoading) return;
+        outdoorToken++;
+        outdoorLoading = false;
+        result = null;
+        resetPlayback();
+        render();
+    }
+
     /** 실외 setRoutingPoint 를 감싸 출발지를 공유한다. map-click.js 가 나중에
      *  로드되므로 존재를 확인한 뒤 한 번만 감싼다. */
     function wrapRoutingPoint() {
@@ -247,6 +266,7 @@
         var wrapped = function (type, lat, lng, name) {
             var outcome = nativeSetRoutingPoint.apply(this, arguments);
             if (type === 'START' && !syncing) adoptStart(lat, lng, name);
+            if (type === 'END' && !syncing) forgetRoomUnlessEntrance(lat, lng);
             return outcome;
         };
         wrapped.__gumapWrapped = true;
@@ -792,8 +812,10 @@
         rooms.forEach(function (row) {
             (byFloor[row.floor] || (byFloor[row.floor] = [])).push(row);
         });
+        // 맨 앞에 빈 선택지를 둔다. 없으면 첫 방(B1F B101)이 기본값이 되어, 실외에서
+        // 출발지를 찍을 때마다(지도 클릭·내 위치) B101 까지 가는 길찾기가 저절로 돌았다.
         select.innerHTML = rooms.length
-            ? engine.floors().filter(function (floor) { return byFloor[floor]; })
+            ? '<option value="">도착 호실 선택</option>' + engine.floors().filter(function (floor) { return byFloor[floor]; })
                 .map(function (floor) {
                     return '<optgroup label="' + floor + '">' +
                         byFloor[floor].map(function (row) {
@@ -806,7 +828,9 @@
             : '<option value="">일치하는 호실 없음</option>';
         if (keep) {
             select.value = keep;
-            if (!select.value && select.options.length) select.selectedIndex = 0;
+            if (!select.value && select.options.length) select.selectedIndex = filter && rooms.length ? 1 : 0;
+        } else if (filter && rooms.length) {
+            select.selectedIndex = 1;   // 검색했으면 첫 결과를 바로 고른다
         }
     }
 

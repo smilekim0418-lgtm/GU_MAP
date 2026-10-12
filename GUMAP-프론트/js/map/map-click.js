@@ -624,6 +624,7 @@ function fallbackToGeocodeExtraction(snapLat, snapLng, fallbackTitle, fallbackAd
 
             if (data.response && data.response.status === "OK" && data.response.result) {
                 var results = data.response.result;
+                window.rememberZipcode(snapLat, snapLng, results);
                 var roadResult = results.find(r => r.type === "road");
                 var parcelResult = results.find(r => r.type === "parcel");
                 var addressName = roadResult ? roadResult.text : (parcelResult ? parcelResult.text : "");
@@ -671,6 +672,7 @@ window.fallbackToReverseGeocode = function(lat, lng) {
 
             if (data.response && data.response.status === "OK" && data.response.result) {
                 var results = data.response.result;
+                window.rememberZipcode(lat, lng, results);
                 var roadResult = results.find(r => r.type === "road");
                 var parcelResult = results.find(r => r.type === "parcel");
                 
@@ -791,12 +793,6 @@ function updatePopupContent(title, addr) {
     var lat = loc.lat || 0;
     var lng = loc.lng || 0;
     
-    var ratingInfo = window.getAverageRating(title);
-    var starsHtml = window.renderStars(parseFloat(ratingInfo.avg));
-    
-    var zipHash = Math.abs(Math.floor(lat * 100000 + lng * 100000)) % 90000 + 10000;
-    var zipCode = String(zipHash).substring(0, 5);
-    
     var parcelPart = "";
     var matchParen = addr ? addr.match(/\(([^)]+)\)/) : null;
     if (matchParen) {
@@ -806,19 +802,21 @@ function updatePopupContent(title, addr) {
     var safeTitle = title.replace(/'/g, "\\'");
     var safeAddr = addr ? addr.replace(/'/g, "\\'") : "";
     
+    // 장소명·주소는 외부 검색 결과에서 온다. 팝업은 HTML 로 그리므로 정리해서 넣는다.
+    var titleHtml = DOMPurify.sanitize(title, { ALLOWED_TAGS: [] });
+    var addrHtml = DOMPurify.sanitize(addr || '주소 정보 없음', { ALLOWED_TAGS: [] });
+    var parcelHtml = DOMPurify.sanitize(parcelPart, { ALLOWED_TAGS: [] });
+
     var popupHtml = `
     <div id="click-popup" style="padding:8px; font-size:13px; min-width:260px; max-width:320px; font-family:'Noto Sans KR',sans-serif; line-height:1.5;">
-        <b id="popup-title" style="font-size:15px; color:var(--text-main); display:block; margin-bottom:2px;">${title}</b>
-        
-        <div id="popup-rating-area" style="margin-bottom:4px;">
-            ${starsHtml} <b style="color:#f59e0b; font-size:13px;">${ratingInfo.avg}</b>
-            <span style="color:var(--text-muted); font-size:11px;">(${ratingInfo.count}건)</span>
-        </div>
-        
-        <div id="popup-addr" style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">${addr || '주소 정보 없음'}</div>
-        
+        <b id="popup-title" style="font-size:15px; color:var(--text-main); display:block; margin-bottom:2px;">${titleHtml}</b>
+
+        <div id="popup-rating-area" style="margin-bottom:4px;">${window.renderRatingSummary(title)}</div>
+
+        <div id="popup-addr" style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">${addrHtml}</div>
+
         <div style="font-size:10px; color:var(--text-muted); margin-bottom:6px; user-select:none;">
-            (우) ${zipCode}${parcelPart ? ` (지번) ${parcelPart}` : ''}
+            <span id="popup-zip"></span>${parcelHtml ? ` (지번) ${parcelHtml}` : ''}
         </div>
         
         <div id="popup-route-menu" style="display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap;">
@@ -834,6 +832,44 @@ function updatePopupContent(title, addr) {
     </div>`;
     
     window.infoWindow.setContent(popupHtml);
+    fillPopupZipcode(lat, lng);
+}
+
+// ── 우편번호 ──
+// 예전에는 좌표로 계산한 다섯 자리 숫자를 "(우) 12345"처럼 보여 줬다. 이제는 VWorld
+// 역지오코딩 결과의 실제 우편번호(zipcode)만 쓰고, 없으면 칸을 비운다.
+var zipcodeCache = {};
+
+function zipcodeKey(lat, lng) {
+    return Number(lat).toFixed(5) + ',' + Number(lng).toFixed(5);
+}
+
+window.rememberZipcode = function(lat, lng, results) {
+    var road = (results || []).find(r => r.type === 'road' && r.zipcode);
+    var any = road || (results || []).find(r => r.zipcode);
+    zipcodeCache[zipcodeKey(lat, lng)] = any ? String(any.zipcode) : '';
+};
+
+function showPopupZipcode(zip) {
+    var el = document.getElementById('popup-zip');
+    if (el && /^\d{5}$/.test(zip || '')) el.textContent = '(우) ' + zip;
+}
+
+function fillPopupZipcode(lat, lng) {
+    if (!lat || !lng) return;
+    var key = zipcodeKey(lat, lng);
+    if (key in zipcodeCache) {
+        showPopupZipcode(zipcodeCache[key]);
+        return;
+    }
+    fetch(`${window.PROXY_URL}/vworld-address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&type=both&domain=${window.location.host}`)
+        .then(res => res.json())
+        .then(data => {
+            var ok = data.response && data.response.status === 'OK';
+            window.rememberZipcode(lat, lng, ok ? data.response.result : []);
+            showPopupZipcode(zipcodeCache[key]);
+        })
+        .catch(() => { /* 우편번호는 없어도 팝업은 쓸 수 있다 */ });
 }
 
 window.setRoutingPoint = function(type, lat, lng, name) {

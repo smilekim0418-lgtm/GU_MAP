@@ -310,20 +310,31 @@ border-bottom: 1px solid var(--border-panel, rgba(255,255,255,0.1)); padding-bot
     window.focusKumohRoomMap = function (roomId, floorLabel) {
         if (!window.map) return;
 
-        // 1. 카메라 이동 (요청 좌표)
-        window.map.flyTo(DEFAULT_COORDS, 19, { duration: 0.8 });
+        // 방 목록(KUMOH_TECHNO_ROOMS)의 좌표는 361곳 모두 건물 중심 한 점이다.
+        // 실제 방 위치는 실내지도 도면(IMDF)에서 찾는다.
+        const hit = window.lookupTechnoRooms ? (window.lookupTechnoRooms(roomId, floorLabel) || [])[0] : null;
 
-        // 2. 실내지도 층 전환
-        if (floorLabel && typeof window.technoActiveFloor !== 'undefined') {
-            window.technoActiveFloor = floorLabel;
-            if (typeof window.renderTechnoFloor === 'function') {
-                window.renderTechnoFloor();
-            }
-            const panel = document.getElementById('techno-indoor-panel');
-            if (panel) panel.style.display = 'flex';
+        // 실내지도는 openTechnoIndoorMap 으로 열어야 열린 상태(technoIndoorOpen)가 남는다.
+        // 예전처럼 패널만 보이게 하면 지도 이동이 끝나는 순간 checkVis 가 다시 숨겼다.
+        if (typeof window.openTechnoIndoorMap === 'function') {
+            window.openTechnoIndoorMap((hit && hit.floor) || floorLabel);
+        } else {
+            window.map.flyTo(DEFAULT_COORDS, 19, { duration: 0.8 });
+        }
+        if (hit && typeof window._focusTechnoImdfUnit === 'function') {
+            window._focusTechnoImdfUnit(hit.unitId, hit.floor);
         }
 
-        if (window.showToast) window.showToast(`📍 테크노관 ${floorLabel} ${roomId}호로 이동합니다.`);
+        if (window.showToast) {
+            window.showToast(hit
+                ? `📍 테크노관 ${hit.floor} ${hit.room_id}호로 이동합니다.`
+                : `📍 테크노관 ${floorLabel} 층으로 이동합니다. (${roomId}호는 도면에서 위치를 찾지 못했습니다)`);
+        }
+    };
+
+    // 검색 결과의 "길찾기": AI 비서의 실내 길찾기와 같은 흐름(먼 곳이면 버스 + 실내 도보)을 쓴다.
+    window.routeKumohRoom = function (roomId, floorLabel) {
+        if (window.sendAiMessage) window.sendAiMessage(`테크노관 ${floorLabel} ${roomId}호 가는 길`);
     };
 
     /* ══════════════════════════════════════════════════════════
@@ -366,7 +377,11 @@ border-bottom: 1px solid var(--border-panel, rgba(255,255,255,0.1)); padding-bot
   onmouseover="this.style.background='rgba(99,102,241,0.2)'"
   onmouseout="this.style.background='rgba(255,255,255,0.05)'">
   <span><b style="color:#38bdf8;">[${escHtml(h.floor)}]</b> <b>${escHtml(h.id)}호</b> ${escHtml(h.name)}</span>
-  <span style="font-size:10px; color:#10b981; font-weight:700;">위치 보기→</span>
+  <span style="display:flex; gap:6px; align-items:center;">
+    <span style="font-size:10px; color:#10b981; font-weight:700;">위치 보기</span>
+    <button onclick="event.stopPropagation(); window.routeKumohRoom('${escHtml(h.id)}', '${escHtml(h.floor)}'); document.getElementById('search-results').style.display='none';"
+      style="font-size:10px; font-weight:700; padding:3px 7px; border-radius:6px; border:none; background:#6366f1; color:#fff; cursor:pointer;">길찾기</button>
+  </span>
 </div>`).join('')}
   </div>
 </div>`;

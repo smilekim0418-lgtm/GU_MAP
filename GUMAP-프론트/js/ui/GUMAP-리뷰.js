@@ -8,7 +8,7 @@
 //   남기고 조회할 수 있는 사용자 리뷰 시스템입니다.
 //   - saveReview(): 별점과 코멘트를 localStorage에 저장
 //   - getAverageRating(): 평균 별점 및 리뷰 수 계산
-//     (리뷰가 없는 장소는 장소명 해시 기반 의사 평점 생성)
+//     (리뷰가 없으면 0건 - 평점을 지어내지 않는다)
 //   - renderStars(): 별점을 ★ 아이콘 HTML로 변환
 //   - openReviewModal(): 별점 입력 모달 팝업 표시
 //
@@ -51,16 +51,20 @@ window.getAverageRating = function(title) {
         var sum = reviews.reduce(function(acc, r) { return acc + r.rating; }, 0);
         return { avg: (sum / reviews.length).toFixed(1), count: reviews.length, hasReal: true };
     }
-    // 사용자 리뷰가 없는 경우 장소명 해시 기반으로 모의 평점 생성
-    var hash = 0;
-    var cleanTitle = title.replace(/[^\w\sㄱ-힣가-힣]/g, '').trim();
-    for (var i = 0; i < cleanTitle.length; i++) {
-        hash = ((hash << 5) - hash) + cleanTitle.charCodeAt(i);
-        hash |= 0;
+    // 평점이 없으면 없다고 보여 준다. 예전에는 장소 이름 해시로 3.0~4.9점·1~12건을
+    // 지어내 보여 줬고, '맛집' 검색 순위까지 그 가짜 평점으로 매겼다.
+    return { avg: "0.0", count: 0, hasReal: false };
+};
+
+// 팝업에 넣을 평점 요약. 리뷰는 이 브라우저(localStorage)에만 저장되므로 "내 평점"이다.
+window.renderRatingSummary = function(title) {
+    var info = window.getAverageRating(title);
+    if (!info.count) {
+        return '<span style="color:var(--text-muted); font-size:11px;">아직 남긴 평점이 없습니다</span>';
     }
-    var pseudoAvg = 3.0 + (Math.abs(hash % 20) / 10); // 3.0 ~ 4.9
-    var pseudoCount = 1 + Math.abs(hash % 12); // 1 ~ 12
-    return { avg: pseudoAvg.toFixed(1), count: pseudoCount, hasReal: false };
+    return window.renderStars(parseFloat(info.avg)) +
+        ` <b style="color:#f59e0b; font-size:13px;">${info.avg}</b>` +
+        ` <span style="color:var(--text-muted); font-size:11px;">(내 평점 ${info.count}건 · 이 기기에만 저장)</span>`;
 };
 
 window.renderStars = function(rating) {
@@ -125,13 +129,8 @@ window.submitReview = function() {
     
     // 팝업이 열려있으면 평점 즉시 갱신
     if (window.selectedLocation) {
-        var ratingInfo = window.getAverageRating(title);
         var ratingEl = document.getElementById('popup-rating-area');
-        if (ratingEl) {
-            ratingEl.innerHTML = window.renderStars(parseFloat(ratingInfo.avg)) +
-                ` <b style="color:#f59e0b; font-size:13px;">${ratingInfo.avg}</b>` +
-                ` <span style="color:#94a3b8; font-size:11px;">(${ratingInfo.count}건)</span>`;
-        }
+        if (ratingEl) ratingEl.innerHTML = window.renderRatingSummary(title);
     }
     alert("⭐ 평점이 등록되었습니다! 감사합니다.");
 };

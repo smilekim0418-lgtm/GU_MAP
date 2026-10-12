@@ -574,13 +574,13 @@
         window.technoActiveFloor = floorId;
         paintFloorButtons(panel, floorId);
 
-        setTimeout(() => {
-            if (!window.technoIndoorOpen) return;
-            window.renderTechnoFloor();
-            checkVis();
-        }, 50);
-
-        if (window.showToast) window.showToast(`🏫 테크노관 ${floorId} 실내지도`);
+        // 바로 그린다. 예전에는 setTimeout(50) 뒤에 그려서, 층 그리기(약 4ms)보다
+        // 기다리는 시간이 열 배 넘게 길었다 - 층을 누를 때마다 느껴지던 '텀'이 이것이다.
+        // 처음 여는 층의 CAD 선형은 cad-layer 가 따로 비동기로 받아 오므로 막히지 않는다.
+        // 층 이름 토스트도 띄우지 않는다. 버튼 강조로 이미 보이고, 누를 때마다 뜨면 거슬린다.
+        if (!window.technoIndoorOpen) return;
+        window.renderTechnoFloor();
+        checkVis();
     }
 
     /* ══════════════════════════════════════════════════════════

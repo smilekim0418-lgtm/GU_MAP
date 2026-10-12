@@ -7,8 +7,8 @@
 //   교통 정책 연구를 위한 고급 분석 도구 모음입니다. (약 1,000줄)
 //   학술적 관점에서 구미시 대중교통 데이터를 시각화·분석합니다.
 //   - 수요응답형(DRT) 행복버스 노선 시각화
-//   - Hexagon 히트맵: 승하차 인원 통계 기반 인구 밀도 열화상 렌더링
-//   - O/D 흐름도: 국토교통부 기종점 통행량 데이터 시각화
+//   - Hexagon 히트맵: 구미시 정류장별 승하차 실측(2025.8)을 약 500m 칸으로 합산
+//   - 승차·하차 우세 지도: 정류장별 승차(출발)·하차(도착) 비중 (O/D 원자료는 없음)
 //   - 노선 생산성 분석: 굴곡도(Sinuosity) 및 표정속도(Commercial Speed)
 //     산출로 노선 효율성을 S~D 5단계로 등급 평가
 //   - 시뮬레이터 A: 사용자가 지도 위에 가상 노선을 직접 그려
@@ -23,7 +23,7 @@
 //   - map-init.js → window.map 지도 레이어 추가/제거
 //
 // [사용된 외부 API 및 데이터]
-//   - 국토교통부 O/D 통행량 API
+//   - GUMAP-데이터/data/gumi_bus_ridership.json (GUMAP-개발/build_ridership.py)
 //   - 기획재정부 공공기관 시설정보 API
 //   - 경상북도_구미시_인구현황 CSV (통계청 연계)
 // ============================================================
@@ -39,27 +39,53 @@
     window.isResearchHeatmapOn = false;
     window.isResearchMapActive = false;
 
-    // [신규] C/C++ WASM 기반 교통 수요 예측 모듈 (시뮬레이션)
-    window.wasmDemandModel = null;
-    async function loadWasmDemandModel() {
-        console.log("[MaaS] Loading C/C++ WASM Demand Prediction Model...");
-        // 실제로는 fetch('demand.wasm').then(...) 을 수행
-        return new Promise(resolve => {
-            setTimeout(() => {
-                window.wasmDemandModel = {
-                    predictDemand: function(lat, lng, basePax) {
-                        // WASM 내부에서 실행되는 복잡한 시뮬레이션을 가정한 JS 대체 함수
-                        let timeFactor = new Date().getHours() / 24.0;
-                        let multiplier = 1.0 + Math.sin(timeFactor * Math.PI) * 0.5;
-                        return Math.floor(basePax * multiplier);
-                    }
-                };
-                console.log("[MaaS] C++ WASM Model loaded successfully. Ready for Hexagon Heatmap.");
-                resolve(window.wasmDemandModel);
-            }, 500);
+    // 이 스크립트 위치(GUMAP-프론트/js/) 기준으로 찾는다. 루트·GUMAP-일반지도·앱 어디서 열어도 같은 파일이다.
+    var PROJECT_ROOT = new URL('../../', (document.currentScript && document.currentScript.src) || window.location.href).href;
+    var RIDERSHIP_URL = new URL('GUMAP-데이터/data/gumi_bus_ridership.json', PROJECT_ROOT).href;
+    // [데이터] 구미시 정류장별 승하차 실측(하루 평균). GUMAP-개발/build_ridership.py 가 만든다.
+    // 히트맵·수요 리포트·승하차 흐름·지역 수요·노선 점수판이 모두 이 한 파일을 쓴다.
+    // (예전에는 손으로 적은 핫스팟 10곳, sin 함수로 만든 'WASM 수요 모델', 난수 O/D 를 그렸다.)
+    var ridershipPromise = null;
+    window.loadGumiRidership = function() {
+        if (!ridershipPromise) {
+            ridershipPromise = fetch(RIDERSHIP_URL)
+                .then(function(res) {
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    return res.json();
+                })
+                .then(function(data) {
+                    data.stopList = data.stops.map(function(s) {
+                        return { id: s[0], name: s[1], lat: s[2], lng: s[3], board: s[4], alight: s[5] };
+                    });
+                    return data;
+                })
+                .catch(function(error) {
+                    ridershipPromise = null;   // 다음에 다시 시도
+                    throw error;
+                });
+        }
+        return ridershipPromise;
+    };
+
+    function ridershipPeriodLabel(data) {
+        return data.period.from.slice(0, 7).replace('-', '년 ') + '월';
+    }
+
+    function ridershipSourceHtml(data) {
+        return '출처: ' + data.source + ' · ' + data.period.from + ' ~ ' + data.period.to +
+            ' (' + data.period.days + '일 평균)';
+    }
+
+    function escapeResearchText(text) {
+        return String(text == null ? '' : text).replace(/[&<>"']/g, function(c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
         });
     }
-    loadWasmDemandModel();
+
+    function showResearchInfo(html) {
+        var infoBar = document.getElementById('clicked-info');
+        if (infoBar) infoBar.innerHTML = html;
+    }
 
     // 2. 구미시 수요응답형 행복버스 샘플 노선 좌표 데이터
     var drtRoutes = {
@@ -82,45 +108,6 @@
             [36.201234, 128.308112], // 괴평리
             [36.248679, 128.304332]  // 선산터미널
         ]
-    };
-
-    // 3. 구미시 승하차 인원 통계 기반 대표 핫스팟 데이터
-    var ridershipHotspots = [
-        { name: "구미역(철도 연계 중심)", lat: 36.128432, lng: 128.328432, pax: 12500, color: "#ef4444", radius: 200 },
-        { name: "인동네거리(동부 최대 거점)", lat: 36.103112, lng: 128.418123, pax: 14800, color: "#ef4444", radius: 220 },
-        { name: "금오공과대학교(대학 통학 거점)", lat: 36.143211, lng: 128.396112, pax: 9800, color: "#f97316", radius: 180 },
-        { name: "옥계동 4공단상가(공단 상업 중심)", lat: 36.136123, lng: 128.420123, pax: 8200, color: "#f97316", radius: 160 },
-        { name: "구미종합터미널(광역 버스 연계)", lat: 36.122675, lng: 128.350848, pax: 7500, color: "#f97316", radius: 150 },
-        { name: "형곡동 학원가(오후 통학 밀집지)", lat: 36.115123, lng: 128.325123, pax: 6100, color: "#eab308", radius: 130 },
-        { name: "상모사곡동 행정복지센터 앞", lat: 36.100123, lng: 128.348123, pax: 4800, color: "#eab308", radius: 110 },
-        { name: "선산터미널(읍면 환승 요충지)", lat: 36.248679, lng: 128.304332, pax: 2900, color: "#22c55e", radius: 90 },
-        { name: "고아읍사무소(서북부 배후 주거지)", lat: 36.162412, lng: 128.344123, pax: 3100, color: "#22c55e", radius: 100 },
-        { name: "해평정류소(동북외곽 소외거점)", lat: 36.208412, lng: 128.361234, pax: 1100, color: "#10b981", radius: 70 }
-    ];
-
-    // 4. 범례 컨트롤 정의
-    window.researchLegend = L.control({ position: 'bottomright' });
-    window.researchLegend.onAdd = function (leafletMap) {
-        var div = L.DomUtil.create('div', 'info legend');
-        div.style.background = 'rgba(255, 255, 255, 0.95)';
-        div.style.backdropFilter = 'blur(5px)';
-        div.style.padding = '12px 14px';
-        div.style.borderRadius = '10px';
-        div.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)';
-        div.style.fontSize = '11px';
-        div.style.lineHeight = '1.8';
-        div.style.color = '#334155';
-        div.style.border = '1px solid rgba(226, 232, 240, 0.8)';
-        
-        div.innerHTML = `
-            <h4 style="margin:0 0 8px 0; font-size:12px; font-weight:700; color:#1e293b; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">📊 구미 노선 생산성 범례</h4>
-            <div style="display:flex; align-items:center; gap:6px;"><span style="display:inline-block; width:15px; height:5px; background:#10b981; border-radius:3px;"></span> <b>S등급 (92점)</b>: 직선화/고생산성 (11/111번)</div>
-            <div style="display:flex; align-items:center; gap:6px;"><span style="display:inline-block; width:15px; height:5px; background:#3b82f6; border-radius:3px;"></span> <b>A등급 (88점)</b>: 대학 통학선/출퇴근 혼잡 (170/171번)</div>
-            <div style="display:flex; align-items:center; gap:6px;"><span style="display:inline-block; width:15px; height:5px; background:#06b6d4; border-radius:3px;"></span> <b>B등급 (75점)</b>: 보통/순환 노선</div>
-            <div style="display:flex; align-items:center; gap:6px;"><span style="display:inline-block; width:15px; height:5px; background:#f97316; border-radius:3px;"></span> <b>C등급 (54점)</b>: 굴곡도 불량/분할 시급 (960번)</div>
-            <div style="display:flex; align-items:center; gap:6px;"><span style="display:inline-block; width:15px; height:5px; background:#ef4444; border-radius:3px;"></span> <b>D등급 (35점)</b>: 생산성 미달/DRT 대체 대상</div>
-        `;
-        return div;
     };
 
     // 5. 수요응답형 행복버스 노선 가시화 기능 (연구 탭 연동)
@@ -169,86 +156,75 @@
         window.map.setView([36.248679, 128.304332], 13);
     };
 
-    // 6. 승하차 밀도 히트맵 가시화 기능 (연구 탭 연동) - Hexagon Heatmap 적용
+    // 6. 승하차 밀도 히트맵 - 실제 정류장 승하차를 약 500m 육각형 칸으로 합친다
     window.toggleResearchHeatmap = function(isOn) {
         window.isResearchHeatmapOn = isOn;
-        // 기존 레이어 제거
         window.researchHeatmapLayers.forEach(function(layer) {
             window.map.removeLayer(layer);
         });
         window.researchHeatmapLayers = [];
-
         if (!isOn) return;
 
-        // 헥사곤(Hexagon) 그리드 생성 알고리즘 (통계청 인구수 분포 시뮬레이션)
-        const hexRadius = 0.005; // 약 500m 반경
-        const dy = hexRadius * 1.5;
-        const dx = hexRadius * Math.sqrt(3);
+        showResearchInfo('👥 정류장 승하차 데이터를 불러오는 중...');
+        window.loadGumiRidership().then(function(data) {
+            if (!window.isResearchHeatmapOn) return;
 
-        ridershipHotspots.forEach(function(spot) {
-            // 각 핫스팟 주변으로 헥사곤 타일 생성
-            for (let i = -2; i <= 2; i++) {
-                for (let j = -2; j <= 2; j++) {
-                    // 육각형 중심 좌표 계산
-                    let cy = spot.lat + i * dy;
-                    let cx = spot.lng + j * dx + (Math.abs(i) % 2 === 1 ? dx / 2 : 0);
-                    
-                    // 거리 기반 가중치 감소 (중심에서 멀어질수록 인구 감소)
-                    let distSq = (cy - spot.lat) * (cy - spot.lat) + (cx - spot.lng) * (cx - spot.lng);
-                    if (distSq > 0.0001) continue; // 너무 먼 곳은 렌더링 안 함
-                    
-                    let intensity = Math.max(0, 1 - (Math.sqrt(distSq) / 0.015));
-                    // WASM 모델을 통한 실시간 교통 수요 예측 적용
-                    let simulatedPax = spot.pax * intensity * (0.8 + Math.random() * 0.4);
-                    if (window.wasmDemandModel) {
-                        simulatedPax = window.wasmDemandModel.predictDemand(cy, cx, simulatedPax);
-                    } else {
-                        simulatedPax = Math.floor(simulatedPax);
-                    }
-                    
-                    if (simulatedPax < 500) continue;
+            // 위도 1도 ≈ 111km, 경도 1도 ≈ 90km(위도 36°). 칸 반지름 약 500m.
+            var radiusLat = 0.0045, radiusLng = 0.0056;
+            var rowStep = radiusLat * 1.5, colStep = radiusLng * Math.sqrt(3);
+            var cells = {};
+            data.stopList.forEach(function(stop) {
+                var row = Math.round(stop.lat / rowStep);
+                var offset = (Math.abs(row) % 2 === 1) ? colStep / 2 : 0;
+                var col = Math.round((stop.lng - offset) / colStep);
+                var key = row + ':' + col;
+                var cell = cells[key] || (cells[key] = {
+                    lat: row * rowStep, lng: col * colStep + offset, board: 0, alight: 0, stops: []
+                });
+                cell.board += stop.board;
+                cell.alight += stop.alight;
+                cell.stops.push(stop);
+            });
 
-                    // 육각형 꼭짓점 좌표 (6각형 폴리곤)
-                    let hexPoints = [];
-                    for (let k = 0; k < 6; k++) {
-                        let angle = (Math.PI / 3) * k + (Math.PI / 6);
-                        let py = cy + hexRadius * Math.sin(angle);
-                        let px = cx + hexRadius * Math.cos(angle);
-                        hexPoints.push([py, px]);
-                    }
+            var list = Object.keys(cells).map(function(key) { return cells[key]; })
+                .filter(function(cell) { return cell.board + cell.alight >= 50; });
+            var totals = list.map(function(cell) { return cell.board + cell.alight; }).sort(function(a, b) { return a - b; });
+            function quantile(q) { return totals[Math.floor((totals.length - 1) * q)] || 0; }
+            var cuts = [quantile(0.5), quantile(0.75), quantile(0.9), quantile(0.97)];
+            var colors = ['#22c55e', '#eab308', '#f97316', '#ef4444', '#8b0000'];
 
-                    // 밀도에 따른 색상 결정 (열화상)
-                    let fillColor;
-                    if (simulatedPax > 10000) fillColor = "#8b0000"; // 매우 혼잡 (검붉은색)
-                    else if (simulatedPax > 7000) fillColor = "#ef4444"; // 혼잡 (빨강)
-                    else if (simulatedPax > 4000) fillColor = "#f97316"; // 보통 (주황)
-                    else if (simulatedPax > 2000) fillColor = "#eab308"; // 여유 (노랑)
-                    else fillColor = "#22c55e"; // 원활 (초록)
-
-                    var hexPolygon = L.polygon(hexPoints, {
-                        color: "white",
-                        weight: 1,
-                        fillColor: fillColor,
-                        fillOpacity: 0.65
-                    }).addTo(window.map);
-
-                    var popupContent = `
-                        <div style="font-family:inherit; font-size:12px; padding:2px;">
-                            <b style="font-size:13px; color:#1e293b;">📍 Hexagon Grid (수요 셀)</b><br>
-                            <span style="color:${fillColor}; font-weight:bold;">👥 추산 인구밀도: ${simulatedPax.toLocaleString()}명</span><br>
-                            <span style="font-size:10px; color:#64748b;">MaaS 통계청 연동 C++ 예측 모델 적용</span>
-                        </div>
-                    `;
-                    hexPolygon.bindPopup(popupContent);
-                    window.researchHeatmapLayers.push(hexPolygon);
+            list.forEach(function(cell) {
+                var total = cell.board + cell.alight;
+                var level = cuts.filter(function(cut) { return total > cut; }).length;
+                var hexPoints = [];
+                for (var k = 0; k < 6; k++) {
+                    var angle = (Math.PI / 3) * k + (Math.PI / 6);
+                    hexPoints.push([cell.lat + radiusLat * Math.sin(angle), cell.lng + radiusLng * Math.cos(angle)]);
                 }
-            }
+                var polygon = L.polygon(hexPoints, {
+                    color: 'white', weight: 1, fillColor: colors[level], fillOpacity: 0.6
+                }).addTo(window.map);
+                var topStops = cell.stops.slice().sort(function(a, b) {
+                    return (b.board + b.alight) - (a.board + a.alight);
+                }).slice(0, 3).map(function(stop) { return escapeResearchText(stop.name); }).join(', ');
+                polygon.bindPopup(
+                    '<div style="font-size:12px; line-height:1.5;">' +
+                    '<b>👥 정류장 ' + cell.stops.length + '곳 (반경 약 500m)</b><br>' +
+                    '하루 평균 승차 <b>' + Math.round(cell.board).toLocaleString() + '명</b> · 하차 <b>' +
+                    Math.round(cell.alight).toLocaleString() + '명</b><br>' +
+                    '<span style="font-size:11px; color:#64748b;">주요 정류장: ' + topStops + '</span><br>' +
+                    '<span style="font-size:10px; color:#94a3b8;">' + escapeResearchText(ridershipPeriodLabel(data)) + ' 구미시 정류장별 승하차 실측</span>' +
+                    '</div>');
+                window.researchHeatmapLayers.push(polygon);
+            });
+            showResearchInfo('👥 ' + escapeResearchText(ridershipPeriodLabel(data)) + ' 정류장 승하차 실측을 ' +
+                list.length + '개 칸으로 표시했습니다.');
+            window.map.setView([36.138, 128.360], 12);
+        }).catch(function(error) {
+            console.error('[연구] 승하차 데이터 로드 실패', error);
+            showResearchInfo('⚠️ 승하차 데이터를 불러오지 못했습니다.');
         });
-
-        // 지도를 구미시 전체 뷰로 줌아웃
-        window.map.setView([36.138, 128.360], 12);
     };
-
     // 7. 대규모 "연구지도" 탭 활성화 시 전체 스코어 노선 일괄 드로잉 기능 (로직 제거)
     window.showResearchMapLayers = function() {
         if (window.isResearchMapActive) return;
@@ -265,127 +241,90 @@
         if (panel) panel.style.display = 'none';
     };
 
-    // 8. 유동인구 및 인구 밀집도 리포트 팝업 기능
+    // 8. 정류장 이용 수요 리포트 (실측 상위 정류장)
     window.openPopulationReport = function() {
-        var modal = document.createElement('div');
-        modal.style.position = 'fixed';
-        modal.style.top = '50%';
-        modal.style.left = '50%';
-        modal.style.transform = 'translate(-50%, -50%)';
-        modal.style.background = 'white';
-        modal.style.padding = '25px';
-        modal.style.borderRadius = '12px';
-        modal.style.boxShadow = '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)';
-        modal.style.zIndex = '9999';
-        modal.style.width = '450px';
-        modal.style.maxHeight = '80vh';
-        modal.style.overflowY = 'auto';
-        modal.style.fontFamily = "'Noto Sans KR', sans-serif";
-
-        var overlay = document.createElement('div');
-        overlay.style.position = 'fixed';
-        overlay.style.top = '0'; overlay.style.left = '0';
-        overlay.style.width = '100%'; overlay.style.height = '100%';
-        overlay.style.background = 'rgba(0,0,0,0.4)';
-        overlay.style.zIndex = '9998';
-        overlay.style.backdropFilter = 'blur(3px)';
-
-        var closeBtn = document.createElement('button');
-        closeBtn.innerHTML = '✕';
-        closeBtn.style.position = 'absolute';
-        closeBtn.style.top = '15px';
-        closeBtn.style.right = '15px';
-        closeBtn.style.background = 'none';
-        closeBtn.style.border = 'none';
-        closeBtn.style.fontSize = '20px';
-        closeBtn.style.cursor = 'pointer';
-        closeBtn.style.color = '#64748b';
-        closeBtn.onclick = function() {
-            document.body.removeChild(modal);
-            document.body.removeChild(overlay);
-        };
-
-        var html = '<h2 style="margin:0 0 15px 0; color:#1e293b; font-size:18px; border-bottom:2px solid #e2e8f0; padding-bottom:10px;">📈 구미시 유동인구 및 교통수요 리포트</h2>';
-        html += '<p style="font-size:13px; color:#475569; line-height:1.6; margin-bottom:15px;">이 데이터는 통신사 기지국 데이터 및 버스 승하차 단말기 데이터를 기반으로 추산된 <b>구미시 주요 거점별 일평균 유동인구(교통수요)</b>입니다. MaaS 정책 수립 및 노선 개편의 기초 자료로 활용됩니다.</p>';
-        
-        html += '<div style="display:flex; flex-direction:column; gap:10px;">';
-        
-        ridershipHotspots.sort((a,b) => b.pax - a.pax).forEach((hotspot, idx) => {
-            var barWidth = (hotspot.pax / 14800) * 100; // max pax is 14800
-            html += `
-            <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span style="font-weight:700; font-size:13px; color:#334155;">${idx+1}. ${hotspot.name}</span>
-                    <span style="font-weight:700; font-size:13px; color:${hotspot.color};">${hotspot.pax.toLocaleString()}명/일</span>
-                </div>
-                <div style="width:100%; height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden;">
-                    <div style="width:${barWidth}%; height:100%; background:${hotspot.color}; border-radius:4px;"></div>
-                </div>
-            </div>`;
+        window.loadGumiRidership().then(renderRidershipReport).catch(function(error) {
+            console.error('[연구] 승하차 데이터 로드 실패', error);
+            alert('승하차 데이터를 불러오지 못했습니다.');
         });
-        
-        html += '</div>';
-        
+    };
+
+    function renderRidershipReport(data) {
+        var modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--bg-card, white); color:var(--text-main); padding:25px; border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); z-index:9999; width:min(450px, calc(100vw - 32px)); max-height:80vh; overflow-y:auto; font-family:"Noto Sans KR", sans-serif;';
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9998; backdrop-filter:blur(3px);';
+        var closeBtn = document.createElement('button');
+        closeBtn.textContent = '✕';
+        closeBtn.style.cssText = 'position:absolute; top:15px; right:15px; background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted);';
+        closeBtn.onclick = function() {
+            modal.remove();
+            overlay.remove();
+        };
+        overlay.onclick = closeBtn.onclick;
+
+        var top = data.stopList.slice(0, 10);
+        var max = top.length ? top[0].board + top[0].alight : 1;
+        var html = '<h2 style="margin:0 0 12px 0; font-size:18px; border-bottom:2px solid var(--border-panel); padding-bottom:10px;">📈 구미시 버스 정류장 이용 수요</h2>' +
+            '<p style="font-size:12px; color:var(--text-muted); line-height:1.6; margin:0 0 15px 0;">교통카드 승하차 기록을 정류장별로 모은 공공데이터입니다. 하루 평균 승차+하차 인원이 많은 정류장 10곳입니다.</p>' +
+            '<div style="display:flex; flex-direction:column; gap:10px;">';
+        top.forEach(function(stop, idx) {
+            var total = stop.board + stop.alight;
+            html += '<div style="padding:10px; border-radius:8px; border:1px solid var(--border-panel); background:var(--bg-input);">' +
+                '<div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:13px; font-weight:700;">' +
+                '<span>' + (idx + 1) + '. ' + escapeResearchText(stop.name) + '</span>' +
+                '<span style="color:#ef4444;">' + Math.round(total).toLocaleString() + '명/일</span></div>' +
+                '<div style="font-size:11px; color:var(--text-muted); margin-bottom:5px;">승차 ' + Math.round(stop.board).toLocaleString() +
+                ' · 하차 ' + Math.round(stop.alight).toLocaleString() + '</div>' +
+                '<div style="width:100%; height:8px; background:var(--border-panel); border-radius:4px; overflow:hidden;">' +
+                '<div style="width:' + (total / max * 100).toFixed(1) + '%; height:100%; background:#ef4444;"></div></div></div>';
+        });
+        html += '</div><p style="font-size:10px; color:var(--text-muted); margin:12px 0 0 0;">' + escapeResearchText(ridershipSourceHtml(data)) + '</p>';
+
         modal.innerHTML = html;
         modal.appendChild(closeBtn);
-        
         document.body.appendChild(overlay);
         document.body.appendChild(modal);
-        
-        overlay.onclick = closeBtn.onclick;
-    };
-    // [신규] O/D 흐름도 시각화 (국토교통부 일반버스·도시철도이용 O/D API 연동)
+    }
+    // [신규] 정류장별 승차·하차 우세 지도
+    // 기종점(O/D) 원자료가 없어 정류장 사이 이동량은 알 수 없다. 대신 승차가 많은 곳
+    // (출발 성격)과 하차가 많은 곳(도착 성격)을 실측 크기대로 표시한다.
     window.odFlowLayerGroup = L.layerGroup();
     window.toggleOdFlowLayer = function(show) {
-        if (show) {
-            window.odFlowLayerGroup.addTo(window.map);
-            var infoBar = document.getElementById('clicked-info');
-            if (infoBar) infoBar.innerHTML = '🔄 O/D 기종점 데이터를 불러오는 중...';
-            
-            // 실제 데이터 연동 (API: 1613000/ODUsageforGeneralBusesandUrbanRailways)
-            // 임시 시각화: GUMI 지역 주요 노드간 흐름 선(Flow) 드로잉
-            setTimeout(function() {
-                var nodes = [
-                    {n: "구미역", p: [36.1284, 128.3302]},
-                    {n: "구미터미널", p: [36.1226, 128.3508]},
-                    {n: "사곡역", p: [36.0967, 128.3564]},
-                    {n: "인동광장", p: [36.1031, 128.4181]},
-                    {n: "옥계", p: [36.1372, 128.4295]}
-                ];
-                nodes.forEach(function(startNode, idx) {
-                    nodes.forEach(function(endNode, endIdx) {
-                        if (idx !== endIdx && Math.random() > 0.5) {
-                            var volume = Math.floor(Math.random() * 5000);
-                            var weight = volume / 1000 + 1;
-                            var color = volume > 4000 ? '#ef4444' : (volume > 2000 ? '#f97316' : '#3b82f6');
-                            
-                            var curvedLatLngs = [];
-                            var controlLat = (startNode.p[0] + endNode.p[0]) / 2 + (Math.random() - 0.5) * 0.05;
-                            var controlLng = (startNode.p[1] + endNode.p[1]) / 2 + (Math.random() - 0.5) * 0.05;
-                            for (var t = 0; t <= 1; t += 0.1) {
-                                var clat = (1-t)*(1-t)*startNode.p[0] + 2*(1-t)*t*controlLat + t*t*endNode.p[0];
-                                var clng = (1-t)*(1-t)*startNode.p[1] + 2*(1-t)*t*controlLng + t*t*endNode.p[1];
-                                curvedLatLngs.push([clat, clng]);
-                            }
-                            
-                            var flow = L.polyline(curvedLatLngs, {
-                                color: color, weight: weight, opacity: 0.6, dashArray: '5, 10'
-                            }).addTo(window.odFlowLayerGroup);
-                            
-                            flow.bindTooltip(`<b>${startNode.n} ➡️ ${endNode.n}</b><br>이용객: ${volume}명 (O/D 통계)`, {sticky: true, className: 'od-tooltip'});
-                        }
-                    });
-                });
-                if (infoBar) infoBar.innerHTML = '🔄 국토교통부 대중교통 O/D 이용 흐름망 시각화 완료';
-            }, 1000);
-        } else {
-            window.odFlowLayerGroup.clearLayers();
+        window.odFlowLayerGroup.clearLayers();
+        if (!show) {
             window.map.removeLayer(window.odFlowLayerGroup);
             var infoBar = document.getElementById('clicked-info');
-            if (infoBar && infoBar.innerHTML.includes('O/D')) infoBar.innerHTML = '';
+            if (infoBar && infoBar.innerHTML.includes('승차·하차')) infoBar.innerHTML = '';
+            return;
         }
+        window.odFlowLayerGroup.addTo(window.map);
+        showResearchInfo('🔄 정류장 승하차 데이터를 불러오는 중...');
+        window.loadGumiRidership().then(function(data) {
+            if (!window.map.hasLayer(window.odFlowLayerGroup)) return;
+            var top = data.stopList.slice(0, 80);
+            var max = top.length ? top[0].board + top[0].alight : 1;
+            top.forEach(function(stop) {
+                var total = stop.board + stop.alight;
+                var share = total > 0 ? stop.board / total : 0.5;
+                // 승차가 60% 넘으면 출발 성격(파랑), 하차가 60% 넘으면 도착 성격(빨강)
+                var color = share >= 0.6 ? '#3b82f6' : (share <= 0.4 ? '#ef4444' : '#a855f7');
+                var circle = L.circleMarker([stop.lat, stop.lng], {
+                    radius: 4 + 14 * Math.sqrt(total / max),
+                    color: color, weight: 1, fillColor: color, fillOpacity: 0.45
+                }).addTo(window.odFlowLayerGroup);
+                circle.bindTooltip('<b>' + escapeResearchText(stop.name) + '</b><br>하루 평균 승차 ' +
+                    Math.round(stop.board).toLocaleString() + '명 · 하차 ' + Math.round(stop.alight).toLocaleString() +
+                    '명<br><span style="font-size:10px;">' + (share >= 0.6 ? '출발 성격(승차 우세)' : share <= 0.4 ? '도착 성격(하차 우세)' : '승하차 비슷') +
+                    '</span>', { sticky: true, className: 'od-tooltip' });
+            });
+            showResearchInfo('🔄 정류장별 승차·하차 우세 표시 완료 (파랑=승차 우세, 빨강=하차 우세, ' +
+                escapeResearchText(ridershipPeriodLabel(data)) + ' 실측 상위 80곳)');
+        }).catch(function(error) {
+            console.error('[연구] 승하차 데이터 로드 실패', error);
+            showResearchInfo('⚠️ 승하차 데이터를 불러오지 못했습니다.');
+        });
     };
-
     // [신규] 공공기관 시설정보 시각화 (기획재정부 API 연동)
     window.moefLayerGroup = L.markerClusterGroup();
     window.toggleMoefLayer = function(show) {
@@ -397,21 +336,28 @@
             // 실제 데이터 연동 (API: 1051000/fclt/list)
             window.fetchAPI(`https://apis.data.go.kr/1051000/fclt/list?pageNo=1&numOfRows=100&_type=json`)
             .then(function(data) {
-                if (data.result && data.result.length > 0) {
-                    data.result.forEach(function(item) {
-                        var center = window.map.getCenter();
-                        var lat = center.lat + (Math.random() - 0.5) * 0.1; // 실제 위경도가 없는 경우 랜덤 매핑
-                        var lng = center.lng + (Math.random() - 0.5) * 0.1;
-                        var icon = L.divIcon({
-                            html: '<div style="font-size:18px; text-shadow:0 0 4px white;">🏛️</div>',
-                            className: 'moef-icon', iconSize: [20, 20]
-                        });
-                        var marker = L.marker([lat, lng], {icon: icon});
-                        marker.bindPopup(`<b>🏛️ ${item.fcltNm || '공공시설'}</b><br><span style="font-size:11px; color:#64748b;">${item.instNm || ''} / ${item.fcltTypeNm || ''}</span>`);
-                        window.moefLayerGroup.addLayer(marker);
+                // 좌표가 있는 시설만 찍는다. 예전에는 좌표가 없으면 지도 중심 주변
+                // 아무 데나 흩뿌려서, 없는 곳에 공공기관이 있는 것처럼 보였다.
+                var items = data.result || [];
+                var placed = 0;
+                items.forEach(function(item) {
+                    var lat = parseFloat(item.lat || item.la || item.latitude || item.yCrdnt);
+                    var lng = parseFloat(item.lng || item.lot || item.lo || item.longitude || item.xCrdnt);
+                    if (!isFinite(lat) || !isFinite(lng) || lat < 33 || lat > 39 || lng < 124 || lng > 132) return;
+                    var icon = L.divIcon({
+                        html: '<div style="font-size:18px; text-shadow:0 0 4px white;">🏛️</div>',
+                        className: 'moef-icon', iconSize: [20, 20]
                     });
+                    var marker = L.marker([lat, lng], {icon: icon});
+                    marker.bindPopup(DOMPurify.sanitize(`<b>🏛️ ${item.fcltNm || '공공시설'}</b><br><span style="font-size:11px; color:#64748b;">${item.instNm || ''} / ${item.fcltTypeNm || ''}</span>`));
+                    window.moefLayerGroup.addLayer(marker);
+                    placed++;
+                });
+                if (infoBar) {
+                    infoBar.innerHTML = placed
+                        ? `🏛️ 공공기관 시설 ${placed}곳 표시 완료`
+                        : `🏛️ 공공기관 시설 ${items.length}곳을 받았지만 위치 좌표가 없어 지도에 표시하지 않았습니다.`;
                 }
-                if (infoBar) infoBar.innerHTML = `🏛️ 공공기관 시설 ${data.result ? data.result.length : 0}곳 렌더링 완료`;
             }).catch(function(e) {
                 console.error(e);
             });
@@ -430,45 +376,24 @@
     window.updateDemandAnalysis = function() {
         if (!window.map) return;
         var center = window.map.getCenter();
-        var lat = center.lat;
-        var lng = center.lng;
-        
-        // 가장 가까운 핫스팟 탐색
-        var closestHotspot = null;
-        var minDist = Infinity;
-        
-        ridershipHotspots.forEach(function(spot) {
-            var dist = (spot.lat - lat)*(spot.lat - lat) + (spot.lng - lng)*(spot.lng - lng);
-            if (dist < minDist) {
-                minDist = dist;
-                closestHotspot = spot;
-            }
-        });
-        
-        // 거리 반비례 가중 인구 산출
-        var distDeg = Math.sqrt(minDist);
-        var basePax = 2000;
-        if (closestHotspot) {
-            var factor = Math.max(0, 1 - (distDeg / 0.03)); // 3km 영향권
-            basePax = 1000 + Math.round(closestHotspot.pax * factor);
-        }
-        
-        // WASM C++ 모델 시뮬레이션
-        var predictedDemand = 0;
-        if (window.wasmDemandModel) {
-            predictedDemand = window.wasmDemandModel.predictDemand(lat, lng, basePax);
-        } else {
-            predictedDemand = Math.round(basePax * 0.12);
-        }
-        
-        // UI 반영
         var coordEl = document.getElementById('demand-coord');
-        var densityEl = document.getElementById('demand-pax-density');
-        var forecastEl = document.getElementById('demand-forecast');
-        
-        if (coordEl) coordEl.textContent = lat.toFixed(4) + ', ' + lng.toFixed(4);
-        if (densityEl) densityEl.textContent = basePax.toLocaleString() + ' 명';
-        if (forecastEl) forecastEl.textContent = Math.round(predictedDemand * 0.15).toLocaleString() + ' 명/시간';
+        if (coordEl) coordEl.textContent = center.lat.toFixed(4) + ', ' + center.lng.toFixed(4);
+
+        // 지도 중심 반경 500m 안 정류장의 실측 승하차 합
+        window.loadGumiRidership().then(function(data) {
+            var board = 0, alight = 0, count = 0;
+            data.stopList.forEach(function(stop) {
+                if (center.distanceTo([stop.lat, stop.lng]) <= 500) {
+                    board += stop.board;
+                    alight += stop.alight;
+                    count++;
+                }
+            });
+            var densityEl = document.getElementById('demand-pax-density');
+            var forecastEl = document.getElementById('demand-forecast');
+            if (densityEl) densityEl.textContent = Math.round(board).toLocaleString() + ' 명 (정류장 ' + count + '곳)';
+            if (forecastEl) forecastEl.textContent = Math.round(alight).toLocaleString() + ' 명';
+        }).catch(function() { /* 데이터가 없으면 칸을 비워 둔다 */ });
     };
 
     // 맵 이동 이벤트 바인딩
@@ -707,12 +632,8 @@
     // 2. 인구 통계 데이터 동적 로드 및 파싱 (euc-kr 대응)
     window.populationData = {};
     function loadPopulationData() {
-        var csvPath = 'data(데이터 파일)/gumi(구미시 관련 데이터)/경상북도_구미시_인구현황_20260228.csv';
-        fetch(csvPath)
-        .then(res => {
-            if (!res.ok) return fetch('경상북도_구미시_인구현황_20260228.csv');
-            return res;
-        })
+        // 예전 경로(루트의 data(데이터 파일)/…)에는 파일이 없어 늘 404 후 아래 폴백 표를 썼다.
+        fetch(new URL('GUMAP-데이터/경상북도_구미시_인구현황_20260228.csv', PROJECT_ROOT).href)
         .then(res => {
             if (!res.ok) throw new Error("Network response not ok");
             return res.arrayBuffer();
@@ -853,25 +774,35 @@
     }
     bindMapClickDraw();
 
-    // MaaS 종합 점수판 리셋 복구 기능
+    // 주요 노선 점수판 - 실측 하루 평균 승차 인원
+    var SCORECARD_ROUTES = [
+        { no: '11', label: '11번', color: '' },
+        { no: '111', label: '111번', color: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' },
+        { no: '170', label: '170번', color: 'linear-gradient(135deg, #3b82f6, #2563eb)' },
+        { no: '960', label: '960번', color: 'linear-gradient(135deg, #f97316, #ea580c)' },
+        { no: '72', label: '72번 (선산 지선)', color: 'linear-gradient(135deg, #ef4444, #dc2626)' }
+    ];
+
     window.resetMaaSScorecardToDefault = function() {
         var scorecardContainer = document.getElementById('maas-scorecard-container');
         if (scorecardContainer) {
-            scorecardContainer.innerHTML = `
-                <div style="font-weight:700; color: var(--text-main); margin-bottom:4px;">🚌 노선 종합 점수판 (MaaS Score)</div>
-                <div onclick="if(window.selectRoute) selectRoute('11');" style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-panel); padding:4px 6px; cursor:pointer; border-radius:4px; transition:background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.background='transparent'" title="클릭하여 실시간 노선 정보 보기">
-                    <span><span class="bus-badge-glow">BUS</span> 11/111번</span> <b style="color:#16a34a;">92점 (S)</b>
-                </div>
-                <div onclick="if(window.selectRoute) selectRoute('170');" style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-panel); padding:4px 6px; cursor:pointer; border-radius:4px; transition:background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.background='transparent'" title="클릭하여 실시간 노선 정보 보기">
-                    <span><span class="bus-badge-glow" style="background:linear-gradient(135deg, #3b82f6, #2563eb);">BUS</span> 170번</span> <b style="color:#d97706;">88점 (A)</b>
-                </div>
-                <div onclick="if(window.selectRoute) selectRoute('960');" style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-panel); padding:4px 6px; cursor:pointer; border-radius:4px; transition:background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.background='transparent'" title="클릭하여 실시간 노선 정보 보기">
-                    <span><span class="bus-badge-glow" style="background:linear-gradient(135deg, #f97316, #ea580c);">BUS</span> 960번</span> <b style="color:#ea580c;">54점 (C)</b>
-                </div>
-                <div onclick="if(window.selectRoute) selectRoute('72');" style="display:flex; justify-content:space-between; padding:4px 6px; cursor:pointer; border-radius:4px; transition:background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.background='transparent'" title="클릭하여 실시간 노선 정보 보기">
-                    <span><span class="bus-badge-glow" style="background:linear-gradient(135deg, #ef4444, #dc2626);">BUS</span> 선산 지선</span> <b style="color:#dc2626;">35점 (D)</b>
-                </div>
-            `;
+            window.loadGumiRidership().then(function(data) {
+                var rows = SCORECARD_ROUTES.map(function(route, idx) {
+                    var info = data.routes[route.no];
+                    var value = info ? info.boardings_per_day.toLocaleString() + '명' : '자료 없음';
+                    var badgeStyle = route.color ? ' style="background:' + route.color + ';"' : '';
+                    var border = idx < SCORECARD_ROUTES.length - 1 ? 'border-bottom:1px solid var(--border-panel); ' : '';
+                    return '<div onclick="if(window.selectRoute) selectRoute(\'' + route.no + '\');" style="display:flex; justify-content:space-between; ' + border +
+                        'padding:4px 6px; cursor:pointer; border-radius:4px; transition:background 0.2s;" onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="this.style.background=\'transparent\'" title="클릭하여 실시간 노선 정보 보기">' +
+                        '<span><span class="bus-badge-glow"' + badgeStyle + '>BUS</span> ' + route.label + '</span> <b style="color:var(--primary-color);">' + value + '</b></div>';
+                }).join('');
+                scorecardContainer.innerHTML =
+                    '<div style="font-weight:700; color: var(--text-main); margin-bottom:4px;">🚌 주요 노선 하루 평균 승차 (' + escapeResearchText(ridershipPeriodLabel(data)) + ' 실측)</div>' +
+                    rows +
+                    '<div style="font-size:9px; color:var(--text-muted); margin-top:4px;">지선(예: 11-1)을 합친 값 · ' + escapeResearchText(data.source) + '</div>';
+            }).catch(function() {
+                scorecardContainer.innerHTML = '<div style="font-size:11px; color:var(--text-muted);">노선 승차 자료를 불러오지 못했습니다.</div>';
+            });
         }
         var enhancementPanel = document.getElementById('research-route-enhancement-panel');
         if (enhancementPanel) enhancementPanel.style.display = 'none';

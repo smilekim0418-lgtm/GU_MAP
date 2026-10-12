@@ -81,6 +81,27 @@
     background: var(--primary-grad) !important;
     color: white !important;
 }
+
+/* 내 위치 버튼 (map-locate.js) - 확대 버튼 바로 위 */
+.my-location-control a {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 30px;
+    text-align: center;
+}
+.my-location-control a.is-active { color: #3b82f6 !important; }
+.my-location-control a.is-loading { animation: my-location-blink 1s ease-in-out infinite; }
+@keyframes my-location-blink { 50% { opacity: 0.35; } }
+.my-location-dot span {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 3px solid #ffffff;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35), 0 2px 6px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+}
 .leaflet-control-layers {
     background: var(--bg-panel) !important;
     backdrop-filter: blur(16px) !important;

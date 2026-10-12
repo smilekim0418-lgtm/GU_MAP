@@ -46,8 +46,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.4.1/MarkerCluster.css" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.4.1/MarkerCluster.Default.css" crossorigin="anonymous" />
     <!-- G-map 커스텀 스타일시트 (분리됨) -->
-    <link rel="stylesheet" href="GUMAP-프론트/css/base.css">
-    <link rel="stylesheet" href="GUMAP-프론트/css/layout.css">
+    <link rel="stylesheet" href="GUMAP-프론트/css/base.css?v=1b49ef23">
+    <link rel="stylesheet" href="GUMAP-프론트/css/layout.css?v=8879c5c4">
     <link rel="stylesheet" href="GUMAP-프론트/css/components.css">
     <link rel="stylesheet" href="GUMAP-프론트/css/bottom-sheet.css">
     <link rel="stylesheet" href="GUMAP-프론트/css/animations.css">
@@ -206,20 +206,8 @@
                 <h3 style="margin-top: 0; color: var(--text-main); margin-bottom: 10px; font-size:14px; font-weight:700; display:flex; align-items:center; gap:5px;">📊 MaaS 정책 연구소</h3>
                 <div style="background: var(--bg-input); border:1px solid var(--border-panel); border-radius:8px; padding:10px; font-size:12px; line-height:1.6; display:flex; flex-direction:column; gap:8px;">
                     <div id="maas-scorecard-container" style="display:none; border-bottom:1px dashed var(--border-panel); padding-bottom:8px; margin-bottom:4px;">
-                        <div style="font-weight:700; color: var(--text-main); margin-bottom:4px;">🚌 노선 종합 점수판 (MaaS Score)</div>
-                        <!-- MaaS 점수판 카드 디자인 고도화 -->
-                        <div class="route-card-link" data-route="11" title="클릭하여 실시간 노선 정보 보기">
-                            <span><span class="bus-badge-glow">BUS</span> 11/111번</span> <b style="color:#16a34a;">92점 (S)</b>
-                        </div>
-                        <div class="route-card-link" data-route="170" title="클릭하여 실시간 노선 정보 보기">
-                            <span><span class="bus-badge-glow" style="background:linear-gradient(135deg, #3b82f6, #2563eb);">BUS</span> 170번</span> <b style="color:#d97706;">88점 (A)</b>
-                        </div>
-                        <div class="route-card-link" data-route="960" title="클릭하여 실시간 노선 정보 보기">
-                            <span><span class="bus-badge-glow" style="background:linear-gradient(135deg, #f97316, #ea580c);">BUS</span> 960번</span> <b style="color:#ea580c;">54점 (C)</b>
-                        </div>
-                        <div class="route-card-link" data-route="72" style="border-bottom: none;" title="클릭하여 실시간 노선 정보 보기">
-                            <span><span class="bus-badge-glow" style="background:linear-gradient(135deg, #ef4444, #dc2626);">BUS</span> 선산 지선</span> <b style="color:#dc2626;">35점 (D)</b>
-                        </div>
+                        <!-- 내용은 GUMAP-연구탭.js 의 resetMaaSScorecardToDefault() 가 실측 승차 인원으로 채운다 -->
+                        <div style="font-size:11px; color: var(--text-muted);">노선 승차 자료를 불러오는 중...</div>
                     </div>
                     <!-- ════════════════════════════════════════════════════ -->
                     <!-- 🛰️ 금오공대 정밀 GIS 레이어 (정사영상/3D/DEM)       -->
@@ -268,18 +256,18 @@
                                 <input type="checkbox" id="research-drt-toggle" style="margin-right:6px; cursor:pointer;"> 🚌 행복버스(DRT) 노선 가시화
                             </label>
                             <label style="display:flex; align-items:center; font-size:11px; cursor:pointer; color: var(--text-muted); font-weight:600;">
-                                <input type="checkbox" id="research-heatmap-toggle" style="margin-right:6px; cursor:pointer;"> 👥 승하차 인원 밀도 히트맵
+                                <input type="checkbox" id="research-heatmap-toggle" style="margin-right:6px; cursor:pointer;"> 👥 정류장 승하차 밀도 (2025.8 실측)
                             </label>
                             <label style="display:flex; align-items:center; font-size:11px; cursor:pointer; color: var(--text-muted); font-weight:600;">
                                 <input type="checkbox" id="research-railway-toggle" style="margin-right:6px; cursor:pointer;"> 🚆 대경선(구미~경산) 광역철도 표출
                             </label>
                             <label style="display:flex; align-items:center; font-size:11px; cursor:pointer; color: var(--text-muted); font-weight:600;">
-                                <input type="checkbox" id="research-od-toggle" style="margin-right:6px; cursor:pointer;"> 🔄 버스/도시철도 O/D 기종점 흐름도
+                                <input type="checkbox" id="research-od-toggle" style="margin-right:6px; cursor:pointer;"> 🔄 정류장 승차·하차 우세 지도
                             </label>
                             <label style="display:flex; align-items:center; font-size:11px; cursor:pointer; color: var(--text-muted); font-weight:600;">
                                 <input type="checkbox" id="research-moef-toggle" style="margin-right:6px; cursor:pointer;"> 🏛️ 공공기관 시설정보 시각화
                             </label>
-                            <button id="btn-population-report" class="glass-btn" style="margin-top:6px; width:100%; background: var(--primary-grad) !important; color:white !important; border:none !important;">📈 인구 및 교통수요 리포트 열기</button>
+                            <button id="btn-population-report" class="glass-btn" style="margin-top:6px; width:100%; background: var(--primary-grad) !important; color:white !important; border:none !important;">📈 정류장 이용 수요 리포트 열기</button>
                         </div>
                     </div>
 
@@ -468,16 +456,16 @@
 
                     <!-- [신규] 지역 실시간 수요 분석 패널 (지도 중심 기준) -->
                     <div id="demand-analysis-panel" style="border-top: 1px dashed var(--border-panel); padding-top:8px; margin-top:4px; display:none;">
-                        <div style="font-weight:700; color: var(--text-main); margin-bottom:4px;">👥 실시간 지역 수요 분석</div>
+                        <div style="font-weight:700; color: var(--text-main); margin-bottom:4px;">👥 지도 중심 반경 500m 버스 이용 (2025.8 실측)</div>
                         <div style="background: var(--bg-panel); border:1px solid var(--border-panel); border-radius:6px; padding:8px; font-size:10px; display:flex; flex-direction:column; gap:4px;">
                             <div>중심 좌표: <span id="demand-coord" style="font-weight:700;">-</span></div>
                             <div style="display:flex; justify-content:space-between;">
-                                <span>추산 인구밀도:</span>
+                                <span>하루 평균 승차:</span>
                                 <b id="demand-pax-density" style="color: var(--primary-color);">- 명</b>
                             </div>
                             <div style="display:flex; justify-content:space-between;">
-                                <span>예측 버스수요 (Demand Forecast):</span>
-                                <b id="demand-forecast" style="color: #ef4444;">- 명/시</b>
+                                <span>하루 평균 하차:</span>
+                                <b id="demand-forecast" style="color: #ef4444;">- 명</b>
                             </div>
                         </div>
                     </div>
@@ -593,18 +581,19 @@
     <!-- 모듈화된 커스텀 스크립트 로드 (캐시 갱신을 위해 v=74로 버전업) -->
     <script src="GUMAP-프론트/js/GUMAP-설정.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-전역상태.js?v=75" defer></script>
-    <script src="GUMAP-프론트/js/GUMAP-상수.js?v=75" defer></script>
-    <script src="GUMAP-프론트/js/utils/GUMAP-에러처리.js?v=75" defer></script>
+    <script src="GUMAP-프론트/js/GUMAP-상수.js?v=85a37d2e" defer></script>
+    <script src="GUMAP-프론트/js/utils/GUMAP-에러처리.js?v=3916fa15" defer></script>
     <script src="GUMAP-프론트/js/utils/GUMAP-API클라이언트.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-정류장폴백.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-철도.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/map/map-utils.js?v=75" defer></script>
-    <script src="GUMAP-프론트/js/ui/GUMAP-리뷰.js?v=75" defer></script>
+    <script src="GUMAP-프론트/js/ui/GUMAP-리뷰.js?v=c0b1ce2e" defer></script>
     <script src="GUMAP-프론트/js/ui/GUMAP-즐겨찾기.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/map/map-init.js?v=109" defer></script>
-    <script src="GUMAP-프론트/js/map/map-layers.js?v=76d3e2c2" defer></script>
+    <script src="GUMAP-프론트/js/map/map-locate.js?v=87491bb1" defer></script>
+    <script src="GUMAP-프론트/js/map/map-layers.js?v=62d3519b" defer></script>
     <script src="GUMAP-프론트/js/map/map-techno-imdf-data.js?v=da0738ef" defer></script>
-    <script src="GUMAP-프론트/js/map/map-techno-indoor.js?v=f6abcef0" defer></script>
+    <script src="GUMAP-프론트/js/map/map-techno-indoor.js?v=3435f89d" defer></script>
     <script src="GUMAP-프론트/js/map/map-techno-cad-entry.js?v=db8e5834" defer></script>
     <script src="GUMAP-프론트/js/map/map-techno-cad-data.js?v=57a426c1" defer></script>
     <script src="GUMAP-프론트/js/map/map-techno-cad-layer.js?v=d3afb935" defer></script>
@@ -612,17 +601,17 @@
     <script src="GUMAP-프론트/js/map/map-techno-pano-layer.js?v=1b049759" defer></script>
     <script src="GUMAP-프론트/js/map/map-techno-route-core.js?v=291841a6" defer></script>
     <script src="GUMAP-프론트/js/map/map-techno-nav-data.js?v=1f12bfc6" defer></script>
-    <script src="GUMAP-프론트/js/map/map-techno-route.js?v=0f437aea" defer></script>
+    <script src="GUMAP-프론트/js/map/map-techno-route.js?v=00bb3b2e" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-보행로.js?v=75" defer></script>
-    <script src="GUMAP-프론트/js/map/map-search.js?v=75" defer></script>
-    <script src="GUMAP-프론트/js/map/map-click.js?v=eef7fcfa" defer></script>
-    <script src="GUMAP-프론트/js/GUMAP-길찾기.js?v=f4833045" defer></script>
+    <script src="GUMAP-프론트/js/map/map-search.js?v=e61b23aa" defer></script>
+    <script src="GUMAP-프론트/js/map/map-click.js?v=b36e383f" defer></script>
+    <script src="GUMAP-프론트/js/GUMAP-길찾기.js?v=5509992a" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-정류장정보.js?v=75" defer></script>
-    <script src="GUMAP-프론트/js/GUMAP-연구탭.js?v=75" defer></script>
+    <script src="GUMAP-프론트/js/GUMAP-연구탭.js?v=b5e97b26" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-금오공대데이터.js?v=1" defer></script>
-    <script src="GUMAP-프론트/js/GUMAP-금오공대탭.js?v=1" defer></script>
+    <script src="GUMAP-프론트/js/GUMAP-금오공대탭.js?v=09be4107" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-버스추적.js?v=75" defer></script>
-    <script src="GUMAP-프론트/js/GUMAP-AI비서.js?v=ce38a407" defer></script>
+    <script src="GUMAP-프론트/js/GUMAP-AI비서.js?v=b447448c" defer></script>
     <script src="GUMAP-프론트/js/ui/GUMAP-이벤트.js?v=75" defer></script>
     <script src="GUMAP-프론트/js/ui/GUMAP-모바일시작.js?v=d745e217" defer></script>
     <script src="GUMAP-프론트/js/GUMAP-커스텀장소.js?v=1" defer></script>
@@ -809,6 +798,7 @@
                 window.currentMapMode = 'research';
                 // Trigger initial demand calculation
                 if (window.updateDemandAnalysis) window.updateDemandAnalysis();
+                if (window.resetMaaSScorecardToDefault) window.resetMaaSScorecardToDefault();
             }
         };
 
@@ -843,8 +833,20 @@
             document.body.appendChild(banner);
         }
 
+        // 개발자 설정창은 이 PC(또는 설치한 앱) 안에서만 연다. 비밀 명령어가 공개 JS 에
+        // 적혀 있어서, 터널 주소로 들어온 누구나 설정창을 열고 키 칸을 볼 수 있었다.
+        window.isDevHost = function() {
+            var host = window.location.hostname;
+            return window.location.protocol === 'file:' || window.location.protocol === 'capacitor:' ||
+                host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1';
+        };
+
         // 개발자 설정 모달 활성화/비활성화 함수 정의
         window.showDevModal = function() {
+            if (!window.isDevHost()) {
+                if (window.showToast) window.showToast('⚙️ 개발자 설정은 서버를 실행한 PC에서만 열 수 있습니다.');
+                return;
+            }
             var proxyVal = "";
             var savedConfig = {};
             var saved = localStorage.getItem('gumap_developer_config');
@@ -887,6 +889,7 @@
         };
 
         window.saveDevConfig = function() {
+            if (!window.isDevHost()) return;
             const config = {
                 PROXY_URL: document.getElementById('dev-proxy-url').value.trim(),
                 TMAP_API_KEY: document.getElementById('dev-tmap-key').value.trim(),

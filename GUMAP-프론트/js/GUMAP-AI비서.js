@@ -7,8 +7,8 @@
 //   사용자의 자연어 질문을 Google Gemini 생성형 AI에 전달하여
 //   구미시 교통·관광·시설 안내 등의 답변을 생성하는 챗봇 모듈입니다.
 //   - 주요 랜드마크 좌표 사전(LANDMARKS)으로 "구미역까지 어떻게 가?" 등 해석
-//   - 시스템 프롬프트에 구미시 교통 맥락(노선, 요금, 운행시간 등)을 주입
-//   - 대화 기록(conversationHistory)을 유지하여 문맥 연속 대화 지원
+//   - 시스템 프롬프트는 서버(server.py AI_SYSTEM_PROMPT)에 있다
+//   - 대화 기록(chatHistory)과 앱 상태(출발·도착지, 내 위치)를 서버 /ai-assistant 로 보내 문맥 연속 대화 지원
 //   - 질문에 좌표 키워드가 포함되면 지도 이동 및 마커 자동 생성
 //
 // [의존 관계]
@@ -39,61 +39,8 @@
     // 실내 길찾기를 지원하는 건물. 방 목록은 IMDF(window.IMDF_TECHNO_DATA)에서 찾는다.
     var INDOOR_BUILDING_PATTERN = /테크노\s*관|61\s*(?:동|번\s*건물)/;
 
-    var SYSTEM_PROMPT = `
-You are the G-map AI Assistant, a helper for the Gumi City Mobility Map.
-Your goal is to parse user intents, provide helpful answers in Korean, and generate structured control commands for the map UI.
-
-Respond ONLY with a valid JSON object matching the schema below. Do NOT wrap it in markdown code blocks or add any additional text.
-
-JSON Schema:
-{
-  "reply": "Korean explanation of the response",
-  "suggested_replies": ["Korean reply option 1", "Korean reply option 2"],
-  "actions": [
-    {
-      "type": "set_start" | "set_end" | "route" | "route_indoor" | "search_bus" | "search_poi" | "search_and_route" | "switch_mode" | "toggle_research_layer" | "toggle_cctv" | "toggle_event" | "clear_map" | "run_drt_calc" | "run_taxi_sim" | "run_fare_calc" | "show_dev_menu" | "add_favorite",
-      "lat": 36.12345, // Required for set_start, set_end, add_favorite
-      "lng": 128.12345, // Required for set_start, set_end, add_favorite
-      "name": "Landmark Name", // Required for set_start, set_end, add_favorite
-      "mode": "transit" | "car" | "shared" | "bike" | "walk", // Required for route, search_and_route
-      "building": "테크노관", // Required for route_indoor
-      "room": "301", // Required for route_indoor: room number ("301", "B104") or room/professor name ("대강의실", "이현권") exactly as the user said it
-      "floor": "3F", // Optional for route_indoor: only if the user said a floor ("3층" -> "3F", "지하 1층" -> "B1F")
-      // "mode" is Optional for route_indoor: set it only if the user named a way to travel (버스/대중교통 -> "transit", 자가용/택시 -> "car", 걸어서/도보 -> "walk"). If omitted, the app picks transit for far starts and walking for nearby ones.
-      "routeNo": "11", // Required for search_bus (e.g. "11", "170", "960")
-      "category": "string", // Required for search_poi (e.g. "구미시청", "대형마트", "이마트", "스타벅스", "카페", "경로당", "편의점", "공원", "공공기관", "경찰서", "소방서")
-      "open_closest": true, // Optional: Set to true if the user asks for the "closest" (가장 가까운) POI
-      "price_compare": true, // Optional: Set to true if the user asks to compare prices (가격 비교, 최저가) for gas stations
-      "layer": "drt" | "heatmap" | "railway" | "od" | "moef", // Required for toggle_research_layer
-      "active": true // Required for toggle_research_layer, toggle_cctv, toggle_event
-    }
-  ]
-}
-
-Available Landmarks & Coordinates (prefer using these if the user mentions them):
-- 구미역 (Gumi Station): 36.128432, 128.330232
-- 금오공과대학교 / 금오공대: 36.143211, 128.396112
-- 구미종합터미널 / 구미터미널: 36.122675, 128.350848
-- 인동네거리 / 인동광장: 36.103112, 128.418123
-- 옥계동 / 옥계: 36.1372, 128.4295
-- 사곡역: 36.0967, 128.3564
-- 선산터미널 / 선산: 36.248679, 128.304332
-
-Buildings with indoor room-level navigation: 테크노관 (금오공대 61동, floors B1F~6F).
-
-Guidelines:
-1. If the user asks for directions (e.g. "금오공대에서 구미역 가는 길 알려줘"), create "set_start", "set_end" actions first, then add a "route" action.
-2. If the user asks to find facilities or a specific place (e.g. "주변 약국 찾아줘", "가장 가까운 편의점 알려줘"), add a "search_poi" action. If they asked for the closest, set "open_closest": true. If they asked to compare gas station prices, set category to "주유소" and "price_compare": true.
-3. If the user asks to see a bus route (e.g. "170번 버스 어디 있어?"), add a "search_bus" action.
-4. If the user asks about MaaS research, demand, or policy, use "switch_mode" (mode: "research") and "toggle_research_layer".
-5. If the user asks to show CCTV or events, use "toggle_cctv" or "toggle_event" (active: true/false).
-6. If the user asks to clear the map, reset, or delete markers, use "clear_map".
-7. If the user asks to run simulators (taxi, fare, feasibility), use "run_taxi_sim", "run_fare_calc", or "run_drt_calc".
-8. If the user asks to open developer settings or keys, use "show_dev_menu".
-9. If the user asks to add a landmark to favorites, use "add_favorite" with name, lat, and lng.
-10. CRITICAL: If the user asks for a route to a place you don't know the exact coordinates of, use "search_and_route".
-11. If the destination is a room, lecture hall, lab, or professor's office inside 테크노관 (e.g. "테크노관 301호 가는 길", "테크노관 대강의실까지", "61동 이현권 교수님 연구실"), use one "route_indoor" action instead of set_end/route/search_and_route. If the user also named a start place, put a "set_start" action before it. The app routes to the building entrance (by bus when the start is far) and then walks inside to the room. Do not invent room numbers.
-`;
+    // Gemini 시스템 프롬프트는 서버(server.py 의 AI_SYSTEM_PROMPT)가 들고 있다.
+    // 브라우저가 프롬프트를 보내면 누구나 우리 키로 아무 프롬프트나 돌릴 수 있었다.
 
     /* ───────────── 실내 호실 찾기 (테크노관) ─────────────
      * Gemini 는 사용자가 말한 방 이름만 넘기고, 실제 방은 여기서 도면
@@ -171,18 +118,113 @@ Guidelines:
         });
     }
 
+    // 금오공대 탭 검색 결과도 같은 방식으로 도면의 방을 찾는다.
+    window.lookupTechnoRooms = findTechnoRooms;
+
     function describeRoom(room) {
         return '테크노관 ' + room.floor + ' ' + room.room_id +
             (room.name && room.name !== room.room_id ? ' ' + room.name : '');
     }
 
-    // 텍스트 매칭 기반의 예비(Fallback) 규칙 분석기 (API 한도 초과 또는 에러 대비)
+    // 텍스트 매칭 규칙 분석기.
+    // confident:true 인 결과는 Gemini 를 부르지 않고 바로 실행한다(빠르고 호출 한도를 아낀다).
+    // 나머지는 Gemini 가 실패했을 때의 대체 답으로만 쓴다.
+    // (예전에는 Math.random() > 0.95 조건이라 규칙으로 답할 수 있어도 95% 는 Gemini 로 갔다.)
+    var FILLER_WORDS = /주변|근처|가까운|가장|제일|내|여기|찾아줘|찾아|알려줘|알려|어디|있어|있나|있니|있는|보여줘|보여|좀|줘|요|의|은|는|이|가|을|를|에|곳|데|\?|!|\.|,/g;
+    var CURRENT_PLACE = /내\s*위치|현\s*위치|현재\s*위치|여기/;
+
+    function onlyFillerLeft(text, keyword) {
+        return text.replace(keyword, ' ').replace(FILLER_WORDS, ' ').trim() === '';
+    }
+
+    function startActionFor(placeText) {
+        if (CURRENT_PLACE.test(placeText)) return { type: "set_start", current_location: true, name: "내 위치" };
+        var info = findLandmark(placeText);
+        return info ? { type: "set_start", lat: info.lat, lng: info.lng, name: info.name } : null;
+    }
+
+    function pickMode(text) {
+        if (/자가용|운전|택시|자동차|차로/.test(text)) return "car";
+        if (/킥보드|PM|공유/.test(text)) return "shared";
+        if (/자전거/.test(text)) return "bike";
+        if (/걷기|걸어|도보/.test(text)) return "walk";
+        return "transit";
+    }
+
+    // "…(으)로 가는 길 안내해줘", "…까지 가려면?" 같은 꼬리와 학교 이름을 떼고 목적지 말만 남긴다.
+    var ROUTE_TAIL = /\s*(?:으로|로|까지|에)?\s*(?:가는|가려면|가고|갈|가줘|가야|가기|어떻게|길\s*찾|길\s*안내|안내|경로)[\s\S]*$/;
+    var CAMPUS_WORDS = /금오\s*공(?:과)?\s*대(?:학교)?/g;
+    // "테크노관"을 말하지 않아도 이런 말이 붙은 목적지는 도면에서 찾아본다.
+    // 전에는 건물 이름이 없으면 Gemini 로 넘어가, 같은 교수님 연구실을 물어도 어떤 때는
+    // 실내 길찾기를, 어떤 때는 학교 정문까지만 경로를 그렸다.
+    var ROOM_CUE = /교수|연구실|실험실/;
+
+    function indoorTargetFrom(text) {
+        return text.replace(ROUTE_TAIL, '').replace(CAMPUS_WORDS, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    // 실내 길찾기는 수단을 말하지 않으면 출발지 거리로 정한다(pickIndoorTravelMode).
+    function spokenTravelMode(text) {
+        if (/버스|대중교통/.test(text)) return "transit";
+        if (/자가용|운전|택시|자동차|차로/.test(text)) return "car";
+        if (/킥보드|공유/.test(text)) return "shared";
+        if (/자전거/.test(text)) return "bike";
+        if (/걸어|도보|걷기/.test(text)) return "walk";
+        return undefined;
+    }
+
+    function planIndoorRoute(text) {
+        var destText = text, startAction = null;
+        var fromMatch = text.match(/(.+?)에서\s*(.+)/);
+        if (fromMatch) {
+            destText = fromMatch[2];
+            if (!INDOOR_BUILDING_PATTERN.test(fromMatch[1])) startAction = startActionFor(fromMatch[1]);
+        }
+        var target = indoorTargetFrom(destText);
+        var namedBuilding = INDOOR_BUILDING_PATTERN.test(target);
+        if (!namedBuilding && !ROOM_CUE.test(target)) return null;
+
+        var rooms = findTechnoRooms(target);
+        var actions = startAction ? [startAction] : [];
+        var mode = spokenTravelMode(text);
+        var chips = ["버스로 가면?", "초기화"];
+
+        // 건물·층만 말했다("테크노관 1층으로 가는 길은요?"). 문 앞까지는 호실을 알아야 하므로 출입구까지 간다.
+        var rest = target.replace(INDOOR_BUILDING_PATTERN, ' ')
+            .replace(/지하\s*\d*\s*층?|\d+\s*층/g, ' ').replace(/[\s?!.,]/g, '');
+        if (namedBuilding && !rest) {
+            var floor = parseFloor(target);
+            actions.push({ type: "route_building", floor: floor, mode: mode });
+            return { reply: "🏫 테크노관" + (floor ? " " + floor : "") + "(으)로 가는 길을 찾습니다.",
+                     actions: actions, suggested_replies: chips, confident: true };
+        }
+        if (namedBuilding || (rooms && rooms.length)) {
+            actions.push({ type: "route_indoor", building: "테크노관", room: target, mode: mode });
+            var where = rooms && rooms.length === 1 ? describeRoom(rooms[0]) : "테크노관 안 목적지";
+            return { reply: "🏫 " + where + "까지 길을 찾습니다.", actions: actions,
+                     suggested_replies: chips, confident: true };
+        }
+        if (!rooms) return null;   // 도면을 아직 못 읽었으면 Gemini 에 맡긴다
+
+        // 교수님·연구실을 말했지만 테크노관 도면에는 없다(다른 건물). 말한 장소까지만 가고 그렇다고 밝힌다.
+        var note = "'" + target + "'은(는) 실내 도면이 있는 테크노관에서 찾지 못했습니다.";
+        var place = findLandmark(destText);
+        if (!place) {
+            return { reply: "❓ " + note + " 어느 건물인지 알려 주시면 그 건물까지 안내해 드립니다.",
+                     actions: [], suggested_replies: ["금오공대 가는 길"], confident: true };
+        }
+        var routeMode = pickMode(text);
+        actions.push({ type: "set_end", lat: place.lat, lng: place.lng, name: place.name });
+        actions.push({ type: "route", mode: routeMode });
+        return { reply: "📍 " + note + " " + place.name + "까지 " + getModeName(routeMode) + " 경로를 찾아드립니다.",
+                 actions: actions, suggested_replies: ["자가용으로는?", "걸어가면?"], confident: true };
+    }
+
     function runRuleBasedHeuristic(text) {
-        var cleanText = text.replace(/\s+/g, '');
         var reply = "자연어 명령을 감지하여 지도를 제어합니다.";
         var actions = [];
 
-        var isClosestQuery = text.includes("가장 가까운") || text.includes("가장가까운") || text.includes("제일 가까운") || text.includes("제일가까운") || text.includes("가장 가까이");
+        var isClosestQuery = /(가장|제일)\s*가까/.test(text);
         var isPriceCompareQuery = text.includes("가격") || text.includes("최저가") || text.includes("가장 싼") || text.includes("싼 주유소") || text.includes("저렴한");
 
         // CCTV 제어
@@ -190,114 +232,94 @@ Guidelines:
             var active = !text.includes("끄") && !text.includes("제거") && !text.includes("안볼");
             actions.push({ type: "toggle_cctv", active: active });
             reply = active ? "📹 실시간 CCTV 카메라 레이어를 활성화합니다." : "📹 CCTV 카메라 마커를 숨깁니다.";
-            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다", "초기화"] };
+            return { reply: reply, actions: actions, suggested_replies: ["CCTV 꺼줘", "초기화"], confident: true };
         }
 
-        // 돌발상황 제어
+        // 돌발상황 제어 ("사고 다발지역"은 다른 레이어라 Gemini 에 맡긴다)
         if (text.includes("사고") || text.includes("돌발") || text.includes("통제") || text.includes("공사")) {
             var active = !text.includes("끄") && !text.includes("제거") && !text.includes("안볼");
             actions.push({ type: "toggle_event", active: active });
             reply = active ? "⚠️ 실시간 도로 돌발상황 및 통제/공사 레이어를 활성화합니다." : "⚠️ 도로 공사 및 사고 마커를 숨깁니다.";
-            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다", "초기화"] };
+            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다", "초기화"],
+                     confident: !/다발|지역/.test(text) };
         }
 
         // 지도 초기화
         if (text.includes("초기화") || text.includes("지워") || text.includes("깨끗") || text.includes("리셋")) {
             actions.push({ type: "clear_map" });
             reply = "🧹 지도 상의 모든 경로선과 편의점, 버스 마커를 초기화합니다.";
-            return { reply: reply, actions: actions, suggested_replies: ["검색하기", "AI 비서"] };
+            return { reply: reply, actions: actions, suggested_replies: ["주변 편의점 찾아줘"], confident: true };
         }
 
         // 시뮬레이터 구동
         if (text.includes("택시 호출") || text.includes("택시불러") || text.includes("가상 택시") || text.includes("택시 시뮬")) {
             actions.push({ type: "run_taxi_sim" });
-            reply = "🚕 가상 택시 호출 시뮬레이터를 구동합니다.";
-            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다"] };
+            return { reply: "🚕 가상 택시 호출 시뮬레이터를 구동합니다.", actions: actions,
+                     suggested_replies: ["알겠습니다"], confident: true };
         }
         if (text.includes("요금 계산") || text.includes("킥보드 계산") || text.includes("킥보드 요금") || text.includes("공유모빌리티")) {
             actions.push({ type: "run_fare_calc" });
-            reply = "🛴 공유모빌리티 실시간 요금제 계산기를 구동합니다.";
-            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다"] };
+            return { reply: "🛴 공유모빌리티 실시간 요금제 계산기를 구동합니다.", actions: actions,
+                     suggested_replies: ["알겠습니다"], confident: true };
         }
         if (text.includes("예타") || text.includes("타당성") || text.includes("시뮬레이션") || text.includes("노선 평가")) {
             actions.push({ type: "run_drt_calc" });
-            reply = "📊 가상 노선 예비타당성평가 시뮬레이션을 구동합니다.";
-            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다"] };
+            return { reply: "📊 가상 노선 예비타당성평가 시뮬레이션을 구동합니다.", actions: actions,
+                     suggested_replies: ["알겠습니다"], confident: true };
         }
 
-        // 설정창 / 개발자 모드
-        if (text.includes("설정") || text.includes("개발자") || text.includes("API") || text.includes("키 등록")) {
-            actions.push({ type: "show_dev_menu" });
-            reply = "⚙️ G-map 개발자 모드 설정창을 오픈합니다.";
-            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다"] };
+        // 즐겨찾기 목록
+        if (/즐겨찾기/.test(text) && /보여|목록|열어|어디/.test(text) && !/추가|저장|등록/.test(text)) {
+            return { reply: "⭐ 저장한 즐겨찾기 목록을 보여 드립니다.", actions: [{ type: "show_favorites" }],
+                     suggested_replies: ["주변 편의점 찾아줘"], confident: true };
         }
 
-        // 0. 건물 안 호실까지 길찾기 ("구미역에서 테크노관 301호 가는 길")
-        if (INDOOR_BUILDING_PATTERN.test(text) &&
-            /가는|가고|갈|가줘|가야|까지|길|안내|경로|어떻게/.test(text)) {
-            var indoorText = text;
-            var fromMatch = text.match(/(.+?)에서\s*(.+)/);
-            if (fromMatch && !INDOOR_BUILDING_PATTERN.test(fromMatch[1])) {
-                var fromInfo = findLandmark(fromMatch[1]);
-                if (fromInfo) actions.push({ type: "set_start", lat: fromInfo.lat, lng: fromInfo.lng, name: fromInfo.name });
-                indoorText = fromMatch[2];
-            }
-            var indoorAction = { type: "route_indoor", building: "테크노관", room: indoorText.trim() };
-            if (/버스|대중교통/.test(text)) indoorAction.mode = "transit";
-            else if (/자가용|운전|택시/.test(text)) indoorAction.mode = "car";
-            else if (/걸어|도보|걷기/.test(text)) indoorAction.mode = "walk";
-            actions.push(indoorAction);
-            return { reply: "🏫 테크노관 안 목적지까지 걸어가는 길을 찾아드립니다.", actions: actions,
-                     suggested_replies: ["알겠습니다", "초기화"] };
-        }
+        // 0. 건물 안 호실까지 길찾기 ("구미역에서 테크노관 301호 가는 길", "조금원 교수님 연구실로 가려면?")
+        var indoor = /가는|가고|갈|가줘|가야|가려면|까지|길|안내|경로|어떻게/.test(text) ? planIndoorRoute(text) : null;
+        if (indoor) return indoor;
 
-        // 1. 길찾기 패턴 검출 (A에서 B로)
+        // 1. 길찾기 패턴 검출 (A에서 B로) - 둘 다 아는 장소(또는 내 위치)일 때만 확실하다
         var pathMatch = text.match(/(.+)(?:에서|출발|시작)\s+(.+)(?:으로|도착|행|가기|가는|까지)/);
         if (pathMatch) {
-            var startName = pathMatch[1].trim();
-            var endName = pathMatch[2].trim();
-            var startInfo = findLandmark(startName);
-            var endInfo = findLandmark(endName);
-            
-            if (startInfo && endInfo) {
-                actions.push({ type: "set_start", lat: startInfo.lat, lng: startInfo.lng, name: startInfo.name });
+            var startAction = startActionFor(pathMatch[1].trim());
+            var endInfo = findLandmark(pathMatch[2].trim());
+            if (startAction && endInfo) {
+                var mode = pickMode(text);
+                actions.push(startAction);
                 actions.push({ type: "set_end", lat: endInfo.lat, lng: endInfo.lng, name: endInfo.name });
-                
-                var mode = "transit";
-                if (text.includes("자가용") || text.includes("운전") || text.includes("택시")) mode = "car";
-                else if (text.includes("킥보드") || text.includes("자전거") || text.includes("PM")) mode = "shared";
-                else if (text.includes("걷기") || text.includes("도보")) mode = "walk";
-                
                 actions.push({ type: "route", mode: mode });
-                reply = `📍 ${startInfo.name}에서 ${endInfo.name}까지 ${getModeName(mode)} 경로를 찾아드립니다.`;
-                return { reply: reply, actions: actions, suggested_replies: ["알겠습니다", "취소", "다른 검색"] };
+                reply = `📍 ${startAction.name}에서 ${endInfo.name}까지 ${getModeName(mode)} 경로를 찾아드립니다.`;
+                return { reply: reply, actions: actions, suggested_replies: ["자가용으로는?", "걸어가면?"], confident: true };
             }
         }
 
-        // 1-2. 단일 목적지 길찾기 패턴
+        // 1-2. 단일 목적지 길찾기 패턴 - 목적지 이름 해석은 Gemini 가 낫다
         var singlePathMatch = text.match(/(.+?)(?:으로|도착|행|가기|가는|까지)\s*(?:길찾|안내|경로|어떻게|가고|갈|가야|가려면)/);
         if (singlePathMatch) {
             var destName = singlePathMatch[1].trim();
-            var mode = "transit";
-            if (text.includes("자가용") || text.includes("운전") || text.includes("택시")) mode = "car";
-            else if (text.includes("킥보드") || text.includes("자전거") || text.includes("PM")) mode = "shared";
-            else if (text.includes("걷기") || text.includes("도보")) mode = "walk";
-            
+            var mode = pickMode(text);
+            var destInfo = findLandmark(destName);
+            if (destInfo && destName.length <= destInfo.name.length + 2) {
+                actions.push({ type: "set_end", lat: destInfo.lat, lng: destInfo.lng, name: destInfo.name });
+                actions.push({ type: "route", mode: mode });
+                return { reply: `📍 ${destInfo.name}까지 ${getModeName(mode)} 경로를 찾아드립니다.`, actions: actions,
+                         suggested_replies: ["자가용으로는?", "걸어가면?"], confident: true };
+            }
             actions.push({ type: "search_and_route", keyword: destName, mode: mode });
-            reply = `📍 '${destName}'(으)로 가는 ${getModeName(mode)} 경로를 즉시 찾아드립니다.`;
-            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다", "취소", "다른 검색"] };
+            reply = `📍 '${destName}'(으)로 가는 ${getModeName(mode)} 경로를 찾아드립니다.`;
+            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다", "다른 검색"], confident: false };
         }
 
-        // 2. 버스 검색 패턴
-        var busMatch = text.match(/(\d+)\s*번\s*(?:버스|노선)?/);
+        // 2. 버스 검색 패턴 ("170번 버스") - '버스'·'노선'이 붙어야 확실하다(3번 출구 등과 구분)
+        var busMatch = text.match(/(\d+)\s*번\s*(버스|노선)?/);
         if (busMatch) {
             var routeNo = busMatch[1];
             actions.push({ type: "search_bus", routeNo: routeNo });
             reply = `🚌 ${routeNo}번 버스의 실시간 노선도를 불러옵니다.`;
-            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다", "취소", "다른 검색"] };
+            return { reply: reply, actions: actions, suggested_replies: ["초기화", "다른 검색"], confident: !!busMatch[2] };
         }
 
-        // 3. 편의시설 검색 패턴
+        // 3. 편의시설 검색 패턴 - "주변 약국 찾아줘"처럼 다른 지명이 없을 때만 확실하다
         var categories = ["약국", "음식점", "편의점", "경로당", "주유소", "대형마트", "이마트", "카페", "스타벅스", "주차장", "은행", "학교", "공원", "공공기관", "경찰서", "소방서"];
         for (var c of categories) {
             if (text.includes(c)) {
@@ -305,10 +327,11 @@ Guidelines:
                 if (isClosestQuery) action.open_closest = true;
                 if (isPriceCompareQuery && c === "주유소") action.price_compare = true;
                 actions.push(action);
-                
+
                 var actionTypeReply = isClosestQuery ? "가장 가까운 " : (isPriceCompareQuery && c === "주유소" ? "최저가 " : "주변의 ");
                 reply = `🏪 ${actionTypeReply}"${c}"(을)를 찾아서 지도에 표시해 드립니다.`;
-                return { reply: reply, actions: actions, suggested_replies: ["알겠습니다", "취소", "다른 검색"] };
+                return { reply: reply, actions: actions, suggested_replies: ["가장 가까운 곳으로 안내해줘", "초기화"],
+                         confident: onlyFillerLeft(text.replace(/가격|최저가|비교|싼|저렴한/g, ' '), c) };
             }
         }
 
@@ -318,11 +341,11 @@ Guidelines:
             var searchName = searchMatch[1].trim();
             actions.push({ type: "search_poi", category: searchName });
             reply = `🔍 '${searchName}' 위치를 지도에서 검색합니다.`;
-            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다", "취소", "다른 검색"] };
+            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다", "다른 검색"], confident: false };
         }
 
-        // 4. 연구 모드 패턴
-        if (text.includes("연구") || text.includes("시장님") || text.includes("수요")) {
+        // 4. 연구 모드 패턴 ("연구실"은 교수님 방이지 연구 탭이 아니다)
+        if (/연구(?!실)/.test(text) || text.includes("시장님") || text.includes("수요")) {
             actions.push({ type: "switch_mode", mode: "research" });
             if (text.includes("인구") || text.includes("밀도") || text.includes("히트맵")) {
                 actions.push({ type: "toggle_research_layer", layer: "heatmap", active: true });
@@ -334,7 +357,7 @@ Guidelines:
                 actions.push({ type: "toggle_research_layer", layer: "railway", active: true });
             }
             reply = "📊 MaaS 정책 연구소 탭으로 전환하여 특화 데이터를 시각화합니다.";
-            return { reply: reply, actions: actions, suggested_replies: ["알겠습니다", "취소", "다른 검색"] };
+            return { reply: reply, actions: actions, suggested_replies: ["수요 리포트 보여줘", "다른 검색"], confident: false };
         }
 
         return null;
@@ -350,6 +373,55 @@ Guidelines:
     function getModeName(mode) {
         var names = { transit: "대중교통", car: "자가용", shared: "공유PM", bike: "자전거", walk: "도보" };
         return names[mode] || "대중교통";
+    }
+
+    // 대화 기록. 서버(/ai-assistant)가 시스템 프롬프트를 들고 있고, 여기서는 사용자 문장·
+    // 이전 대화·앱 상태만 보낸다. "버스로는?", "네" 같은 짧은 후속 질문을 이어서 이해하게 한다.
+    var chatHistory = [];
+    var MAX_HISTORY = 10;
+
+    function rememberTurn(role, text) {
+        chatHistory.push({ role: role, text: String(text).slice(0, 1500) });
+        if (chatHistory.length > MAX_HISTORY) chatHistory = chatHistory.slice(-MAX_HISTORY);
+    }
+
+    function contextPlace(coord, name) {
+        if (!coord || typeof coord.lat !== 'number' || typeof coord.lng !== 'number') return null;
+        return { lat: coord.lat, lng: coord.lng, name: name || coord.addr || coord.name || '' };
+    }
+
+    function buildAiContext() {
+        var here = window.userLocation;
+        var center = (window.map && window.map.getCenter) ? window.map.getCenter() : null;
+        return {
+            start: contextPlace(window.startCoord),
+            end: contextPlace(window.endCoord),
+            user_location: here ? { lat: here.lat, lng: here.lng, accuracy: here.accuracy } : null,
+            map_center: center ? { lat: center.lat, lng: center.lng } : null
+        };
+    }
+
+    function askGemini(query) {
+        return fetch(`${window.PROXY_URL}/ai-assistant`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: query, history: chatHistory, context: buildAiContext() })
+        })
+        .then(res => {
+            if (res.status === 429) throw new Error("Gemini API Rate Limit");
+            return res.json();
+        })
+        .then(data => {
+            var parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+            if (!parts || !parts[0]) throw new Error(data.error && data.error.message || data.error || "Invalid Gemini response format");
+            var rawText = parts[0].text.trim();
+            var start = rawText.indexOf('{'), end = rawText.lastIndexOf('}');
+            if (start >= 0 && end > start) rawText = rawText.slice(start, end + 1);
+            var result = JSON.parse(rawText);
+            if (!result || typeof result.reply !== 'string') throw new Error("Invalid assistant JSON");
+            if (!Array.isArray(result.actions)) result.actions = [];
+            return result;
+        });
     }
 
     // AI 어시스턴트 메시지 전송 및 처리 함수
@@ -369,83 +441,35 @@ Guidelines:
         // Show AI Chat Container
         var containerEl = document.getElementById('ai-chat-container');
         if (containerEl) containerEl.style.display = 'block';
-        
+
         // 채팅 창에 유저 메시지 렌더링
         appendChatMessage("user", query);
-        
+
         // 로딩 표시 추가
         var loadingId = appendChatMessage("ai", "⚡ 생각 중...", true);
 
-        // API 호출 전 Heuristics 선행 검증 (무과금/고속 동작 유도)
+        // 규칙으로 확실히 처리되는 명령은 바로 실행하고, 나머지만 Gemini 에 묻는다.
         var localResult = runRuleBasedHeuristic(query);
-        
-        // Gemini API 호출 payload 정의
-        var payload = {
-            contents: [
-                {
-                    parts: [
-                        { text: query }
-                    ]
-                }
-            ],
-            systemInstruction: {
-                parts: [
-                    { text: SYSTEM_PROMPT }
-                ]
-            },
-            generationConfig: {
-                responseMimeType: "application/json"
-            }
-        };
-
-        // 호출 개시
-        var fetchPromise;
-        if (localResult && Math.random() > 0.95) { // 룰 기반 결과가 우수하면 간헐적으로 바로 수행 (API 제한 예방)
-            fetchPromise = Promise.resolve(localResult);
-        } else {
-            fetchPromise = fetch(`${window.PROXY_URL}/gemini-api`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            })
-            .then(res => {
-                if (res.status === 429) {
-                    throw new Error("Gemini API Rate Limit");
-                }
-                return res.json();
-            })
-            .then(data => {
-                // 응답 처리
-                if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-                    var rawText = data.candidates[0].content.parts[0].text;
-                    try {
-                        return JSON.parse(rawText.trim());
-                    } catch (e) {
-                        console.warn("JSON 파싱 에러:", rawText);
-                        throw e;
-                    }
-                }
-                throw new Error("Invalid Gemini response format");
-            })
-            .catch(err => {
-                console.warn("AI API 오류로 인한 룰 기반 로컬 모델 대체 작동:", err);
+        var resultPromise = (localResult && localResult.confident)
+            ? Promise.resolve(localResult)
+            : askGemini(query).catch(err => {
+                console.warn("AI API 오류로 규칙 기반 결과로 대체:", err);
                 if (localResult) return localResult;
                 return {
-                    reply: "죄송합니다. AI 비서 서비스 호출 한도가 초과되어 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+                    reply: "죄송합니다. 지금은 AI 비서가 답하지 못했습니다. 잠시 후 다시 시도하거나 검색어를 짧게 바꿔 주세요.",
                     actions: []
                 };
             });
-        }
 
         // 결과 반영 및 UI 제어 실행
-        fetchPromise.then(result => {
+        resultPromise.then(result => {
             removeLoadingMessage(loadingId);
             appendChatMessage("ai", result.reply);
+            rememberTurn('user', query);
+            rememberTurn('model', JSON.stringify({ reply: result.reply, actions: result.actions || [] }));
 
             // 예상 답변 칩 렌더링. 액션(예: 호실 후보 고르기)이 칩을 바꿀 수 있으므로 먼저 그린다.
-            renderSuggestedReplies(result.suggested_replies || ["네", "아니요", "다른 것도 찾아주세요"]);
+            renderSuggestedReplies(result.suggested_replies || ["다른 것도 찾아주세요"]);
 
             // UI 액션 실행
             if (result.actions && result.actions.length > 0) {
@@ -505,6 +529,26 @@ Guidelines:
         if (el) el.remove();
     }
 
+    function escText(text) {
+        return DOMPurify.sanitize(String(text == null ? '' : text), { ALLOWED_TAGS: [] });
+    }
+
+    // 출발지가 비어 있으면 내 위치를 출발지로 쓴다(처음이면 위치 권한을 묻는다).
+    async function ensureStart() {
+        if (window.startCoord) return true;
+        if (!window.getUserLocation || !window.setRoutingPoint) return false;
+        try {
+            var here = await window.getUserLocation(10000);
+            window.setRoutingPoint('START', here.lat, here.lng, '내 위치');
+            await new Promise(r => setTimeout(r, 300));
+            return true;
+        } catch (error) {
+            appendChatMessage("ai", "📍 출발지를 정하지 못했습니다. " + escText(error.message) +
+                " 지도를 눌러 출발지를 지정한 뒤 다시 말씀해 주세요.");
+            return false;
+        }
+    }
+
     // AI 제어 명령어들 순차적 실행
     async function executeAiActions(actions) {
         console.log("[AI Assistant] Executing actions:", actions);
@@ -514,28 +558,44 @@ Guidelines:
             try {
                 if (action.type === 'set_start') {
                     if (window.showRoutingPanel) window.showRoutingPanel();
-                    if (window.setRoutingPoint) {
+                    if (action.current_location) {
+                        if (window.useMyLocationAsStart) {
+                            try {
+                                await window.useMyLocationAsStart();
+                                if (infoBar) infoBar.innerHTML = '🏁 [AI 연동] 출발지가 설정되었습니다: <b>내 위치</b>';
+                            } catch (error) {
+                                appendChatMessage("ai", "📍 " + escText(error.message));
+                            }
+                        }
+                    } else if (window.setRoutingPoint && isFinite(action.lat) && isFinite(action.lng)) {
                         window.setRoutingPoint('START', action.lat, action.lng, action.name);
-                        if (infoBar) infoBar.innerHTML = `🏁 [AI 연동] 출발지가 설정되었습니다: <b>${action.name}</b>`;
+                        if (infoBar) infoBar.innerHTML = `🏁 [AI 연동] 출발지가 설정되었습니다: <b>${escText(action.name)}</b>`;
                     }
                 }
                 else if (action.type === 'set_end') {
                     if (window.showRoutingPanel) window.showRoutingPanel();
-                    if (window.setRoutingPoint) {
+                    if (window.setRoutingPoint && isFinite(action.lat) && isFinite(action.lng)) {
                         window.setRoutingPoint('END', action.lat, action.lng, action.name);
-                        if (infoBar) infoBar.innerHTML = `🏁 [AI 연동] 도착지가 설정되었습니다: <b>${action.name}</b>`;
+                        if (infoBar) infoBar.innerHTML = `🏁 [AI 연동] 도착지가 설정되었습니다: <b>${escText(action.name)}</b>`;
                     }
                 }
                 else if (action.type === 'route') {
                     if (window.calcRoute) {
                         // 출발/도착 완료 대기용 약간의 지연
                         await new Promise(r => setTimeout(r, 400));
-                        window.calcRoute(action.mode);
-                        if (infoBar) infoBar.innerHTML = `🧭 [AI 연동] ${getModeName(action.mode)} 경로 탐색을 시작합니다...`;
+                        if (!window.endCoord) {
+                            appendChatMessage("ai", "📍 도착지를 먼저 알려 주세요.");
+                        } else if (await ensureStart()) {
+                            window.calcRoute(action.mode);
+                            if (infoBar) infoBar.innerHTML = `🧭 [AI 연동] ${getModeName(action.mode)} 경로 탐색을 시작합니다...`;
+                        }
                     }
                 }
                 else if (action.type === 'route_indoor') {
                     await runIndoorRoute(action, infoBar);
+                }
+                else if (action.type === 'route_building') {
+                    await runBuildingRoute(action, infoBar);
                 }
                 else if (action.type === 'search_bus') {
                     if (window.selectRoute) {
@@ -543,6 +603,10 @@ Guidelines:
                     }
                 }
                 else if (action.type === 'search_poi') {
+                    // "가장 가까운 ○○"은 지도 중심이 아니라 내 위치 기준이어야 한다.
+                    if (action.open_closest && window.getUserLocation) {
+                        await window.getUserLocation(8000).catch(() => null);
+                    }
                     if (window.searchCategory) {
                         window.searchCategory(action.category, {
                             openClosest: action.open_closest || false,
@@ -553,7 +617,7 @@ Guidelines:
                 else if (action.type === 'search_and_route') {
                     if (window.showRoutingPanel) window.showRoutingPanel();
                     var searchKey = action.keyword || action.name || '';
-                    if (infoBar) infoBar.innerHTML = `🔍 [AI 연동] '${searchKey}' 위치를 검색 중입니다...`;
+                    if (infoBar) infoBar.innerHTML = `🔍 [AI 연동] '${escText(searchKey)}' 위치를 검색 중입니다...`;
                     var center = (typeof map !== 'undefined' && map.getCenter) ? map.getCenter() : {
                         lat: (typeof DEFAULT_LAT !== 'undefined' ? DEFAULT_LAT : 36.119485),
                         lng: (typeof DEFAULT_LNG !== 'undefined' ? DEFAULT_LNG : 128.344573)
@@ -578,12 +642,12 @@ Guidelines:
                             var poi = Array.isArray(items) ? items[0] : items;
                             if (window.setRoutingPoint) {
                                 window.setRoutingPoint('END', parseFloat(poi.noorLat), parseFloat(poi.noorLon), poi.name);
-                                if (infoBar) infoBar.innerHTML = `🏁 [AI 연동] 도착지가 설정되었습니다: <b>${poi.name}</b>`;
+                                if (infoBar) infoBar.innerHTML = `🏁 [AI 연동] 도착지가 설정되었습니다: <b>${escText(poi.name)}</b>`;
                                 await new Promise(r => setTimeout(r, 400));
-                                if (window.calcRoute) window.calcRoute(action.mode || 'transit');
+                                if (window.calcRoute && await ensureStart()) window.calcRoute(action.mode || 'transit');
                             }
                         } else {
-                            if (infoBar) infoBar.innerHTML = `❌ '${searchKey}' 위치를 찾지 못했습니다.`;
+                            if (infoBar) infoBar.innerHTML = `❌ '${escText(searchKey)}' 위치를 찾지 못했습니다.`;
                         }
                     } catch(e) {
                         console.error("search_and_route error:", e);
@@ -616,6 +680,32 @@ Guidelines:
                     
                     var toggleEl = document.getElementById(toggleId);
                     if (toggleEl) toggleEl.checked = action.active;
+                }
+                else if (action.type === 'toggle_layer') {
+                    var layerActive = action.active !== false;
+                    var layerName = action.map_layer || action.layer;
+                    if (layerName === 'traffic') {
+                        if (window.toggleTrafficLayer) window.toggleTrafficLayer(layerActive);
+                    } else if (layerName === 'pm') {
+                        if (window.toggleSharedPmLayer) window.toggleSharedPmLayer(layerActive);
+                    } else {
+                        var wmsLayer = { wms_accident: window.wmsTrafficAccident,
+                                         wms_pedestrian: window.wmsPedestrianHazard,
+                                         wms_safety: window.wmsSafetyInfo }[layerName];
+                        if (wmsLayer && window.map) {
+                            if (layerActive) window.map.addLayer(wmsLayer); else window.map.removeLayer(wmsLayer);
+                        }
+                    }
+                }
+                else if (action.type === 'show_favorites') {
+                    if (window.expandPanel) window.expandPanel();
+                    setTimeout(() => {
+                        var favList = document.getElementById('favorites-list');
+                        if (favList) favList.scrollIntoView({ behavior: 'smooth' });
+                    }, 500);
+                }
+                else if (action.type === 'open_report') {
+                    if (window.openPopulationReport) window.openPopulationReport();
                 }
                 else if (action.type === 'toggle_cctv') {
                     if (window.toggleCctvLayer) {
@@ -715,6 +805,14 @@ Guidelines:
         // 출발지 설정(set_start)이 실내 모듈에 전달될 시간을 둔다.
         await new Promise(function (resolve) { setTimeout(resolve, 400); });
         var origin = window.getTechnoRouteStart ? window.getTechnoRouteStart() : null;
+        if (!origin && window.getUserLocation && window.setRoutingPoint) {
+            try {
+                var here = await window.getUserLocation(10000);
+                window.setRoutingPoint('START', here.lat, here.lng, '내 위치');
+                await new Promise(function (resolve) { setTimeout(resolve, 400); });
+                origin = window.getTechnoRouteStart ? window.getTechnoRouteStart() : null;
+            } catch (error) { /* 위치를 못 받으면 지도에서 출발지를 고르게 둔다 */ }
+        }
         var mode = pickIndoorTravelMode(action.mode, origin);
 
         // 멀리서 오면 건물 출입구까지는 대중교통(또는 차), 그 뒤는 실내 도보.
@@ -728,7 +826,8 @@ Guidelines:
                 await new Promise(function (resolve) { setTimeout(resolve, 400); });
                 window.calcRoute(mode);
                 if (infoBar) infoBar.innerHTML = '🏫 [AI 연동] 도착지: <b>' + DOMPurify.sanitize(describeRoom(room)) + '</b>';
-                appendChatMessage("ai", (mode === 'car' ? "🚗 " : "🚌 ") + DOMPurify.sanitize(entrance.name) +
+                var modeIcon = { car: "🚗 ", bike: "🚲 ", shared: "🛴 " }[mode] || "🚌 ";
+                appendChatMessage("ai", modeIcon + DOMPurify.sanitize(entrance.name) +
                     "까지 " + getModeName(mode) + " 경로를 찾고, 거기서 " + describeRoom(room) +
                     " 문 앞까지 실내 경로를 표시합니다. 테크노관을 확대하면 층별 경로가 보입니다.");
                 return;
@@ -741,6 +840,40 @@ Guidelines:
         appendChatMessage("ai", origin
             ? "🧭 " + describeRoom(room) + " 문 앞까지 경로를 표시합니다."
             : "📍 도착지를 " + describeRoom(room) + "(으)로 정했습니다. 출발 위치를 지도에서 눌러 주세요.");
+    }
+
+    // 건물·층만 말한 경우("테크노관 3층 가는 길"). 그 층에 출입구가 있으면 그중, 없으면 전체 가운데
+    // 출발지에서 가장 가까운 출입구까지 안내한다. 문 앞까지 가려면 호실을 알아야 한다.
+    async function runBuildingRoute(action, infoBar) {
+        var nav = window.TECHNO_NAV_DATA;
+        var entrances = (nav && nav.entrances) || [];
+        if (!entrances.length || !window.setRoutingPoint || !window.calcRoute) {
+            appendChatMessage("ai", "🚧 테크노관 출입구 정보를 불러오지 못했습니다.");
+            return;
+        }
+        var floor = parseFloor(action.floor);
+        var onFloor = entrances.filter(function (entrance) { return entrance.floor === floor; });
+        var pool = onFloor.length ? onFloor : entrances;
+        var from = window.startCoord;
+        var entrance = pool[0];
+        if (from) {
+            var bestMeters = Infinity;
+            pool.forEach(function (candidate) {
+                var meters = L.latLng(from.lat, from.lng).distanceTo([candidate.lat, candidate.lon]);
+                if (meters < bestMeters) { bestMeters = meters; entrance = candidate; }
+            });
+        }
+        var mode = pickIndoorTravelMode(action.mode, from ? { where: 'outdoor', lat: from.lat, lng: from.lng } : null);
+
+        // 테크노관을 확대하면 말한 층의 실내지도가 뜨게 해 둔다.
+        if (floor) window.technoActiveFloor = floor;
+        window.technoIndoorOpen = true;
+        window.setRoutingPoint('END', entrance.lat, entrance.lon, '테크노관 ' + entrance.name);
+        await executeAiActions([{ type: 'route', mode: mode }]);
+        if (infoBar) infoBar.innerHTML = '🏫 [AI 연동] 도착지: <b>테크노관 ' + escText(entrance.name) + '</b>';
+        appendChatMessage("ai", "🚪 " + escText(entrance.name) + "까지 " + getModeName(mode) + " 경로를 찾습니다. " +
+            (floor ? "테크노관을 확대하면 " + floor + " 실내지도가 보입니다. " : "") +
+            "호실이나 교수님 이름을 알려 주시면 문 앞까지 안내해 드립니다.");
     }
 
     // AI 예상 답변(칩) 및 + 버튼 렌더링

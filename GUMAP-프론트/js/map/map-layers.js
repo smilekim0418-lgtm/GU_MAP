@@ -537,23 +537,9 @@ window.toggleSharedPmLayer = function(show) {
                 if (infoBar) infoBar.innerHTML = '🛴 공유 모빌리티 ' + items.length + '대 발견!';
             } else {
                 var infoBar = document.getElementById('clicked-info');
-                if (infoBar) infoBar.innerHTML = '🛴 현재 구미시 공유 모빌리티 API 데이터가 0건입니다. (테스트용 가상 데이터 표시)';
-                var center = window.map.getCenter();
-                for (var i=0; i<15; i++) {
-                    var lat = center.lat + (Math.random() - 0.5) * 0.04;
-                    var lng = center.lng + (Math.random() - 0.5) * 0.04;
-                    var type = Math.random() > 0.5 ? '자전거' : '킥보드';
-                    var emoji = type === '자전거' ? '🚲' : '🛴';
-                    var company = type === '자전거' ? '지바이크' : '씽씽';
-                    var battery = Math.floor(Math.random() * 100) + '%';
-                    var icon = L.divIcon({
-                        html: '<div style="font-size:22px; text-shadow:0 0 4px white; cursor:pointer;" title="' + company + ' ' + type + '">' + emoji + '</div>',
-                        className: 'shared-pm-icon', iconSize: [24, 24], iconAnchor: [12, 12]
-                    });
-                    var marker = L.marker([lat, lng], { icon: icon }).addTo(window.sharedPmLayerGroup);
-                    marker.bindPopup('<div style="font-family:Noto Sans KR,sans-serif; min-width:120px;"><b>' + emoji + ' ' + type + ' (가상)</b><br><span style="font-size:11px; color:#64748b;">' + company + '</span><br>🔋 배터리: <b>' + battery + '</b><div style="display:flex; justify-content:flex-end; gap:6px; margin-top:5px;"><a href="javascript:void(0)" onclick="window.addFavorite(\'' + company.replace(/'/g, "\\'") + ' ' + type + '\', ' + lat + ', ' + lng + ', \'\')" style="font-size:11px; color:#92400e; text-decoration:underline; font-weight:600; cursor:pointer;">⭐ 즐겨찾기</a></div></div>');
-                    window.sharedPmMarkers.push(marker);
-                }
+                // 데이터가 없으면 없다고만 알린다. 예전에는 지도 중심 주변에 가짜 킥보드·자전거
+                // 15대를 배터리 잔량까지 지어내 찍었다.
+                if (infoBar) infoBar.innerHTML = '🛴 지금 구미시 공유 킥보드·자전거 위치 데이터가 없습니다.';
             }
         })
         .catch(function(err) {

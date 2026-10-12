@@ -29,6 +29,7 @@
     --border-focus: rgba(99, 102, 241, 0.5);
     --bg-input: rgba(255, 255, 255, 0.7);
     --border-input: rgba(226, 232, 240, 0.8);
+    --bg-card: #ffffff;              /* 길찾기 결과 카드 */
 }
 
 body.dark-theme {
@@ -40,6 +41,7 @@ body.dark-theme {
     --border-focus: rgba(139, 92, 246, 0.6);
     --bg-input: rgba(15, 23, 42, 0.5);
     --border-input: rgba(255, 255, 255, 0.08);
+    --bg-card: #1e293b;
 }
 
 html, body {
