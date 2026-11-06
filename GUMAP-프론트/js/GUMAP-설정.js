@@ -23,7 +23,7 @@
 // API 키 (let 선언으로 변경하여 로컬스토리지에서 덮어쓰기 허용)
 let TMAP_API_KEY = "";
 let TAGO_KEY = "";
-let VWORLD_KEY = "";
+let VWORLD_KEY = "AAF4B8AC-2D2D-32DE-9F35-03889EA6D0BD";
 let JUSO_KEY = "";
 let JUSO_COORD_KEY = "";
 let ODSAY_KEY = "";

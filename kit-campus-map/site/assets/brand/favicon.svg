@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- 학교 공식 파비콘이 정해지면 이 파일을 교체한다. -->
-  <rect width="32" height="32" rx="6" fill="#343b58"/>
-  <path d="M16 6.5c-4.4 0-8 3.4-8 7.8 0 5.6 8 11.2 8 11.2s8-5.6 8-11.2c0-4.4-3.6-7.8-8-7.8z" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>
-  <circle cx="16" cy="14.2" r="2.8" fill="#fff"/>
-</svg>

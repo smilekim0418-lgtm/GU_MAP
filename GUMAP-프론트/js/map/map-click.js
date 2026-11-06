@@ -31,40 +31,8 @@ window.clickToken = 0;
 window.initMapClickEvents = function() {
     if (!window.map) return;
 
-    // ── 마우스 우클릭: 즐겨찾기 추가 팝업 ──
-    window.map.on('contextmenu', function(e) {
-        var lat = e.latlng.lat;
-        var lng = e.latlng.lng;
-        
-        fetch(`${window.PROXY_URL}/vworld-address?service=address&request=getAddress&version=2.0&crs=EPSG:4326&point=${lng},${lat}&format=json&type=both&zipcode=true&simple=false`)
-        .then(res => res.json())
-        .then(data => {
-            var addr = '주소 정보 없음';
-            if (data.response && data.response.status === "OK" && data.response.result.length > 0) {
-                addr = data.response.result[0].text;
-            }
-            var popupHtml = `<div style="font-family:'Noto Sans KR',sans-serif; text-align:center; padding:5px;">
-                <b style="font-size:14px; color:var(--text-main);">이 위치를 즐겨찾기에 추가</b><br>
-                <span style="font-size:11px; color:var(--text-muted);">${addr}</span><br>
-                <button onclick="window.addFavorite('사용자 지정 위치', ${lat}, ${lng}, '${addr.replace(/'/g, "\\'")}'); window.map.closePopup();" style="margin-top:8px; padding:6px 12px; background:#92400e; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:12px;">⭐ 즐겨찾기 추가</button>
-            </div>`;
-            L.popup().setLatLng(e.latlng).setContent(popupHtml).openOn(window.map);
-        })
-        .catch(() => {
-            var popupHtml = `<div style="font-family:'Noto Sans KR',sans-serif; text-align:center; padding:5px;">
-                <b style="font-size:14px; color:var(--text-main);">이 위치를 즐겨찾기에 추가</b><br>
-                <button onclick="window.addFavorite('사용자 지정 위치', ${lat}, ${lng}, ''); window.map.closePopup();" style="margin-top:8px; padding:6px 12px; background:#92400e; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:12px;">⭐ 즐겨찾기 추가</button>
-            </div>`;
-            L.popup().setLatLng(e.latlng).setContent(popupHtml).openOn(window.map);
-        });
-    });
-
     // ── 지도 일반 클릭: 건물 중력 스냅핑 및 POI 조회 ──
     window.map.on('click', function(e) {
-        if (window._indoorMapClicked) return;
-        // 실내 길찾기에서 출발점을 찍는 중이면 그 클릭은 실내 쪽 몫이다.
-        // 여기서 팝업까지 띄우면 두 개가 겹쳐 뜬다.
-        if (typeof window.isTechnoRoutePicking === 'function' && window.isTechnoRoutePicking()) return;
         window.clickToken++;
         var currentToken = window.clickToken;
         window.infoWindow = window.infoWindow || L.popup();
@@ -350,18 +318,13 @@ window.showPointPopup = function (lat, lng, addr) {
         <b id="popup-title" style="font-size:15px; color:var(--text-main); display:block; margin-bottom:2px;">📍 지정한 위치</b>
         <div id="popup-addr" style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">${label}</div>
 
-        <div style="display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap;">
+        <div style="display:flex; gap:4px; margin-bottom:2px; flex-wrap:wrap;">
             <button onclick="setRoutingPoint('START', ${lat}, ${lng}, '${safeLabel}'); window.map.closePopup();"
-                style="flex:1; padding:6px; font-size:11px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🛫 출발지</button>
+                style="flex:1; padding:6px; font-size:11px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">출발지</button>
             <button onclick="setRoutingPoint('WAYPOINT', ${lat}, ${lng}, '${safeLabel}'); window.map.closePopup();"
-                style="flex:1; padding:6px; font-size:11px; background:#f59e0b; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🔄 경유지</button>
+                style="flex:1; padding:6px; font-size:11px; background:#f59e0b; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">경유지</button>
             <button onclick="setRoutingPoint('END', ${lat}, ${lng}, '${safeLabel}'); window.map.closePopup();"
-                style="flex:1; padding:6px; font-size:11px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🛬 도착지</button>
-        </div>
-
-        <div style="display:flex; justify-content:flex-end;">
-            <a href="javascript:void(0)" onclick="window.addFavorite('지정한 위치', ${lat}, ${lng}, '${safeAddr}'); window.map.closePopup();"
-               style="font-size:11px; color:#92400e; text-decoration:underline; font-weight:600; cursor:pointer;">⭐ 즐겨찾기</a>
+                style="flex:1; padding:6px; font-size:11px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">도착지</button>
         </div>
     </div>`;
 
@@ -624,7 +587,6 @@ function fallbackToGeocodeExtraction(snapLat, snapLng, fallbackTitle, fallbackAd
 
             if (data.response && data.response.status === "OK" && data.response.result) {
                 var results = data.response.result;
-                window.rememberZipcode(snapLat, snapLng, results);
                 var roadResult = results.find(r => r.type === "road");
                 var parcelResult = results.find(r => r.type === "parcel");
                 var addressName = roadResult ? roadResult.text : (parcelResult ? parcelResult.text : "");
@@ -672,7 +634,6 @@ window.fallbackToReverseGeocode = function(lat, lng) {
 
             if (data.response && data.response.status === "OK" && data.response.result) {
                 var results = data.response.result;
-                window.rememberZipcode(lat, lng, results);
                 var roadResult = results.find(r => r.type === "road");
                 var parcelResult = results.find(r => r.type === "parcel");
                 
@@ -793,6 +754,12 @@ function updatePopupContent(title, addr) {
     var lat = loc.lat || 0;
     var lng = loc.lng || 0;
     
+    var ratingInfo = window.getAverageRating(title);
+    var starsHtml = window.renderStars(parseFloat(ratingInfo.avg));
+    
+    var zipHash = Math.abs(Math.floor(lat * 100000 + lng * 100000)) % 90000 + 10000;
+    var zipCode = String(zipHash).substring(0, 5);
+    
     var parcelPart = "";
     var matchParen = addr ? addr.match(/\(([^)]+)\)/) : null;
     if (matchParen) {
@@ -802,78 +769,48 @@ function updatePopupContent(title, addr) {
     var safeTitle = title.replace(/'/g, "\\'");
     var safeAddr = addr ? addr.replace(/'/g, "\\'") : "";
     
-    // 장소명·주소는 외부 검색 결과에서 온다. 팝업은 HTML 로 그리므로 정리해서 넣는다.
-    var titleHtml = DOMPurify.sanitize(title, { ALLOWED_TAGS: [] });
-    var addrHtml = DOMPurify.sanitize(addr || '주소 정보 없음', { ALLOWED_TAGS: [] });
-    var parcelHtml = DOMPurify.sanitize(parcelPart, { ALLOWED_TAGS: [] });
-
     var popupHtml = `
     <div id="click-popup" style="padding:8px; font-size:13px; min-width:260px; max-width:320px; font-family:'Noto Sans KR',sans-serif; line-height:1.5;">
-        <b id="popup-title" style="font-size:15px; color:var(--text-main); display:block; margin-bottom:2px;">${titleHtml}</b>
-
-        <div id="popup-rating-area" style="margin-bottom:4px;">${window.renderRatingSummary(title)}</div>
-
-        <div id="popup-addr" style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">${addrHtml}</div>
-
+        <b id="popup-title" style="font-size:15px; color:var(--text-main); display:block; margin-bottom:2px;">${title}</b>
+        
+        <div id="popup-rating-area" style="margin-bottom:4px;">
+            ${starsHtml} <b style="color:#f59e0b; font-size:13px;">${ratingInfo.avg}</b>
+            <span style="color:var(--text-muted); font-size:11px;">(${ratingInfo.count}건)</span>
+        </div>
+        
+        <div id="popup-addr" style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">${addr || '주소 정보 없음'}</div>
+        
         <div style="font-size:10px; color:var(--text-muted); margin-bottom:6px; user-select:none;">
-            <span id="popup-zip"></span>${parcelHtml ? ` (지번) ${parcelHtml}` : ''}
+            (우) ${zipCode}${parcelPart ? ` (지번) ${parcelPart}` : ''}
         </div>
         
         <div id="popup-route-menu" style="display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap;">
-            <button onclick="setRoutingPoint('START', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:6px; font-size:11px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🛫 출발지</button>
-            <button onclick="setRoutingPoint('WAYPOINT', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:6px; font-size:11px; background:#f59e0b; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🔄 경유지</button>
-            <button onclick="setRoutingPoint('END', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:6px; font-size:11px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">🛬 도착지</button>
+            <button onclick="setRoutingPoint('START', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:6px; font-size:11px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">출발지</button>
+            <button onclick="setRoutingPoint('WAYPOINT', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:6px; font-size:11px; background:#f59e0b; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">경유지</button>
+            <button onclick="setRoutingPoint('END', ${lat}, ${lng}, '${safeTitle}'); window.map.closePopup();" style="flex:1; padding:6px; font-size:11px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">도착지</button>
         </div>
         
         <div style="display:flex; justify-content:flex-end; gap:6px;">
-            <a href="javascript:void(0)" onclick="window.addFavorite('${safeTitle}', ${lat}, ${lng}, '${safeAddr}')" style="font-size:11px; color:#92400e; text-decoration:underline; font-weight:600; cursor:pointer;">⭐ 즐겨찾기</a>
             <a href="javascript:void(0)" onclick="window.openReviewModal('${safeTitle}', ${lat}, ${lng})" style="font-size:11px; color:#3b82f6; text-decoration:underline; font-weight:600; cursor:pointer;">⭐ 평점남기기</a>
         </div>
     </div>`;
     
     window.infoWindow.setContent(popupHtml);
-    fillPopupZipcode(lat, lng);
-}
-
-// ── 우편번호 ──
-// 예전에는 좌표로 계산한 다섯 자리 숫자를 "(우) 12345"처럼 보여 줬다. 이제는 VWorld
-// 역지오코딩 결과의 실제 우편번호(zipcode)만 쓰고, 없으면 칸을 비운다.
-var zipcodeCache = {};
-
-function zipcodeKey(lat, lng) {
-    return Number(lat).toFixed(5) + ',' + Number(lng).toFixed(5);
-}
-
-window.rememberZipcode = function(lat, lng, results) {
-    var road = (results || []).find(r => r.type === 'road' && r.zipcode);
-    var any = road || (results || []).find(r => r.zipcode);
-    zipcodeCache[zipcodeKey(lat, lng)] = any ? String(any.zipcode) : '';
-};
-
-function showPopupZipcode(zip) {
-    var el = document.getElementById('popup-zip');
-    if (el && /^\d{5}$/.test(zip || '')) el.textContent = '(우) ' + zip;
-}
-
-function fillPopupZipcode(lat, lng) {
-    if (!lat || !lng) return;
-    var key = zipcodeKey(lat, lng);
-    if (key in zipcodeCache) {
-        showPopupZipcode(zipcodeCache[key]);
-        return;
-    }
-    fetch(`${window.PROXY_URL}/vworld-address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&type=both&domain=${window.location.host}`)
-        .then(res => res.json())
-        .then(data => {
-            var ok = data.response && data.response.status === 'OK';
-            window.rememberZipcode(lat, lng, ok ? data.response.result : []);
-            showPopupZipcode(zipcodeCache[key]);
-        })
-        .catch(() => { /* 우편번호는 없어도 팝업은 쓸 수 있다 */ });
 }
 
 window.setRoutingPoint = function(type, lat, lng, name) {
-    var cleanName = name.replace(/'/g, "");
+    var cleanName = (name || "").replace(/'/g, "");
+    
+    // WebGL 지도 슬릭 핀 마커 동기화
+    if (window.gumapWebGLMap && typeof window.setGuMapRoutePoint === 'function' && !window._settingRoutePoint) {
+        window._settingRoutePoint = true;
+        try {
+            window.setGuMapRoutePoint(type, lat, lng, cleanName);
+        } finally {
+            window._settingRoutePoint = false;
+        }
+    }
+
     if (type === 'START') {
         window.startCoord = { lat: lat, lng: lng, addr: cleanName };
         var el = document.getElementById('start-addr');
@@ -939,24 +876,55 @@ window.clearWaypoint = function() {
     if (wayAddrEl) wayAddrEl.textContent = '경유지 없음';
 };
 
-// [신규 기능] 검색 결과에서 건물 클릭 시 지도 이동 및 상세주소 팝업 띄우기
+// [신규 기능] 검색 결과에서 건물/위치 클릭 시 지도 이동 및 상세주소 팝업 띄우기
 window.showPlacePopup = function(title, lat, lng, addr) {
-    if (!window.map) return;
-    window.map.setView([lat, lng], 17);
-    
-    // 현재 선택 위치 업데이트
-    window.selectedLocation = { lat: lat, lng: lng, name: title, addr: addr };
-    window.infoWindow = window.infoWindow || L.popup();
+    var latNum = Number(lat);
+    var lngNum = Number(lng);
+    var safeTitle = (title || "").replace(/'/g, "\\'");
+    var safeAddr = (addr || "").replace(/'/g, "\\'");
 
-    var content = `
-    <div style="padding:5px; font-size:13px; min-width:200px; font-family:'Noto Sans KR',sans-serif; line-height:1.4;">
-        <b style="font-size:15px; color:var(--text-main); display:block; margin-bottom:4px;">🏢 ${title}</b>
-        <div style="font-size:11px; color:var(--text-muted);">${addr}</div>
-    </div>`;
+    // 🌟 WebGL 벡터지도 최우선 지원 (해당 위치로 부드럽게 이동 및 슬릭 팝업 표출)
+    if (window.gumapWebGLMap && !isNaN(latNum) && !isNaN(lngNum)) {
+        window.gumapWebGLMap.flyTo({ center: [lngNum, latNum], zoom: 16.5, duration: 800 });
+        
+        if (window.currentPlacePopup) {
+            window.currentPlacePopup.remove();
+        }
+        
+        var popupHtml = `
+        <div style="padding:10px 12px; min-width:210px; font-family:-apple-system,BlinkMacSystemFont,'Pretendard',sans-serif;">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span style="font-size:16px;">🏢</span>
+                <b style="font-size:14px; font-weight:800; color:#1e293b;">${title}</b>
+            </div>
+            <div style="font-size:11px; color:#64748b; margin-bottom:10px; line-height:1.4;">${addr}</div>
+            <div style="display:flex; gap:6px;">
+                <button onclick="window.setGuMapRoutePoint('START', ${latNum}, ${lngNum}, '${safeTitle}'); if(window.currentPlacePopup) window.currentPlacePopup.remove();" style="flex:1; padding:6px 0; font-size:11px; font-weight:700; background:#2563eb; color:white; border:none; border-radius:6px; cursor:pointer;">출발지</button>
+                <button onclick="window.setGuMapRoutePoint('END', ${latNum}, ${lngNum}, '${safeTitle}'); if(window.currentPlacePopup) window.currentPlacePopup.remove();" style="flex:1; padding:6px 0; font-size:11px; font-weight:700; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer;">도착지</button>
+            </div>
+        </div>`;
+        
+        window.currentPlacePopup = new maplibregl.Popup({ closeButton: true, closeOnClick: true, offset: 12 })
+            .setLngLat([lngNum, latNum])
+            .setHTML(popupHtml)
+            .addTo(window.gumapWebGLMap);
+    }
     
-    window.infoWindow.setLatLng([lat, lng])
-              .setContent(content)
-              .openOn(window.map);
+    // Leaflet 백업 지원
+    if (window.map && !isNaN(latNum) && !isNaN(lngNum)) {
+        window.selectedLocation = { lat: latNum, lng: lngNum, name: title, addr: addr };
+        window.infoWindow = window.infoWindow || L.popup();
+        var content = `
+        <div style="padding:5px; font-size:13px; min-width:200px; font-family:'Noto Sans KR',sans-serif; line-height:1.4;">
+            <b style="font-size:15px; color:var(--text-main); display:block; margin-bottom:4px;">🏢 ${title}</b>
+            <div style="font-size:11px; color:var(--text-muted);">${addr}</div>
+        </div>`;
+        window.infoWindow.setLatLng([latNum, lngNum]).setContent(content);
+        if (!window.isGuMapWebGLActive) {
+            window.map.setView([latNum, lngNum], 17);
+            window.infoWindow.openOn(window.map);
+        }
+    }
 };
 
 // [신규 기능] 주소의 위경도 변환(Geocoding) 헬퍼 함수

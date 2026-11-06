@@ -25,6 +25,7 @@
 
 window.searchMarkers = [];
 window.categoryMarkers = [];
+window.webglCategoryMarkers = [];
 window.categoryClusterGroup = null;
 
 // ── 검색 Race Condition 방지 토큰 ──
@@ -66,42 +67,228 @@ window.searchPlace = function() {
         var resultDiv = document.getElementById('search-results');
         resultDiv.style.display = 'block';
 
-        // 1. 버스 노선 번호 검색인지 확인
-        var routeQuery = query.replace(/번|버스|노선/g, '').trim();
-        if (typeof allRoutesMap !== 'undefined' && allRoutesMap[routeQuery]) {
-            var typeInfo = (typeof getBusTypeInfo === 'function') ? getBusTypeInfo(routeQuery) : { color: '#10b981' };
-            var color = typeInfo.color;
-            resultDiv.innerHTML = `
-                <div style="padding:12px; text-align:center; border-bottom:2px solid ${color};">
-                    <b style="color:${color}; font-size:14px;">🚌 ${routeQuery}번 버스 노선</b><br>
-                    <div style="font-size:11px; color:#64748b; margin-top:4px;">노선이 확인되었습니다.</div>
-                    <button onclick="selectRoute('${routeQuery}'); document.getElementById('search-results').style.display='none';" style="margin-top:8px; padding:6px 12px; background:${color}; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:700; font-size:12px;">지도에 노선 표시 + 상세 보기</button>
-                </div>`;
-            return;
-        }
+        // 일반 장소/주소 검색 진행 (버스 노선 검색은 사이드바 전용)
 
         resultDiv.innerHTML = '<div style="padding:10px; text-align:center; color:#64748b;">🔍 검색 중...</div>';
         
-        // ── 2. 자연어 질문은 AI 비서(GUMAP-AI비서.js) 한 곳에서 처리한다 ──
-        // 예전에는 여기에 의도 체계가 다른 Gemini 프롬프트가 하나 더 있었다. 검색창은
-        // 같은 조건으로 먼저 AI 비서에 넘기므로 이 분기는 실제로 쓰이지 않았고, 레이어
-        // 켜기·즐겨찾기 보기 같은 기능은 AI 비서 쪽 프롬프트로 옮겼다.
-        var isNaturalLanguage = query.includes(' ') || query.includes('알려줘') || query.includes('가는') || query.includes('어떻게') || query.includes('추천') || query.includes('찾아줘') || query.includes('맛집') || query.includes('근처') || query.includes('주변') || query.includes('켜') || query.includes('보여') || query.includes('보여줘') || query.includes('지도') || query.length > 10;
-        if (isNaturalLanguage && window.sendAiMessage) {
-            resultDiv.style.display = 'none';
-            window.sendAiMessage(query);
-            return;
-        }
+        // ── 2. Gemini / OpenAI AI 자연어 검색 연동 ──
+    var isNaturalLanguage = query.includes(' ') || query.includes('알려줘') || query.includes('가는') || query.includes('어떻게') || query.includes('추천') || query.includes('찾아줘') || query.includes('맛집') || query.includes('근처') || query.includes('주변') || query.includes('켜') || query.includes('보여') || query.includes('보여줘') || query.includes('지도') || query.length > 10;
+    
+    if (isNaturalLanguage) {
+        resultDiv.innerHTML = '<div style="padding:10px; text-align:center; color:#8b5cf6;">✨ AI(Gemini)가 문맥을 파악 중입니다...</div>';
+        
+        var center = window.map ? window.map.getCenter() : { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
+        var promptText = `
+너는 대중교통 및 교통지도 AI 에이전트야.
+사용자가 현재 지도로 바라보고 있는 중심 좌표(지리적 맥락)는 다음과 같아:
+- 위도: ${center.lat}
+- 경도: ${center.lng}
+
+사용자의 검색어/질문: "${query}"
+
+이 질문이 어떤 교통 지도 기능/의도인지 파악해서 반드시 JSON 포맷으로만 응답해. 백틱(\`\`\`json) 쓰지 말고 순수 JSON만 출력해. 설명이나 텍스트는 절대 포함하지 마.
+
+가능한 의도(intent) 목록과 JSON 구조는 다음과 같아:
+
+1. [지도 레이어 온/오프 토글] (CCTV, 실시간 교통정보, 도로 공사/통제, 공유 킥보드, 사고다발지역 등)
+   - CCTV 켜달라/꺼달라, cctv 보여줘: {"intent": "toggle_layer", "layer": "cctv", "active": true/false}
+   - 실시간 교통망 정보, 막히는 길, 교통 상황: {"intent": "toggle_layer", "layer": "traffic", "active": true/false}
+   - 도로 통제/공사 정보, 통제구간: {"intent": "toggle_layer", "layer": "event", "active": true/false}
+   - 공유 킥보드/자전거 찾기, 씽씽이, 타슈: {"intent": "toggle_layer", "layer": "pm", "active": true/false}
+   - 교통사고 다발지역 표시: {"intent": "toggle_layer", "layer": "wms_accident", "active": true/false}
+   - 보행자사고 다발지역 표시: {"intent": "toggle_layer", "layer": "wms_pedestrian", "active": true/false}
+   - 치안/안전정보 표시, 치안지도: {"intent": "toggle_layer", "layer": "wms_safety", "active": true/false}
+
+2. [특정 편의시설/주유소 반경 검색]
+   - 휘발유 가격, 싼 주유소, 주유소 검색, lpg 충전소: {"intent": "search_category", "category": "주유소"}
+   - 경로당, 실버센터, 노인정: {"intent": "search_category", "category": "경로당"}
+   - 음식점, 식당, 맛집: {"intent": "search_category", "category": "음식점"}
+   - 편의점, 마트, 슈퍼마켓: {"intent": "search_category", "category": "편의점"}
+   - 병원, 의원, 약국: {"intent": "search_category", "category": "약국"}
+
+3. [실시간 버스 노선 조회] (버스 번호가 언급된 경우)
+   - 170번 버스 노선, 11번 버스 어디있어: {"intent": "search_bus", "route": "버스번호"}
+
+4. [길찾기] (출발지에서 도착지까지 어떻게 가는지 묻는 경우)
+   - {"intent": "route", "start": "출발지명(없거나 '내위치'면 '현위치'로)", "end": "도착지명"}
+
+5. [일반 장소/건물 검색] (위 항목에 해당하지 않는 경우)
+   - {"intent": "search", "keyword": "검색 키워드", "location_context": "지명 랜드마크(없으면 null)"}
+`;
+        fetch(`${window.PROXY_URL}/gemini-api`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: promptText }] }]
+            })
+        })
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(errData => {
+                    throw new Error(errData.error?.message || `HTTP ${res.status}`);
+                });
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data.candidates && data.candidates.length > 0) {
+                var text = data.candidates[0].content.parts[0].text.trim();
+                
+                var jsonStart = text.indexOf('{');
+                var jsonEnd = text.lastIndexOf('}');
+                if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                    text = text.substring(jsonStart, jsonEnd + 1);
+                }
+                
+                var aiResult = JSON.parse(text);
+                console.log("[AI Agent Response Intent]", aiResult);
+                
+                if (aiResult.intent === 'toggle_layer') {
+                    var layer = aiResult.layer;
+                    var active = aiResult.active !== false;
+                    var layerObj = null;
+                    var layerName = "";
+                    
+                    if (layer === 'cctv') {
+                        layerObj = window.cctvLayerGroup;
+                        layerName = "📹 실시간 CCTV";
+                        if (window.toggleCctvLayer) window.toggleCctvLayer(active);
+                    } else if (layer === 'traffic') {
+                        layerObj = window.trafficLayer;
+                        layerName = "🚦 실시간 교통망 정보";
+                        if (window.toggleTrafficLayer) window.toggleTrafficLayer(active);
+                    } else if (layer === 'event') {
+                        layerObj = window.eventLayerGroup;
+                        layerName = "🚧 실시간 도로 통제/공사";
+                        window.isEventLayerOn = active;
+                        if (active) {
+                            window.map.addLayer(window.eventLayerGroup);
+                            if (window.fetchAndRenderEvent) window.fetchAndRenderEvent();
+                        } else {
+                            window.map.removeLayer(window.eventLayerGroup);
+                            window.eventMarkers.forEach(m => m.remove());
+                            window.eventMarkers = [];
+                        }
+                    } else if (layer === 'pm') {
+                        layerObj = window.sharedPmLayerGroup;
+                        layerName = "🛴 공유 킥보드/자전거";
+                        if (window.toggleSharedPmLayer) window.toggleSharedPmLayer(active);
+                    } else if (layer === 'wms_accident') {
+                        layerObj = window.wmsTrafficAccident;
+                        layerName = "⚠️ 교통사고 다발지역 (WMS)";
+                    } else if (layer === 'wms_pedestrian') {
+                        layerObj = window.wmsPedestrianHazard;
+                        layerName = "🚶 보행자사고 다발지역 (WMS)";
+                    } else if (layer === 'wms_safety') {
+                        layerObj = window.wmsSafetyInfo;
+                        layerName = "🚨 생활밀착 치안/안전정보 (WMS)";
+                    }
+                    
+                    if (layerObj) {
+                        if (active) {
+                            if (!window.map.hasLayer(layerObj)) window.map.addLayer(layerObj);
+                            resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#8b5cf6; font-weight:700;">✅ [AI 완료] "${layerName}" 레이어를 활성화했습니다!</div>`;
+                        } else {
+                            if (window.map.hasLayer(layerObj)) window.map.removeLayer(layerObj);
+                            resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#64748b; font-weight:700;">🚫 [AI 완료] "${layerName}" 레이어를 비활성화했습니다!</div>`;
+                        }
+                    } else {
+                        resultDiv.innerHTML = `<div style="padding:10px; text-align:center; color:#ef4444;">⚠️ 알 수 없는 레이어 요청입니다.</div>`;
+                    }
+                    
+                } else if (aiResult.intent === 'search_category') {
+                    var cat = aiResult.category;
+                    resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#8b5cf6; font-weight:700;">🧭 [AI 연동] 주변 "${cat}" 검색을 자동 시작합니다...</div>`;
+                    setTimeout(() => {
+                        window.searchCategory(cat);
+                    }, 600);
+                    
+                } else if (aiResult.intent === 'search_bus') {
+                    var route = aiResult.route.replace(/번|버스/g, '').trim();
+                    resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#2563eb; font-weight:700;">🚌 "${route}번" 버스 노선 탭으로 이동합니다...</div>`;
+                    setTimeout(() => {
+                        if (typeof window.switchSidebarMenu === 'function') {
+                            window.switchSidebarMenu('bus');
+                        }
+                        if (typeof window.showBusRouteDetail === 'function') {
+                            window.showBusRouteDetail(route);
+                        }
+                        resultDiv.style.display = 'none';
+                    }, 400);
+                    
+                } else if (aiResult.intent === 'route') {
+                    window.handleAiRouting(aiResult.start, aiResult.end);
+                } else {
+                    if (aiResult.location_context) {
+                        resultDiv.innerHTML = `<div style="padding:10px; text-align:center; color:#8b5cf6;">📍 먼저 "${aiResult.location_context}"의 위치를 조회하고 있습니다...</div>`;
+                        var contextUrl = `${window.PROXY_URL}/vworld-search?service=search&request=search&version=2.0&crs=EPSG:4326&size=1&page=1&query=${encodeURIComponent(aiResult.location_context)}&type=place&format=json&errorformat=json&domain=${window.location.host}`;
+                        fetch(contextUrl)
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.response && data.response.status === "OK" && data.response.result && data.response.result.items && data.response.result.items.length > 0) {
+                                    var item = data.response.result.items[0];
+                                    var lat = parseFloat(item.point.y);
+                                    var lng = parseFloat(item.point.x);
+                                    if (window.map) {
+                                        window.map.setView([lat, lng], 15);
+                                    }
+                                    console.log(`[AI Location Context] 지도 중심 이동: ${aiResult.location_context} (${lat}, ${lng})`);
+                                    setTimeout(() => {
+                                        executeStandardSearch(aiResult.keyword || query);
+                                    }, 300);
+                                } else {
+                                    console.log(`[AI Location Context] "${aiResult.location_context}" 위치 조회 실패. 일반 검색 진행.`);
+                                    executeStandardSearch(aiResult.keyword || query);
+                                }
+                            })
+                            .catch(err => {
+                                console.warn(`[AI Location Context] 에러 발생:`, err);
+                                executeStandardSearch(aiResult.keyword || query);
+                            });
+                    } else {
+                        executeStandardSearch(aiResult.keyword || query);
+                    }
+                }
+            } else {
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+                fallbackToLocalParser(query);
+            }
+        })
+        .catch(err => {
+            console.warn("Gemini AI API 미설정/폴백 → 로컬 검색 파서 즉시 전환:", err);
+            fallbackToLocalParser(query);
+        });
+        return;
+    }
 
     // AI 조건에 맞지 않거나 AI 키가 없는 경우 로컬 파서 확인 후 일반 검색 실행
     fallbackToLocalParser(query);
     }, 300);
 };
 
-// ── 로컬 자연어 파싱 엔진 (Gemini API 503 장애 대비 백업) ──
+// ── 로컬 자연어 파싱 엔진 (API 키 없이도 동작하는 지능형 로컬 파서) ──
 function parseLocalQuery(q) {
     if (!q) return null;
-    var landmarks = ["구미역", "금오산", "형곡동", "인동동", "인동", "송정동", "신평동", "금오공대", "경운대", "구미시청"];
+
+    // 1. 길찾기 자연어 패턴 ("A에서 B 가는 길", "A에서 B까지")
+    var routeMatch = q.match(/(.+?)(?:에서|출발)\s*(.+?)(?:까지|으로|로|가는\s*길|가는길|어떻게|길찾기|$)/);
+    if (routeMatch && routeMatch[1] && routeMatch[2]) {
+        var s = routeMatch[1].trim();
+        var e = routeMatch[2].replace(/(?:가는\s*길|가는길|어떻게\s*가|길찾기|알려줘|가려면)$/g, '').trim();
+        if (s && e) {
+            return { intent: 'route', start: s, end: e };
+        }
+    }
+
+    // 2. 버스 노선 검색 패턴 ("170번 버스", "10번 노선")
+    var busMatch = q.match(/^(\d+(?:-\d+)?)\s*번?\s*(?:버스|노선)/);
+    if (busMatch) {
+        return { intent: 'search_bus', route: busMatch[1] };
+    }
+
+    var landmarks = ["구미역", "금오산", "형곡동", "인동동", "인동", "송정동", "신평동", "금오공대", "경운대", "구미시청", "옥계", "사곡역", "구미터미널", "선산"];
     var matchedLocation = null;
     for (var i = 0; i < landmarks.length; i++) {
         if (q.includes(landmarks[i])) {
@@ -152,6 +339,19 @@ function parseLocalQuery(q) {
 
 function executeLocalRuleSearch(ruleResult) {
     var resultDiv = document.getElementById('search-results');
+    if (ruleResult.intent === 'route') {
+        window.handleAiRouting(ruleResult.start, ruleResult.end);
+        return;
+    }
+    if (ruleResult.intent === 'search_bus') {
+        resultDiv.innerHTML = `<div style="padding:12px; text-align:center; color:#2563eb; font-weight:700;">🚌 "${ruleResult.route}번" 버스 노선 탭으로 이동합니다...</div>`;
+        setTimeout(() => {
+            if (typeof window.switchSidebarMenu === 'function') window.switchSidebarMenu('bus');
+            if (typeof window.showBusRouteDetail === 'function') window.showBusRouteDetail(ruleResult.route);
+            resultDiv.style.display = 'none';
+        }, 300);
+        return;
+    }
     if (ruleResult.location_context) {
         resultDiv.innerHTML = `<div style="padding:10px; text-align:center; color:#8b5cf6;">📍 로컬 파서: 먼저 "${ruleResult.location_context}"의 위치를 조회하고 있습니다...</div>`;
         var contextUrl = `${window.PROXY_URL}/vworld-search?service=search&request=search&version=2.0&crs=EPSG:4326&size=1&page=1&query=${encodeURIComponent(ruleResult.location_context)}&type=place&format=json&errorformat=json&domain=${window.location.host}`;
@@ -202,21 +402,52 @@ async function executeStandardSearch(searchKeyword) {
     }
 
     try {
-        // 1. JUSO API 및 VWorld Place API (BBox 포함) 병렬 호출 설정
-        var jusoUrl = `${window.PROXY_URL}/juso?currentPage=1&countPerPage=15&keyword=${encodeURIComponent(cleanKeyword)}&resultType=json`;
+        // 1. 로컬 건물·주소 데이터(GUMI_MASTER_BUILDINGS) 및 VWorld Place/Address API 병렬 검색
         var bounds = window.map ? window.map.getBounds() : null;
         var vworldPlaceUrl = `${window.PROXY_URL}/vworld-search?service=search&request=search&version=2.0&crs=EPSG:4326&size=15&page=1&query=${encodeURIComponent(cleanKeyword)}&type=place&format=json&errorformat=json&domain=${window.location.host}`;
         if (bounds) {
             var bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
             vworldPlaceUrl += `&bbox=${bbox}`;
         }
+        var vworldRoadAddrUrl = `${window.PROXY_URL}/vworld-search?service=search&request=search&version=2.0&crs=EPSG:4326&size=10&page=1&query=${encodeURIComponent(cleanKeyword)}&type=address&category=road&format=json&errorformat=json&domain=${window.location.host}`;
 
-        var jusoPromise = fetch(jusoUrl)
-            .then(res => res.json())
-            .catch(err => {
-                console.warn("도로명주소 API 통신 실패:", err);
-                return null;
-            });
+        var localList = [];
+        var qNorm = cleanKeyword.replace(/\s+/g, '').toLowerCase();
+        if (Array.isArray(window.GUMI_MASTER_BUILDINGS)) {
+            for (var bi = 0; bi < window.GUMI_MASTER_BUILDINGS.length; bi++) {
+                var b = window.GUMI_MASTER_BUILDINGS[bi];
+                var bName = (b.name || "").replace(/\s+/g, '').toLowerCase();
+                var bAddr = (b.addr || "").replace(/\s+/g, '').toLowerCase();
+                if ((bName && bName.indexOf(qNorm) !== -1) || (bAddr && bAddr.indexOf(qNorm) !== -1)) {
+                    localList.push({
+                        bdMgtSn: b.id || ("local_" + bi),
+                        bdNm: b.name || b.addr || "",
+                        roadAddr: b.addr || (b.region ? ("경상북도 " + b.region + " " + (b.name || "")) : (b.name || "")),
+                        jibunAddr: b.addr || "",
+                        lat: b.lat ? Number(b.lat) : null,
+                        lng: b.lng ? Number(b.lng) : null
+                    });
+                    if (localList.length >= 20) break;
+                }
+            }
+        }
+        if (Array.isArray(window.bus_stations) && localList.length < 20) {
+            for (var si = 0; si < window.bus_stations.length; si++) {
+                var st = window.bus_stations[si];
+                var stName = (st.name || st.nodenm || "").replace(/\s+/g, '').toLowerCase();
+                if (stName && stName.indexOf(qNorm) !== -1) {
+                    localList.push({
+                        bdMgtSn: st.id || st.nodeid || ("stop_" + si),
+                        bdNm: (st.name || st.nodenm) + " (버스정류장)",
+                        roadAddr: "경상북도 구미시 버스정류소 (" + (st.id || st.nodeid || "") + ")",
+                        jibunAddr: "",
+                        lat: Number(st.lat || st.gpslati),
+                        lng: Number(st.lng || st.gpslong)
+                    });
+                    if (localList.length >= 20) break;
+                }
+            }
+        }
 
         var vworldPromise = fetch(vworldPlaceUrl)
             .then(res => res.json())
@@ -225,9 +456,13 @@ async function executeStandardSearch(searchKeyword) {
                 return null;
             });
 
-        var [jusoData, vworldData] = await Promise.all([jusoPromise, vworldPromise]);
+        var vworldRoadPromise = fetch(vworldRoadAddrUrl)
+            .then(res => res.json())
+            .catch(() => null);
 
-        var jusoList = (jusoData && jusoData.results && jusoData.results.juso) ? jusoData.results.juso : [];
+        var [vworldData, roadAddrData] = await Promise.all([vworldPromise, vworldRoadPromise]);
+
+        var jusoList = localList;
         var vworldList = [];
 
         if (vworldData && vworldData.response && vworldData.response.status === "OK" && vworldData.response.result && vworldData.response.result.items && vworldData.response.result.items.length > 0) {
@@ -385,8 +620,8 @@ function renderUnifiedResults(jusoList, vworldList, searchKeyword) {
             rawTitle: title,
             roadAddr: roadAddr,
             jibunAddr: jibunAddr,
-            lat: null,
-            lng: null,
+            lat: item.lat || null,
+            lng: item.lng || null,
             ratingInfo: { avg: "0.0", count: 0 }
         };
     });
@@ -478,6 +713,7 @@ function renderUnifiedResults(jusoList, vworldList, searchKeyword) {
     var hasValidCoords = false;
     
     var html = '<ul style="list-style:none; padding:0; margin:0;">';
+
     
     topResults.forEach(function(item) {
         var safeName = item.title.replace(/'/g, "\\'");
@@ -522,7 +758,6 @@ function renderUnifiedResults(jusoList, vworldList, searchKeyword) {
                 <div style="display:flex; justify-content:flex-end; gap:6px;">
                     <button onclick="setRoutingPoint('START', ${item.lat}, ${item.lng}, '${safeName}'); window.map.closePopup();" style="padding:4px 8px; font-size:10px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">출발</button>
                     <button onclick="setRoutingPoint('END', ${item.lat}, ${item.lng}, '${safeName}'); window.map.closePopup();" style="padding:4px 8px; font-size:10px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">도착</button>
-                    <button onclick="window.addFavorite('${safeName}', ${item.lat}, ${item.lng}, '${safeAddr}'); window.map.closePopup();" style="padding:4px 8px; font-size:10px; background:#92400e; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:700;">⭐ 즐겨찾기</button>
                 </div>
             </div>`;
             marker.bindPopup(popupHtml);
@@ -531,7 +766,7 @@ function renderUnifiedResults(jusoList, vworldList, searchKeyword) {
             hasValidCoords = true;
         }
         
-        if (item.source === "vworld") {
+        if (item.lat !== null && item.lng !== null && !isNaN(item.lat) && !isNaN(item.lng)) {
             html += `
             <li style="padding:10px; border-bottom:1px solid #f1f5f9; display:flex; flex-direction:column; gap:6px;">
                 <div>
@@ -586,13 +821,41 @@ window.handleAiRouting = async function(startStr, endStr) {
 
     async function getCoordFromStr(placeStr) {
         if (!placeStr) return null;
-        if (/현위치|내\s*위치|현재\s*위치/.test(placeStr)) {
-            try {
-                var here = await window.getUserLocation();
-                return { lat: here.lat, lng: here.lng, addr: "내 위치" };
-            } catch (error) {
-                if (window.showToast) window.showToast('📍 ' + error.message);
+        if (placeStr.includes("현위치") || placeStr.includes("내위치") || placeStr.includes("현재위치")) {
+            if (window.userLocation) {
+                return { lat: window.userLocation.lat, lng: window.userLocation.lng, addr: "현위치" };
+            } else {
+                alert("GPS 현위치를 찾을 수 없습니다.");
                 return null;
+            }
+        }
+        var qClean = placeStr.replace(/\s+/g, '');
+        var majorMap = {
+            "구미역": { lat: 36.128432, lng: 128.330232, addr: "구미역" },
+            "금오공대": { lat: 36.143211, lng: 128.396112, addr: "금오공과대학교" },
+            "금오공과대학교": { lat: 36.143211, lng: 128.396112, addr: "금오공과대학교" },
+            "구미터미널": { lat: 36.122675, lng: 128.350848, addr: "구미종합터미널" },
+            "구미종합터미널": { lat: 36.122675, lng: 128.350848, addr: "구미종합터미널" },
+            "구미시청": { lat: 36.119485, lng: 128.344573, addr: "구미시청" },
+            "인동": { lat: 36.103112, lng: 128.418123, addr: "인동네거리" },
+            "인동네거리": { lat: 36.103112, lng: 128.418123, addr: "인동네거리" },
+            "옥계": { lat: 36.1372, lng: 128.4295, addr: "옥계동" },
+            "사곡역": { lat: 36.0967, lng: 128.3564, addr: "사곡역" },
+            "선산": { lat: 36.248679, lng: 128.304332, addr: "선산터미널" },
+            "선산터미널": { lat: 36.248679, lng: 128.304332, addr: "선산터미널" }
+        };
+        if (majorMap[qClean]) return majorMap[qClean];
+        for (var mk in majorMap) {
+            if (qClean.includes(mk)) return majorMap[mk];
+        }
+        if (Array.isArray(window.GUMI_MASTER_BUILDINGS)) {
+            for (var i = 0; i < window.GUMI_MASTER_BUILDINGS.length; i++) {
+                var b = window.GUMI_MASTER_BUILDINGS[i];
+                var rawN = b.name || b.n || "";
+                var bName = rawN.replace(/\s+/g, '');
+                if (bName && (bName === qClean || bName.includes(qClean))) {
+                    return { lat: b.lat, lng: b.lng, addr: rawN };
+                }
             }
         }
         var url = `${window.PROXY_URL}/vworld-search?service=search&request=search&version=2.0&crs=EPSG:4326&size=1&page=1&query=${encodeURIComponent(placeStr)}&type=place&format=json&errorformat=json&domain=${window.location.host}`;
@@ -631,18 +894,25 @@ window.searchCategory = function(category, options = {}) {
     }
     window.currentCategorySearch = category; // track active category search
 
-    if (!window.map) return;
-    var center = window.map.getCenter();
+    var center;
+    if (window.isGuMapWebGLActive && window.gumapWebGLMap) {
+        var c = window.gumapWebGLMap.getCenter();
+        center = { lat: c.lat, lng: c.lng };
+    } else if (window.map) {
+        center = window.map.getCenter();
+    } else {
+        center = { lat: 36.119485, lng: 128.344573 };
+    }
     
-    if (!window.categoryClusterGroup) {
+    if (window.map && !window.categoryClusterGroup) {
         window.categoryClusterGroup = L.markerClusterGroup({
             maxClusterRadius: 50,
             iconCreateFunction: function(cluster) {
                 var count = cluster.getChildCount();
                 return L.divIcon({
-                    html: `<div style="background:rgba(99,102,241,0.9); color:white; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; border:2px solid white; box-shadow:0 0 10px rgba(0,0,0,0.3);">${count}</div>`,
+                    html: `<div style="background:rgba(99,102,241,0.9); color:white; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; border:2px solid white; box-shadow:0 0 10px rgba(0,0,0,0.3);">${count}</div>`,
                     className: 'custom-cluster-icon',
-                    iconSize: [30, 30]
+                    iconSize: [32, 32]
                 });
             }
         });
@@ -660,11 +930,59 @@ window.searchCategory = function(category, options = {}) {
     else if (category === "홈플러스") searchKeyword = "홈플러스 대형마트";
     else if (category === "롯데마트") searchKeyword = "롯데마트 대형마트";
 
-    // TMAP POI Search API
+    // TMAP POI Search API + 로컬 GUMI_MASTER_BUILDINGS 무키(API-Free) 폴백
+    function buildLocalPoiFallback(kw, cLat, cLng) {
+        if (!Array.isArray(window.GUMI_MASTER_BUILDINGS)) return { searchPoiInfo: { pois: { poi: [] } } };
+        var terms = [kw];
+        if (category === "병원") terms = ["병원", "의원", "치과", "한의원", "소아과", "내과", "외과", "보건소"];
+        else if (category === "약국") terms = ["약국", "메디컬"];
+        else if (category === "편의점") terms = ["편의점", "GS25", "CU", "세븐일레븐", "이마트24", "마트"];
+        else if (category === "카페") terms = ["카페", "커피", "스타벅스", "투썸", "이디야", "메가", "베이커리"];
+        else if (category === "음식점") terms = ["식당", "음식", "가든", "맛집", "한식", "분식", "회관", "갈비", "치킨"];
+        else if (category === "주차장") terms = ["주차장", "주차"];
+        else if (category === "공원") terms = ["공원", "체육", "광장"];
+        else if (category === "경로당") terms = ["경로당", "노인", "마을회관"];
+        else if (category === "공공기관") terms = ["시청", "행정복지센터", "주민센터", "우체국", "세무서", "법원"];
+        var matched = [];
+        for (var i = 0; i < window.GUMI_MASTER_BUILDINGS.length; i++) {
+            var b = window.GUMI_MASTER_BUILDINGS[i];
+            var bNameStr = b ? (b.name || b.n || "") : "";
+            if (!bNameStr || isNaN(b.lat) || isNaN(b.lng)) continue;
+            var dLat = Math.abs(b.lat - cLat);
+            var dLng = Math.abs(b.lng - cLng);
+            if (dLat > 0.04 || dLng > 0.045) continue;
+            var hit = false;
+            for (var t = 0; t < terms.length; t++) {
+                if (bNameStr.indexOf(terms[t]) !== -1) { hit = true; break; }
+            }
+            if (hit) {
+                matched.push({
+                    name: bNameStr,
+                    noorLat: String(b.lat),
+                    noorLon: String(b.lng),
+                    upperAddrName: b.addr || ("경상북도 " + (b.region || "구미시")),
+                    middleAddrName: b.d || "",
+                    lowerAddrName: b.r || ""
+                });
+                if (matched.length >= 80) break;
+            }
+        }
+        return { searchPoiInfo: { pois: { poi: matched } } };
+    }
+
     fetch(`${window.PROXY_URL}/tmap-pois?version=1&searchKeyword=${encodeURIComponent(searchKeyword)}&centerLat=${center.lat}&centerLon=${center.lng}&reqCoordType=WGS84GEO&resCoordType=WGS84GEO&radius=2&count=100`, {
         headers: { }
     })
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) return buildLocalPoiFallback(category, center.lat, center.lng);
+        return res.json().then(d => {
+            if (!d || !d.searchPoiInfo || !d.searchPoiInfo.pois || !d.searchPoiInfo.pois.poi) {
+                return buildLocalPoiFallback(category, center.lat, center.lng);
+            }
+            return d;
+        });
+    })
+    .catch(() => buildLocalPoiFallback(category, center.lat, center.lng))
     .then(data => {
         if (window.currentCategorySearch !== category) return;
         var infoBar = document.getElementById('clicked-info');
@@ -689,7 +1007,7 @@ window.searchCategory = function(category, options = {}) {
             var uniqueGroups = (typeof filterPoisForOverlap === 'function') ? filterPoisForOverlap(items, 'noorLat', 'noorLon') : [];
             
             var createdMarkers = [];
-            var refPoint = (window.userLocation && window.userLocation.lat) ? window.userLocation : window.map.getCenter();
+            var refPoint = (window.userLocation && window.userLocation.lat) ? window.userLocation : center;
             var closestGroup = null;
             var minDistance = Infinity;
             
@@ -712,38 +1030,62 @@ window.searchCategory = function(category, options = {}) {
                     addr = (item.upperAddrName || '') + ' ' + (item.middleAddrName || '') + ' ' + (item.lowerAddrName || '');
                 }
 
-                var itemEmoji = "📍";
+                var itemIcon = "📍";
                 var itemBorder = '#6366f1';
-                var itemGlow = 'rgba(99,102,241,0.15)';
+                var itemGlow = 'rgba(99,102,241,0.25)';
+                var iconFile = null;
                 
-                if (title.includes('스타벅스')) {
-                    itemEmoji = "☕"; itemBorder = '#059669'; itemGlow = 'rgba(5,150,105,0.3)';
-                } else if (title.includes('카페') || title.includes('커피') || title.includes('투썸') || title.includes('이디야')) {
-                    itemEmoji = "🧋"; itemBorder = '#d97706'; itemGlow = 'rgba(217,119,6,0.3)';
-                } else if (title.includes('이마트24') || title.includes('CU') || title.includes('GS25') || title.includes('세븐일레븐') || title.includes('편의점')) {
-                    itemEmoji = "🏪"; itemBorder = '#8b5cf6'; itemGlow = 'rgba(139,92,246,0.3)';
-                } else if (title.includes('이마트') || title.includes('홈플러스') || title.includes('롯데마트') || title.includes('대형마트') || title.includes('하나로마트') || title.includes('슈퍼')) {
-                    itemEmoji = "🛒"; itemBorder = '#eab308'; itemGlow = 'rgba(234,179,8,0.3)';
-                } else if (title.includes('약국') || title.includes('병원') || title.includes('의원') || title.includes('보건소') || title.includes('한의원')) {
-                    itemEmoji = "💊"; itemBorder = '#3b82f6'; itemGlow = 'rgba(59,130,246,0.3)';
-                } else if (title.includes('식당') || title.includes('음식') || title.includes('가든') || title.includes('반점') || title.includes('버거') || title.includes('치킨')) {
-                    itemEmoji = "🍕"; itemBorder = '#f43f5e'; itemGlow = 'rgba(244,63,94,0.3)';
-                } else if (title.includes('경로당') || title.includes('노인') || title.includes('마을회관')) {
-                    itemEmoji = "👴"; itemBorder = '#10b981'; itemGlow = 'rgba(16,185,129,0.3)';
-                } else if (title.includes('초등학교') || title.includes('중학교') || title.includes('고등학교') || title.includes('대학교') || title.includes('대학') || title.includes('학교')) {
-                    itemEmoji = "🏫"; itemBorder = '#0ea5e9'; itemGlow = 'rgba(14,165,233,0.3)';
-                } else if (title.includes('주차장')) {
-                    itemEmoji = "🅿️"; itemBorder = '#64748b'; itemGlow = 'rgba(100,116,139,0.3)';
-                } else if (title.includes('은행') || title.includes('ATM') || title.includes('새마을금고') || title.includes('신협') || title.includes('농협')) {
-                    itemEmoji = "🏦"; itemBorder = '#14b8a6'; itemGlow = 'rgba(20,184,166,0.3)';
-                } else if (title.includes('공원') || title.includes('수목원') || title.includes('휴양림') || title.includes('유원지')) {
-                    itemEmoji = "🌲"; itemBorder = '#22c55e'; itemGlow = 'rgba(34,197,94,0.3)';
-                } else if (title.includes('경찰서') || title.includes('지구대') || title.includes('파출소')) {
-                    itemEmoji = "🚓"; itemBorder = '#1d4ed8'; itemGlow = 'rgba(29,78,216,0.3)';
+                if (title.includes('스타벅스') || title.includes('카페') || title.includes('커피') || title.includes('투썸') || title.includes('이디야') || category === '카페') {
+                    iconFile = "cafe.svg";
+                    itemBorder = '#d9480f'; itemGlow = 'rgba(217,72,15,0.45)';
+                } else if (title.includes('이마트24') || title.includes('CU') || title.includes('GS25') || title.includes('세븐일레븐') || title.includes('편의점') || category === '편의점') {
+                    iconFile = "convenience_store.svg";
+                    itemBorder = '#8b5cf6'; itemGlow = 'rgba(139,92,246,0.45)';
+                } else if (title.includes('주유소') || title.includes('충전소') || title.includes('에쓰오일') || title.includes('SK엔크린') || title.includes('GS칼텍스') || title.includes('오일뱅크') || category === '주유소') {
+                    iconFile = "gas_station.svg";
+                    itemBorder = '#eab308'; itemGlow = 'rgba(234,179,8,0.45)';
+                } else if (title.includes('이마트') || title.includes('홈플러스') || title.includes('롯데마트') || title.includes('대형마트') || title.includes('하나로마트') || title.includes('슈퍼') || category === '마트') {
+                    iconFile = "mart.svg";
+                    itemBorder = '#f59e0b'; itemGlow = 'rgba(245,158,11,0.45)';
+                } else if (title.includes('대학병원') || title.includes('종합병원') || title.includes('차병원') || title.includes('순천향')) {
+                    iconFile = "hospital_large.svg";
+                    itemBorder = '#ef4444'; itemGlow = 'rgba(239,68,68,0.45)';
+                } else if (title.includes('약국') || title.includes('병원') || title.includes('의원') || title.includes('보건소') || title.includes('한의원') || title.includes('치과') || category === '병원' || category === '약국') {
+                    iconFile = "hospital_general.svg";
+                    itemBorder = '#3b82f6'; itemGlow = 'rgba(59,130,246,0.45)';
                 } else if (title.includes('소방서') || title.includes('119')) {
-                    itemEmoji = "🚒"; itemBorder = '#b91c1c'; itemGlow = 'rgba(185,28,28,0.3)';
-                } else if (title.includes('시청') || title.includes('구청') || title.includes('동주민센터') || title.includes('행정복지센터') || title.includes('도청')) {
-                    itemEmoji = "🏛️"; itemBorder = '#475569'; itemGlow = 'rgba(71,85,105,0.3)';
+                    iconFile = "fire_station.svg";
+                    itemBorder = '#dc2626'; itemGlow = 'rgba(220,38,38,0.45)';
+                } else if (title.includes('구미시청') || title.includes('시청')) {
+                    iconFile = "gumi_city_hall.svg";
+                    itemBorder = '#0284c7'; itemGlow = 'rgba(2,132,199,0.45)';
+                } else if (title.includes('주차장') || category === '주차장') {
+                    iconFile = "parking.svg";
+                    itemBorder = '#64748b'; itemGlow = 'rgba(100,116,139,0.45)';
+                } else if (title.includes('사찰') || title.includes('절') || title.includes('암') || title.includes('불교')) {
+                    iconFile = "temple.svg";
+                    itemBorder = '#d97706'; itemGlow = 'rgba(217,119,6,0.45)';
+                } else if (title.includes('교회') || title.includes('성당')) {
+                    iconFile = "church.svg";
+                    itemBorder = '#6366f1'; itemGlow = 'rgba(99,102,241,0.45)';
+                } else if (title.includes('구청') || title.includes('동주민센터') || title.includes('행정복지센터') || title.includes('우체국') || title.includes('세무서') || title.includes('법원') || title.includes('경찰서') || title.includes('지구대')) {
+                    iconFile = "government.svg";
+                    itemBorder = '#1e293b'; itemGlow = 'rgba(30,41,59,0.45)';
+                } else if (title.includes('식당') || title.includes('음식') || title.includes('가든') || title.includes('반점') || title.includes('버거') || title.includes('치킨') || category === '음식점') {
+                    iconFile = "restaurant.svg";
+                    itemBorder = '#f43f5e'; itemGlow = 'rgba(244,63,94,0.45)';
+                } else if (title.includes('경로당') || title.includes('노인') || title.includes('마을회관') || category === '경로당') {
+                    iconFile = "senior_center.svg";
+                    itemBorder = '#10b981'; itemGlow = 'rgba(16,185,129,0.45)';
+                } else if (title.includes('초등학교') || title.includes('중학교') || title.includes('고등학교') || title.includes('대학교') || title.includes('대학') || title.includes('학교')) {
+                    iconFile = "school.svg";
+                    itemBorder = '#0ea5e9'; itemGlow = 'rgba(14,165,233,0.45)';
+                } else if (title.includes('은행') || title.includes('ATM') || title.includes('새마을금고') || title.includes('신협') || title.includes('농협')) {
+                    iconFile = "bank.svg";
+                    itemBorder = '#14b8a6'; itemGlow = 'rgba(20,184,166,0.45)';
+                } else if (title.includes('공원') || title.includes('수목원') || title.includes('휴양림') || title.includes('유원지')) {
+                    iconFile = "park.svg";
+                    itemBorder = '#22c55e'; itemGlow = 'rgba(34,197,94,0.45)';
                 }
 
                 var opacity = (typeof getMarkerOpacityByRoute === 'function') ? getMarkerOpacityByRoute(lat, lng) : 1.0;
@@ -753,11 +1095,28 @@ window.searchCategory = function(category, options = {}) {
                     badgeHtml = `<span style="background:#ef4444; color:white; font-size:9px; border-radius:4px; padding:1px 3px; margin-left:3px; font-weight:900; vertical-align:middle;">+${group.children.length}</span>`;
                 }
 
+                // 🌟 [핵심] 상단 아이콘 부유 + 하단 장소명 캡슐 핀 구조
+                var iconContent = iconFile
+                    ? `<img src="GUMAP-아이콘/${iconFile}" alt="${category}" style="width:25px; height:25px; object-fit:contain; display:block;">`
+                    : `<span style="font-size:22px; line-height:1;">${itemIcon}</span>`;
+
+                var pinInnerHtml = `
+                <div class="poi-vertical-pin" style="opacity:${opacity}; pointer-events:auto;" title="${title}">
+                    <div class="poi-top-badge" style="border:2.5px solid ${itemBorder}; box-shadow:0 4px 12px rgba(0,0,0,0.18), 0 0 10px ${itemGlow};">
+                        ${iconContent}
+                    </div>
+                    <div class="poi-arrow-pointer" style="border-top:6px solid ${itemBorder};"></div>
+                    <div class="poi-bottom-tag" style="border:1.5px solid ${itemBorder};">
+                        <span>${title.length > 14 ? title.slice(0, 13) + '…' : title}</span>
+                        ${badgeHtml}
+                    </div>
+                </div>`;
+
                 var icon = L.divIcon({
-                    html: `<div class="glass-capsule-marker" style="--marker-border-color:${itemBorder}; --marker-glow-color:${itemGlow}; opacity:${opacity}; pointer-events: auto;" title="${title}">${itemEmoji} <span style="font-size:10px; font-weight:700; vertical-align:middle;">${title.slice(0, 10)}</span>${badgeHtml}</div>`,
-                    className: 'category-marker-icon', 
-                    iconSize: [120, 30], 
-                    iconAnchor: [60, 15]
+                    html: pinInnerHtml,
+                    className: 'poi-vertical-icon', 
+                    iconSize: [140, 70], 
+                    iconAnchor: [70, 70]
                 });
 
                 var isPark = title.includes('공원') || title.includes('녹지');
@@ -776,7 +1135,10 @@ window.searchCategory = function(category, options = {}) {
                         <div style="font-size:12px; font-weight:700; color:#1e293b;">
                             1. ${title}
                             <div style="font-size:10px; color:#64748b; font-weight:normal; margin-top:2px;">${addr}</div>
-                            <button onclick="window.addFavorite('${title.replace(/'/g, "\\'")}', ${lat}, ${lng}, '${addr.replace(/'/g, "\\'")}'); window.map.closePopup();" style="margin-top:4px; padding:3px 6px; font-size:10px; background:#92400e; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">⭐ 즐겨찾기</button>
+                            <div style="display:flex; gap:4px; margin-top:4px;">
+                                <button onclick="window.setRoutingPoint('START', ${lat}, ${lng}, '${title.replace(/'/g, "\\'")}'); if(window.map) window.map.closePopup();" style="padding:3px 6px; font-size:10px; background:#2563eb; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">출발</button>
+                                <button onclick="window.setRoutingPoint('END', ${lat}, ${lng}, '${title.replace(/'/g, "\\'")}'); if(window.map) window.map.closePopup();" style="padding:3px 6px; font-size:10px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">도착</button>
+                            </div>
                         </div>`;
                 
                 group.children.forEach((child, cIdx) => {
@@ -791,26 +1153,61 @@ window.searchCategory = function(category, options = {}) {
                         <div style="font-size:12px; font-weight:700; color:#1e293b; border-top:1px dashed #e2e8f0; padding-top:6px; margin-top:4px;">
                             ${cIdx + 2}. ${cTitle}
                             <div style="font-size:10px; color:#64748b; font-weight:normal; margin-top:2px;">${cAddr}</div>
-                            <button onclick="window.addFavorite('${cTitle.replace(/'/g, "\\'")}', ${lat}, ${lng}, '${cAddr.replace(/'/g, "\\'")}'); window.map.closePopup();" style="margin-top:4px; padding:3px 6px; font-size:10px; background:#92400e; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">⭐ 즐겨찾기</button>
+                            <div style="display:flex; gap:4px; margin-top:4px;">
+                                <button onclick="window.setRoutingPoint('START', ${lat}, ${lng}, '${cTitle.replace(/'/g, "\\'")}'); if(window.map) window.map.closePopup();" style="padding:3px 6px; font-size:10px; background:#2563eb; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">출발</button>
+                                <button onclick="window.setRoutingPoint('END', ${lat}, ${lng}, '${cTitle.replace(/'/g, "\\'")}'); if(window.map) window.map.closePopup();" style="padding:3px 6px; font-size:10px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">도착</button>
+                            </div>
                         </div>`;
                 });
                 popupHtml += `</div></div>`;
                 
                 marker.bindPopup(popupHtml);
-                window.categoryClusterGroup.addLayer(marker);
+                if (window.categoryClusterGroup) {
+                    window.categoryClusterGroup.addLayer(marker);
+                }
+
+                // 🌐 [신규] MapLibre WebGL 자체지도용 마커 생성 및 등록
+                if (window.gumapWebGLMap && typeof maplibregl !== 'undefined') {
+                    var webglEl = document.createElement('div');
+                    webglEl.className = 'poi-webgl-item';
+                    webglEl.innerHTML = pinInnerHtml;
+                    webglEl.style.cursor = 'pointer';
+
+                    var webglPopup = new maplibregl.Popup({ offset: [0, -70], closeButton: true, closeOnClick: true })
+                        .setHTML(popupHtml);
+
+                    var webglMarker = new maplibregl.Marker({ element: webglEl, anchor: 'bottom' })
+                        .setLngLat([lng, lat])
+                        .setPopup(webglPopup)
+                        .addTo(window.gumapWebGLMap);
+
+                    window.webglCategoryMarkers.push(webglMarker);
+                }
                 
                 createdMarkers.push({ group: group, marker: marker, dist: dist });
             });
-            window.map.addLayer(window.categoryClusterGroup);
+
+            if (window.map && window.categoryClusterGroup) {
+                window.map.addLayer(window.categoryClusterGroup);
+            }
             
             if (options.openClosest && closestGroup && createdMarkers.length > 0) {
                 var closestItem = createdMarkers.find(m => m.group === closestGroup);
                 if (closestItem) {
                     setTimeout(function() {
-                        closestItem.marker.openPopup();
+                        if (closestItem.marker && window.map && !window.isGuMapWebGLActive) {
+                            closestItem.marker.openPopup();
+                        }
+                        if (window.gumapWebGLMap && window.isGuMapWebGLActive) {
+                            window.gumapWebGLMap.easeTo({
+                                center: [closestGroup.lng, closestGroup.lat],
+                                zoom: Math.max(window.gumapWebGLMap.getZoom(), 16),
+                                duration: 800
+                            });
+                        }
                     }, 500);
                     if (window.appendChatMessage) {
-                        window.appendChatMessage("ai", `🤖 현 위치 기준 가장 가까운 ${category}은(는) **${closestGroup.main.name}** (거리: 약 ${Math.round(closestItem.dist)}m) 입니다. 지도의 풍선창을 확인해 보세요!`);
+                        window.appendChatMessage("ai", `🤖 현 위치 기준 가장 가까운 ${category}은(는) **${closestGroup.main.name}** (거리: 약 ${Math.round(closestItem.dist)}m) 입니다. 지도의 마커를 확인해 보세요!`);
                     }
                 }
             }
@@ -831,11 +1228,21 @@ window.clearCategoryMarkers = function() {
     window.currentCategorySearch = null; // Invalidate any pending search
     if (window.categoryClusterGroup) {
         window.categoryClusterGroup.clearLayers();
-        window.map.removeLayer(window.categoryClusterGroup);
+        if (window.map) window.map.removeLayer(window.categoryClusterGroup);
         window.categoryClusterGroup = null;
     }
-    window.categoryMarkers.forEach(m => m.remove());
-    window.categoryMarkers = [];
+    if (window.categoryMarkers) {
+        window.categoryMarkers.forEach(m => {
+            if (m && typeof m.remove === 'function') m.remove();
+        });
+        window.categoryMarkers = [];
+    }
+    if (window.webglCategoryMarkers) {
+        window.webglCategoryMarkers.forEach(m => {
+            if (m && typeof m.remove === 'function') m.remove();
+        });
+        window.webglCategoryMarkers = [];
+    }
     if (typeof window.clearSearchMarkers === 'function') {
         window.clearSearchMarkers();
     }

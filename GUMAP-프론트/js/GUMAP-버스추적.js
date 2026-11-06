@@ -635,6 +635,11 @@ async function drawRoadSnappedRoute(stops, color, myRenderId, routeId) {
                     
                     if (!window.routeSnappedCoords) window.routeSnappedCoords = {};
                     window.routeSnappedCoords[routeId] = linePath;
+
+                    // 🌟 WebGL 벡터지도에도 즉시 도로 궤적 렌더링
+                    if (typeof window.renderGuMapWebGLRoute === 'function') {
+                        window.renderGuMapWebGLRoute(linePath, color);
+                    }
                     return; 
                 }
             } catch (cacheErr) {
@@ -783,6 +788,9 @@ async function drawRoadSnappedRoute(stops, color, myRenderId, routeId) {
     if (routeId && window.routeSnappedCoords && window.routeSnappedCoords[routeId] && window.routeSnappedCoords[routeId].length > 0 && myRenderId === currentRenderId) {
         localStorage.setItem('snapped_route_' + routeId, JSON.stringify(window.routeSnappedCoords[routeId]));
         console.log(`[drawRoadSnappedRoute] ${routeId} 캐시 저장 완료.`);
+        if (typeof window.renderGuMapWebGLRoute === 'function') {
+            window.renderGuMapWebGLRoute(window.routeSnappedCoords[routeId], color);
+        }
     }
 }
 
@@ -964,13 +972,19 @@ function fetchRealBuses(routeIds, routeNo, myRenderId) {
                             var congDot = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${congInfo.color}; margin-right:3px; border:1px solid white; vertical-align:middle;"></span>`;
                             
                             var destText = window.getBusDestinationText(routeNo, routeId, bus.nodeid, direction);
+                            var safeVno = String(vno).replace(/[^a-zA-Z0-9가-힣]/g, '_');
                             
                             if (!activeBuses[vno]) {
                                 var neonGlowColor = color + '4d'; // 30% alpha neon color
                                 var isSim = bus.isSimulated || vno.startsWith('시뮬');
-                                var iconSymbol = isUltra ? '🌟' : (isSim ? '🤖' : '🚌');
                                 var vnoLabel = isSim ? "시뮬" : vno.slice(-4);
-                                var content = `<div class="bus-acrylic-capsule" style="--bus-color:${color}; --bus-color-neon:${neonGlowColor};">${congDot}${iconSymbol} <span style="color:${color}; font-weight:800;">${routeNo}번</span> <span style="font-weight:normal; margin: 0 4px; opacity:0.5;">|</span> <span style="opacity:0.95;">${destText}${speedStr}</span> <span style="font-size:10px; color:#94a3b8; font-weight:normal; margin-left:3px;">(${vnoLabel})</span></div>`;
+                                var initialHeading = 'right';
+                                var busImgSrc = 'GUMAP-아이콘/버스 (우).png';
+
+                                var content = `<div class="bus-3d-marker-container" style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -85%); pointer-events:auto; cursor:pointer;">
+                                    <img src="${busImgSrc}" class="bus-3d-sprite bus-sprite-${safeVno}" style="width:22px; height:auto; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.35)); margin-bottom:2px; transition:transform 0.15s ease;" alt="버스">
+                                    <div class="bus-acrylic-capsule" style="--bus-color:${color}; --bus-color-neon:${neonGlowColor};">${congDot} <span style="color:${color}; font-weight:800;">${routeNo}번</span> <span style="font-weight:normal; margin: 0 4px; opacity:0.5;">|</span> <span style="opacity:0.95;">${destText}${speedStr}</span> <span style="font-size:10px; color:#94a3b8; font-weight:normal; margin-left:3px;">(${vnoLabel})</span></div>
+                                </div>`;
                                 var busIcon = L.divIcon({
                                     html: content,
                                     className: 'bus-marker-icon',
@@ -988,7 +1002,9 @@ function fetchRealBuses(routeIds, routeNo, myRenderId) {
                                     currentNodeId: bus.nodeid,
                                     routeId: routeId,
                                     isUltraPrecise: isUltra,
-                                    vehicleno: vno
+                                    vehicleno: vno,
+                                    safeVno: safeVno,
+                                    heading: initialHeading
                                 };
                             } else {
                                 let b = activeBuses[vno];
@@ -998,9 +1014,14 @@ function fetchRealBuses(routeIds, routeNo, myRenderId) {
                                 var newCongDot = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${newCongInfo.color}; margin-right:3px; border:1px solid white; vertical-align:middle;"></span>`;
                                 var neonGlowColor = color + '4d';
                                 var isSim = bus.isSimulated || vno.startsWith('시뮬');
-                                var iconSymbol = isUltra ? '🌟' : (isSim ? '🤖' : '🚌');
                                 var vnoLabel = isSim ? "시뮬" : vno.slice(-4);
-                                var newContent = `<div class="bus-acrylic-capsule" style="--bus-color:${color}; --bus-color-neon:${neonGlowColor};">${newCongDot}${iconSymbol} <span style="color:${color}; font-weight:800;">${routeNo}번</span> <span style="font-weight:normal; margin: 0 4px; opacity:0.5;">|</span> <span style="opacity:0.95;">${destText}${speedStr}</span> <span style="font-size:10px; color:#94a3b8; font-weight:normal; margin-left:3px;">(${vnoLabel})</span></div>`;
+                                var curHeading = b.heading || 'right';
+                                var busImgSrc = (curHeading === 'left') ? 'GUMAP-아이콘/버스(좌).png' : 'GUMAP-아이콘/버스 (우).png';
+
+                                var newContent = `<div class="bus-3d-marker-container" style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -85%); pointer-events:auto; cursor:pointer;">
+                                    <img src="${busImgSrc}" class="bus-3d-sprite bus-sprite-${b.safeVno || safeVno}" style="width:22px; height:auto; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.35)); margin-bottom:2px; transition:transform 0.15s ease;" alt="버스">
+                                    <div class="bus-acrylic-capsule" style="--bus-color:${color}; --bus-color-neon:${neonGlowColor};">${newCongDot} <span style="color:${color}; font-weight:800;">${routeNo}번</span> <span style="font-weight:normal; margin: 0 4px; opacity:0.5;">|</span> <span style="opacity:0.95;">${destText}${speedStr}</span> <span style="font-size:10px; color:#94a3b8; font-weight:normal; margin-left:3px;">(${vnoLabel})</span></div>
+                                </div>`;
                                 b.overlay.setIcon(L.divIcon({
                                     html: newContent,
                                     className: 'bus-marker-icon',
@@ -1054,6 +1075,23 @@ function findClosestIndex(lat, lng, coords) {
     return minIdx;
 }
 
+// 움직이는 버스의 진행 방향(좌/우)에 따라 전용 3D 버스 스프라이트(버스(좌).png / 버스 (우).png)를 실시간 전환
+function updateBusSpriteDirection(b, dLng) {
+    if (!b) return;
+    var THRESHOLD = 0.000002;
+    if (Math.abs(dLng) < THRESHOLD) return;
+    
+    var newHeading = (dLng < 0) ? 'left' : 'right';
+    if (b.heading !== newHeading) {
+        b.heading = newHeading;
+        var sId = b.safeVno || String(b.vehicleno).replace(/[^a-zA-Z0-9가-힣]/g, '_');
+        var sprite = document.querySelector('.bus-sprite-' + sId);
+        if (sprite) {
+            sprite.src = (newHeading === 'left') ? 'GUMAP-아이콘/버스(좌).png' : 'GUMAP-아이콘/버스 (우).png';
+        }
+    }
+}
+
 function animateBuses(myRenderId) {
     // 좀비 애니메이션 방지: 현재 렌더 ID와 불일치 시 자동 종료
     if (myRenderId !== undefined && myRenderId !== currentRenderId) {
@@ -1096,6 +1134,7 @@ function animateBuses(myRenderId) {
                         
                         var dLat = nextCoord[0] - b.lat;
                         var dLng = nextCoord[1] - b.lng;
+                        updateBusSpriteDirection(b, dLng);
                         var distSq = dLat * dLat + dLng * dLng;
                         
                         if (distSq < 0.00000001) {
@@ -1116,6 +1155,7 @@ function animateBuses(myRenderId) {
         if (!moved) {
             let dLat = b.targetLat - b.lat;
             let dLng = b.targetLng - b.lng;
+            updateBusSpriteDirection(b, dLng);
             let distSq = dLat * dLat + dLng * dLng;
 
             if (distSq > 0.0000000001) { 

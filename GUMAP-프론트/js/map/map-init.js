@@ -45,30 +45,13 @@ window.onload = function() {
 
     if (errorMsgDiv) {
         errorMsgDiv.style.color = "#2563eb";
-        errorMsgDiv.innerHTML = "✅ VWorld 공공 위성지도 접속 완료! 지도를 클릭해 보세요.";
+        errorMsgDiv.innerHTML = "✅ VWorld(국토지리) 공공 위성지도 접속 완료! 지도를 클릭해 보세요.";
     }
 
     var vworldKey = window.VWORLD_KEY || (window.AppConfig && window.AppConfig.VWORLD_KEY) || '';
 
-    // 0. 오픈스트리트맵 레이어 정의 (CartoDB Positron No Labels)
-    var osmLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 22, maxNativeZoom: 19,
-        minZoom: 6,
-        updateWhenIdle: true,
-        keepBuffer: 1,
-        attribution: '© CartoDB Positron'
-    });
-
-    // 1. 일반지도 레이어 정의 (CartoDB Voyager No Labels)
-    var baseLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 22, maxNativeZoom: 19,
-        minZoom: 6,
-        updateWhenIdle: true,
-        keepBuffer: 1,
-        attribution: '© CartoDB Voyager'
-    });
-
-    // 2. 위성지도 레이어 정의 (VWorld)
+    // [사용자 요구사항] VWorld 백지도/표준지도, Carto 지도 등 구형 래스터 베이스 타일 완전 제거!
+    // 오직 고화질 위성지도 레이어만 유지 (위성 모드 전용)
     var satelliteLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/Satellite/{z}/{y}/{x}.jpeg' : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
@@ -78,7 +61,6 @@ window.onload = function() {
         attribution: '© VWorld Satellite'
     });
 
-    // 고화질 글로벌 위성지도 (Esri World Imagery)
     var esriSatelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
@@ -88,76 +70,41 @@ window.onload = function() {
         attribution: '© Esri World Imagery'
     });
 
-    // 3. 하이브리드 레이어 정의 (어노테이션)
     var hybridLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/Hybrid/{z}/{y}/{x}.png' : '', {
         maxZoom: 22, maxNativeZoom: 19,
         minZoom: 6,
         attribution: '© VWorld Hybrid'
     });
 
-    // 4. 다크모드 레이어 정의 (CartoDB DarkMatter No Labels)
-    var darkLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/midnight/{z}/{y}/{x}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 22, maxNativeZoom: 19,
-        minZoom: 6,
-        updateWhenIdle: true,
-        keepBuffer: 1,
-        attribution: '© CartoDB DarkMatter'
-    });
+    // 레이어 노출
+    window._mapLayers = { satelliteLayer: satelliteLayer, hybridLayer: hybridLayer, esriSatelliteLayer: esriSatelliteLayer };
 
-    // 5. 연구지도용 그레이스케일 레이어 정의 (CartoDB Positron No Labels)
-    var lightGrayLayer = L.tileLayer(vworldKey ? 'https://api.vworld.kr/req/wmts/1.0.0/' + vworldKey + '/white/{z}/{y}/{x}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 22, maxNativeZoom: 19,
-        minZoom: 6,
-        updateWhenIdle: true,
-        keepBuffer: 1,
-        attribution: '© CartoDB Positron'
-    });
-
-    // VWorld 타일 에러 감지 시 오픈스트리트맵(OSM) 자동 폴백 메커니즘
-    satelliteLayer.on('tileerror', function() {
-        console.warn("VWorld Satellite 타일 로드 실패! CartoDB Positron으로 자동 안전 전환합니다.");
-        if (window.map && window.map.hasLayer(satelliteLayer)) {
-            window.map.removeLayer(satelliteLayer);
-            osmLayer.addTo(window.map);
-        }
-    });
-
-    baseLayer.on('tileerror', function() {
-        console.warn("CartoDB Voyager 타일 로드 실패! CartoDB Positron으로 자동 안전 전환합니다.");
-        if (window.map && window.map.hasLayer(baseLayer)) {
-            window.map.removeLayer(baseLayer);
-            osmLayer.addTo(window.map);
-        }
-    });
-
-    // 레이어들을 window에 노출
-    window._mapLayers = { osmLayer: osmLayer, baseLayer: baseLayer, satelliteLayer: satelliteLayer, hybridLayer: hybridLayer, darkLayer: darkLayer, lightGrayLayer: lightGrayLayer, esriSatelliteLayer: esriSatelliteLayer };
-
-    // 테마 설정 복원 및 첫 화면 맵 레이어 결정
+    // 테마 설정 복원
     var isDarkThemeDefault = document.body.classList.contains('dark-theme') || localStorage.getItem('gumap_dark_theme') === 'true';
-    var activeBaseLayer = baseLayer;
-    var activeOverlays = [];
-
     if (isDarkThemeDefault) {
         document.body.classList.add('dark-theme');
         var toggle = document.getElementById('dark-mode-toggle');
-        if (toggle) { toggle.textContent = '☀️'; toggle.title = '라이트모드 전환'; }
-        activeBaseLayer = darkLayer;
+        if (toggle) {
+            toggle.innerHTML = '<svg class="dock-icon-svg icon-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+            toggle.title = '라이트모드 전환';
+        }
     } else {
         document.body.classList.remove('dark-theme');
         var toggle = document.getElementById('dark-mode-toggle');
-        if (toggle) { toggle.textContent = '🌙'; toggle.title = '다크모드 전환'; }
-        activeBaseLayer = baseLayer;
+        if (toggle) {
+            toggle.innerHTML = '<svg class="dock-icon-svg icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+            toggle.title = '다크모드 전환';
+        }
     }
 
-    window._lastActiveBaseLayer = baseLayer;
+    var activeOverlays = [];
 
-    // 지도 객체 생성 및 기본 레이어 적재
+    // 지도 객체 생성: 기본 래스터 베이스 타일을 얹지 않고 투명하게 생성 (VWorld/Carto 깜빡임 원천 차단)
     window.map = L.map('map', {
         center: [DEFAULT_LAT, DEFAULT_LNG], 
         zoom: DEFAULT_ZOOM,
         maxZoom: 22,
-        layers: [activeBaseLayer].concat(activeOverlays),
+        layers: activeOverlays,
         zoomControl: false
     });
     
@@ -168,6 +115,13 @@ window.onload = function() {
     if (typeof window.drawDaegyeongLine === 'function') {
         window.drawDaegyeongLine();
     }
+
+    // 경부고속도로 정밀 노선 표출
+    if (typeof window.drawGyeongbuHighway === 'function') {
+        window.drawGyeongbuHighway();
+    }
+
+    // WebGL 지도 기본 사용으로 불필요한 구형 Leaflet 백그라운드 폴리곤/라벨 생성 원천 차단 (메모리 절감)
 
     // 실시간 교통 혼잡도 레이어 (ITS WMTS)
     window.trafficLayer = L.tileLayer('https://its.go.kr:9443/geoserver/gwc/service/wmts/rest/ntic:N_LEVEL_11/ntic:REALTIME/EPSG:3857/EPSG:3857:{z}/{y}/{x}?format=image/png8', {
@@ -185,24 +139,107 @@ window.onload = function() {
     window.wmsSafetyInfo = L.tileLayer.wms('https://api.vworld.kr/req/wms', { layers: 'lt_c_aislrminf', format: 'image/png', transparent: true, key: vworldKey, domain: window.location.hostname || "localhost" });
 
     var baseMaps = {
-        "🗺️ 일반지도 (CartoDB Voyager)": baseLayer,
-        "🛰️ 위성지도 (VWorld)": satelliteLayer,
-        "🌍 고화질 위성 (Esri)": esriSatelliteLayer,
-        "📊 연구지도 (MaaS)": lightGrayLayer
+        "🛰️ 위성지도 (국토지리)": satelliteLayer,
+        "🌍 고화질 위성 (Esri)": esriSatelliteLayer
     };
 
-    var overlayMaps = {
-        "🏷️ 건물/도로명칭": hybridLayer,
-        "🚦 실시간 교통망 정보": window.trafficLayer,
-        "📹 실시간 CCTV": window.cctvLayerGroup,
-        "🚧 실시간 도로 통제/공사": window.eventLayerGroup,
-        "🛴 공유 킥보드/자전거": window.sharedPmLayerGroup,
-        "⚠️ 교통사고 다발지역 (WMS)": window.wmsTrafficAccident,
-        "🚶 보행자사고 다발지역 (WMS)": window.wmsPedestrianHazard,
-        "🚨 생활밀착 치안/안전정보 (WMS)": window.wmsSafetyInfo
-    };
+    var overlayMaps = {};
+    if (window.gumiBuildingLabelsLayerGroup) overlayMaps["🏢 건물 명칭"] = window.gumiBuildingLabelsLayerGroup;
+    if (window.gumiRoadLabelsLayerGroup) overlayMaps["🏷️ 도로명칭"] = window.gumiRoadLabelsLayerGroup;
+    if (window.gumiRoadsLayerGroup) overlayMaps["🛣️ 구미 도로망 (고속/국도/지방도)"] = window.gumiRoadsLayerGroup;
+    if (hybridLayer) overlayMaps["🏷️ 국토지리 행정명/지명 (토글)"] = hybridLayer;
+    if (window.trafficLayer) overlayMaps["🚦 실시간 교통망 정보"] = window.trafficLayer;
+    if (window.cctvLayerGroup) overlayMaps["📹 실시간 CCTV"] = window.cctvLayerGroup;
+    if (window.eventLayerGroup) overlayMaps["🚧 실시간 도로 통제/공사"] = window.eventLayerGroup;
+    if (window.sharedPmLayerGroup) overlayMaps["🛴 공유 킥보드/자전거"] = window.sharedPmLayerGroup;
+    if (window.wmsTrafficAccident) overlayMaps["⚠️ 교통사고 다발지역 (WMS)"] = window.wmsTrafficAccident;
+    if (window.wmsPedestrianHazard) overlayMaps["🚶 보행자사고 다발지역 (WMS)"] = window.wmsPedestrianHazard;
+    if (window.wmsSafetyInfo) overlayMaps["🚨 생활밀착 치안/안전정보 (WMS)"] = window.wmsSafetyInfo;
 
     L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(window.map);
+
+    // ============================================================
+    // 🗺️ 상단 모드 탭 제어 함수 (GuMap 자체지도 / 위성 전용)
+    // ============================================================
+    window.setMapMode = function(mode) {
+        var btnGumap = document.getElementById('tab-mode-gumap');
+        var btnSatellite = document.getElementById('tab-mode-satellite');
+
+        if (btnGumap) btnGumap.classList.remove('active');
+        if (btnSatellite) btnSatellite.classList.remove('active');
+
+        if (mode === 'satellite') {
+            if (btnSatellite) btnSatellite.classList.add('active');
+            if (window.disableGuMapWebGLMap) {
+                window.disableGuMapWebGLMap();
+            }
+            if (satelliteLayer && !window.map.hasLayer(satelliteLayer)) {
+                window.map.addLayer(satelliteLayer);
+            }
+        } else {
+            // 기본 GuMap 모드 (WebGL 자체 벡터 지도 전용)
+            if (btnGumap) btnGumap.classList.add('active');
+            if (satelliteLayer && window.map.hasLayer(satelliteLayer)) {
+                window.map.removeLayer(satelliteLayer);
+            }
+            if (esriSatelliteLayer && window.map.hasLayer(esriSatelliteLayer)) {
+                window.map.removeLayer(esriSatelliteLayer);
+            }
+            if (window.enableGuMapWebGLMap) {
+                window.enableGuMapWebGLMap();
+            }
+        }
+        if (typeof window.updateMapScaleHud === 'function') {
+            setTimeout(window.updateMapScaleHud, 100);
+        }
+    };
+
+    // ============================================================
+    // 📏 실시간 지도 축척 및 줌 레벨 HUD 연동
+    // ============================================================
+    window.updateMapScaleHud = function () {
+        var zoomValEl = document.getElementById('hud-zoom-val');
+        var scaleValEl = document.getElementById('hud-scale-val');
+        if (!zoomValEl || !scaleValEl) return;
+
+        var zoom = 14;
+        var lat = 36.119485;
+
+        if (window.isGuMapWebGLActive && window.gumapWebGLMap) {
+            zoom = window.gumapWebGLMap.getZoom();
+            lat = window.gumapWebGLMap.getCenter().lat;
+        } else if (window.map) {
+            zoom = window.map.getZoom();
+            lat = window.map.getCenter().lat;
+        }
+
+        zoomValEl.textContent = zoom.toFixed(1);
+
+        // 80px 기준 실거리 미터 계산
+        var metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
+        var distMeters = Math.round(metersPerPixel * 80);
+
+        if (distMeters >= 1000) {
+            scaleValEl.textContent = '약 ' + (distMeters / 1000).toFixed(1) + 'km';
+        } else if (distMeters >= 10) {
+            scaleValEl.textContent = '약 ' + distMeters + 'm';
+        } else {
+            scaleValEl.textContent = '약 ' + Math.max(1, distMeters) + 'm';
+        }
+    };
+
+    window.map.on('zoom move zoomend moveend', window.updateMapScaleHud);
+    setTimeout(window.updateMapScaleHud, 200);
+
+    // 기본 시작 모드: GuMap 자체 디자인 지도로 최초 자동 활성화
+    setTimeout(function() {
+        if (window.setMapMode) {
+            window.setMapMode('gumap');
+        }
+    }, 150);
+
+
+
 
     // 레이어 컨트롤에서 토글 시 마커 데이터 패치 동기화
     window.map.on('overlayadd', function(e) {
@@ -230,47 +267,88 @@ window.onload = function() {
         }
     });
 
-    // 레이어 전환 시 다크모드 및 연구레이어 토글
+    // 레이어 전환 시 활성 베이스 레이어 추적
     window.map.on('baselayerchange', function(e) {
-        if (e.name === '📊 연구지도 (MaaS)') {
-            if (typeof window.switchMapMode === 'function') {
-                window.switchMapMode('research');
-            } else if (typeof showResearchMapLayers === 'function') {
-                showResearchMapLayers();
-            }
-        } else {
-            if (typeof window.switchMapMode === 'function') {
-                window.switchMapMode('general');
-            } else if (typeof hideResearchMapLayers === 'function') {
-                hideResearchMapLayers();
-            }
-        }
-
-        if (e.layer !== darkLayer) {
-            window._lastActiveBaseLayer = e.layer;
-        }
+        window._lastActiveBaseLayer = e.layer;
     });
 
     // Leaflet Popup 객체 초기화
     window.infoWindow = L.popup();
 
-    // 정류장 로드 및 클릭 이벤트 바인딩
+    // 정류장 로드 및 클릭 이벤트 바인딩 (노선 코드 및 버스 시간표 연동)
     if (typeof bus_stations !== 'undefined') {
+        // fallbackRouteStops와 allRoutesMap을 기반으로 정류장별 경유 노선코드 매핑 구축
+        let fbStationList = [];
+        if (typeof fallbackRouteStops !== 'undefined' && fallbackRouteStops) {
+            let rIdToNo = {};
+            if (typeof allRoutesMap !== 'undefined') {
+                for (let rno in allRoutesMap) {
+                    allRoutesMap[rno].forEach(rid => rIdToNo[rid] = rno);
+                }
+            }
+            for (let rid in fallbackRouteStops) {
+                let stops = fallbackRouteStops[rid];
+                let rno = rIdToNo[rid] || rid.replace('GMB', '');
+                stops.forEach(st => {
+                    fbStationList.push({
+                        routeId: rid,
+                        routeNo: rno,
+                        nodeid: st.nodeid,
+                        name: st.nodenm,
+                        lat: Number(st.gpslati),
+                        lng: Number(st.gpslong)
+                    });
+                });
+            }
+        }
+
         for (let i = 0; i < bus_stations.length; i++) {
             let s = bus_stations[i];
             if (s.lat && s.lng) {
-                let content = `<div class="bus-stop-glow-marker" title="${s.name} (클릭 시 도착 정보)"><div class="bus-stop-glow-marker-inner"></div></div>`;
+                let sLat = Number(s.lat);
+                let sLng = Number(s.lng);
+
+                // 노선 코드 및 정류장 ID 사전 매핑
+                if (!s.routeNos) {
+                    let best = null;
+                    let bestDist = 0.0025; // 약 250m
+                    let matchingRoutes = new Set();
+                    let matchingRouteIds = new Set();
+
+                    fbStationList.forEach(fb => {
+                        let d = Math.abs(fb.lat - sLat) + Math.abs(fb.lng - sLng);
+                        let nameMatch = (fb.name === s.name || s.name.startsWith(fb.name) || fb.name.startsWith(s.name));
+                        if (d < 0.0025 || (nameMatch && d < 0.008)) {
+                            matchingRoutes.add(fb.routeNo);
+                            matchingRouteIds.add(fb.routeId);
+                            if (!best || d < bestDist) {
+                                bestDist = d;
+                                best = fb;
+                            }
+                        }
+                    });
+
+                    if (best) {
+                        s.nodeid = best.nodeid;
+                        s.routeNos = Array.from(matchingRoutes);
+                        s.routeIds = Array.from(matchingRouteIds);
+                    }
+                }
+
+                // 15% 축소된 19px 정사각 크기 적용
+                let routeHint = (s.routeNos && s.routeNos.length > 0) ? ` [${s.routeNos.join(', ')}번]` : '';
+                let content = `<div class="bus-station-svg-marker" title="${s.name}${routeHint} (클릭 시 시간표 및 도착 정보)"><img src="/GUMAP-프론트/images/bus-icon.svg" class="bus-station-svg-img" alt="정류장" /></div>`;
                 let icon = L.divIcon({
                     html: content,
                     className: 'station-marker-icon',
-                    iconSize: [12, 12],
-                    iconAnchor: [6, 6]
+                    iconSize: [19, 19],
+                    iconAnchor: [9.5, 9.5]
                 });
                 let marker = L.marker([s.lat, s.lng], { icon: icon });
 
                 marker.on('click', function() {
                     if (typeof openStopInfo === 'function') {
-                        openStopInfo(s.name, s.lat, s.lng);
+                        openStopInfo(s.name, s.lat, s.lng, s.nodeid, s.routeNos, s.routeIds);
                     }
                 });
 
@@ -291,7 +369,8 @@ window.onload = function() {
     window.syncStationMarkers = function () {
         if (!window.map || !window.stationMarkers.length) return;
 
-        const visible = window.map.getZoom() >= window.MIN_STATION_ZOOM;
+        const isWebGlActive = (window.currentMapMode === 'gumap');
+        const visible = !isWebGlActive && (window.map.getZoom() >= window.MIN_STATION_ZOOM);
         // 가장자리에서 마커가 늦게 뜨는 느낌을 막으려고 화면보다 조금 넓게 잡는다.
         const bounds = visible ? window.map.getBounds().pad(0.25) : null;
 
@@ -316,23 +395,13 @@ window.onload = function() {
     window.map.on('moveend zoomend', window.syncStationMarkers);
     window.syncStationMarkers();
 
-    // 즐겨찾기 초기 렌더링
-    if (typeof window.renderFavorites === 'function') {
-        window.renderFavorites();
-    }
-
-    // 외부 모듈 클릭/컨텍스트메뉴 이벤트 바인딩 호출
+    // 외부 모듈 클릭 이벤트 바인딩 호출
     if (typeof window.initMapClickEvents === 'function') {
         window.initMapClickEvents();
     }
 
-    // [신규] 금오공과대학교 테크노관 지하 1층 (B1F) 실내지도 모듈 초기화
-    if (typeof window.initTechnoBuildingB1Map === 'function') {
-        window.initTechnoBuildingB1Map();
-    }
-
-    // [신규] 실외 도보 및 다층 보행로 커스텀 샌드박스 모듈 초기화
-    if (typeof window.initOutdoorWalkwayModule === 'function') {
-        window.initOutdoorWalkwayModule();
+    // 기본 지도를 GuMap 자체 벡터 지도(WebGL)로 확정 활성화
+    if (typeof window.setMapMode === 'function') {
+        window.setMapMode('gumap');
     }
 };

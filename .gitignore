@@ -1,212 +1,24 @@
-# Byte-compiled / optimized / DLL files
+# Python virtual environment & bytecode
+.venv/
+venv/
+ENV/
 __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# UV
-#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#uv.lock
-
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
-
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
-#   in version control.
-#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
-.pdm.toml
-.pdm-python
-.pdm-build/
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
+# Environment variables & secrets (never commit API keys)
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# Logs & temporary files
+*.log
+*.tmp
+*.bak
+.ngrok.exe.old
+ngrok_dist.zip
 
-# Rope project settings
-.ropeproject
+# OS & Editor metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
-
-# Ruff stuff:
-.ruff_cache/
-
-# PyPI configuration file
-.pypirc
-
-# Cursor  
-#  Cursor is an AI-powered code editor.`.cursorignore` specifies files/directories to 
-#  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
-#  refer to https://docs.cursor.com/context/ignore-files
-.cursorignore
-.cursorindexingignore
-GUMAP-데이터/data(데이터 파일)/reference(전국 참고 데이터)/[2026-07-01]NODELINKDATA.zip
-GUMAP-데이터/data(데이터 파일)/reference(전국 참고 데이터)/전남광주통합특별시_시내버스 노선별 승하차 인원_20260331.zip
-*.zip
-GIS_DATA/
-
-# 도면 이미지 기반 실내지도 백업 (GUMAP-개발/floorplan/cad/backup_legacy_indoor.py)
-# 되돌리기용 로컬 사본이다. 안에 든 tracked 파일은 이미 git 이력에 있고, 나머지
-# 28 MB 는 래스터 중간 산출물이라 저장소에 또 넣을 이유가 없다.
-/backup/
-
-# CAD 파이프라인 중간 산출물 (GUMAP-개발/floorplan/cad)
-# 원본 DWG(GIS_DATA/)에서 build.py 로 다시 만들면 그대로 나온다. 저장소에는
-# 사이트가 실제로 쓰는 것과 사람이 읽을 보고서만 둔다.
-GUMAP-개발/floorplan/cad/source/
-GUMAP-개발/floorplan/cad/output/map.json
-GUMAP-개발/floorplan/cad/output/*.linework.local.geojson
-GUMAP-개발/floorplan/cad/output/*.png
-
-# 실험·임시 작업 폴더
-GUMAP-개발/floorplan/exp2f/
-experiments/
-tmp/
-**/node_modules/
-node_modules/
-GUMAP-앱/node_modules/
-*등고선*.geojson
-*.zip
-GU_MAP_Release_Package.zip
-
-# 런처 로그·터널 상태(tunnel.json)
-GUMAP-실행/G-map-logs/

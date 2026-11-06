@@ -51,10 +51,7 @@
          * 화면 하단에 3초 동안 노출되는 비차단형 에러 토스트 팝업을 띄웁니다.
          * @param {string} msg - 노출할 에러 메시지
          */
-        showToast(msg, tone) {
-            var colors = tone === 'info'
-                ? { bg: 'rgba(30, 41, 59, 0.95)', shadow: 'rgba(15, 23, 42, 0.3)' }
-                : { bg: 'rgba(239, 68, 68, 0.95)', shadow: 'rgba(239, 68, 68, 0.3)' };
+        showToast(msg) {
             var container = document.getElementById('toast-container');
             if (!container) {
                 container = document.createElement('div');
@@ -75,7 +72,7 @@
 
             var toast = document.createElement('div');
             Object.assign(toast.style, {
-                background: colors.bg,
+                background: 'rgba(239, 68, 68, 0.95)',
                 backdropFilter: 'blur(10px)',
                 webkitBackdropFilter: 'blur(10px)',
                 color: '#ffffff',
@@ -83,14 +80,13 @@
                 borderRadius: '12px',
                 fontSize: '12px',
                 fontWeight: '700',
-                boxShadow: '0 8px 24px ' + colors.shadow,
+                boxShadow: '0 8px 24px rgba(239, 68, 68, 0.3)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 opacity: '0',
                 transform: 'translateY(15px)',
                 transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
                 pointerEvents: 'auto',
-                maxWidth: 'calc(100vw - 32px)',
-                textAlign: 'center',
+                whiteSpace: 'nowrap',
                 fontFamily: 'Noto Sans KR, sans-serif'
             });
             toast.textContent = msg;
@@ -114,10 +110,4 @@
     };
 
     window.ErrorHandler = ErrorHandler;
-
-    // 일반 안내 토스트. 여러 모듈이 if (window.showToast) 로 부르는데 정작 정의가 없어서
-    // "출발 위치를 지도에서 눌러 주세요" 같은 안내가 한 번도 뜨지 않았다.
-    window.showToast = function(msg) {
-        ErrorHandler.showToast(msg, 'info');
-    };
 })();

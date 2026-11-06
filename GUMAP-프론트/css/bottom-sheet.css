@@ -17,6 +17,13 @@
 
 /* [신규] 모바일 반응형 완전 대응 UI (서로 겹치지 않도록 배치) */
 @media (max-width: 768px) {
+    /* 모바일에서 데스크톱 좌측 슬림 네비게이션 및 토글 숨김 (하단 바텀시트 일원화) */
+    #sidebar-slim-nav,
+    #sidebar-drawer-toggle,
+    #sidebar-toggle-btn {
+        display: none !important;
+    }
+
     /* 메인 패널 (바텀 시트 형태로 화면 하단에 고정) */
     #routing-panel {
         top: auto !important;
@@ -251,7 +258,8 @@
     /* 모바일 모달 창 찌그러짐 및 화면 초과 방지 */
     #review-modal > div,
     #dev-mode-modal > div,
-    #server-connect-modal > div {
+    #server-connect-modal > div,
+    #mobile-notice-modal > div {
         max-height: 90vh !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;

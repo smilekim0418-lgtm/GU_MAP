@@ -1,129 +1,67 @@
-# 🗺️ GUMAP — 구미시 통합 지도 서비스
+# GuMap — 구미시 통합 스마트 모빌리티 지도 플랫폼
 
-> 구미시 대중교통·실내외 지도·AI 길찾기를 통합한 웹앱 프로젝트  
-> 마지막 정리: 2026-08-28
+외부 유료 지도 API 키 없이 100% 자체 구축된 벡터 레이어(WebGL MapLibre GL JS)와 경량 라우팅 그래프 엔진으로 동작하는 구미시 통합 모빌리티 지도 웹 애플리케이션입니다.
 
 ---
 
-## 📁 폴더 구조
+## 주요 기능
 
-루트에는 **진입점과 설정만** 둔다. 나머지는 목적별 `GUMAP-*` 폴더로 나뉜다.
+| 영역 | 세부 기능 | API 키 필요 여부 |
+| :--- | :--- | :---: |
+| **자체 벡터 지도 (WebGL)** | 구미시 80,088동 건축물, 실폭 도로면 폴리곤, 도로 중심선 위계, 하천/공원, 대경선·경부선 실제 철도 궤도 렌더링 | 불필요 (100% 로컬 GeoJSON/GZip) |
+| **대중교통 환승 길찾기** | 구미·칠곡(왜관)·김천 권역 **339개 전 버스 노선** 및 **2,178개 고유 정류장(13,970개 시퀀스)** 기반 직통·1회·2회 환승 탐색 + 실제 도로 밀착 폴리라인 표출 | 불필요 (내장 `transit_graph` 엔진) |
+| **자동차·자전거·도보 길찾기** | 사전 연산된 ST-GNN 혼잡도 가중치(`gumi_compact_routing.pkl`) 및 OSRM 오픈소스 폴백 기반 최적 경로·턴바이턴 안내 | 불필요 |
+| **구미 버스 노선도 보드** | 339개 전 노선 검색, 기점·종점·경유 정류장 목록 조회, 도로 중심선에 스내핑된 정밀 노선 폴리라인 표시 | 불필요 (실시간 버스 위치만 선택적 TAGO 연동) |
+| **통합 장소 검색 & AI 비서** | 구미시 랜드마크·초중고·행정복지센터·정류장 초성/키워드 오프라인 검색 및 Gemini 자연어 연동 | 기본 검색 불필요 |
 
-```
-통합 GUMAP/
-│
-├── 📄 index.html              ← 웹앱 진입점 (여기서 시작)
-├── 📄 server.py               ← 본서버 (FastAPI, 포트 3000) · 모든 API 프록시
-├── 📄 3d-viewer.html          ← 3D 지도 팝업 (index.html 에서 열림)
-├── 📄 G-map-시작.bat           ← ★ 더블클릭으로 실행
-├── 📄 G-map-종료.bat
-├── 📄 .env / .env.example     ← API 키 (.env 는 git 에 안 올라간다)
-│
-├── 📂 GUMAP-프론트/            ← 웹 프론트엔드 (css/, js/)
-│   └── js/map/                - 지도 엔진 · 실내지도 · 실내 길찾기 번들
-├── 📂 GUMAP-일반지도/          ← 일반지도 단독 페이지 (프론트 사본)
-├── 📂 GUMAP-학교지도/          ← 금오공대 캠퍼스 지도 · IMDF 산출물 · CAD
-│
-├── 📂 GUMAP-서버/              ← 기능별 서버 모듈 (교통·날씨·AI 길찾기)
-├── 📂 GUMAP-중앙처리장치/      ← 변경 이력 · 연동 처리
-├── 📂 GUMAP-AI(길찾기)/        ← G-Route AI 경로 탐색
-│
-├── 📂 GUMAP-실행/              ← 실행 스크립트 (프록시·브라우저·터널·타일서버)
-├── 📂 GUMAP-개발/              ← 개발 도구
-│   └── floorplan/             - 도면 → IMDF · 실내 길찾기 빌드 파이프라인
-│       ├── fp/                - 모듈 (nav · route · imdf · outdoor · entrances)
-│       ├── tests/             - 테스트 (pytest + 브라우저 검사)
-│       ├── work/              - 층별 라벨 원본 (*.json 만 추적, PNG 는 제외)
-│       ├── floorplan-editor.html   - 박스 편집기 (포트 8790)
-│       └── indoor-calibrate.html   - 도면 정합 도구
-│
-├── 📂 GUMAP-데이터/            ← 버스 정류장 · 인구 통계 등 원천 데이터
-├── 📂 GUMAP-API키/             ← 공공 API 가이드 문서
-├── 📂 GUMAP-아이콘/            ← 앱 아이콘 · 이미지
-├── 📂 GUMAP-앱/                ← 안드로이드 (Capacitor) · APK
-├── 📂 GUMAP-발표/              ← 기획서 · 보고서
-│
-├── 📂 docs/                    ← 설계 문서 (specs)
-└── 📂 GIS_DATA/                ← 정사영상 · DEM · 3D Tiles (git 제외, 5GB)
-```
+---
 
-> 루트에 `check_*.py` · `patch_*.py` 같은 일회용 스크립트를 두지 않는다.
-> 필요하면 `GUMAP-개발/` 아래에서 작업한다.
+## 프로젝트 디렉토리 구조
 
-## 🚀 실행 방법
-
-### 방법 1 — 가장 간단 (권장)
-```
-G-map-시작.bat 더블클릭
+```text
+GuMap/
+├── index.html                  # 메인 웹 애플리케이션 엔트리 포인트
+├── server.py                   # FastAPI 초경량 백엔드 서버 (~117MB RAM 점유)
+├── requirements.txt            # Python 필수 패키지 목록 (FastAPI, Uvicorn, HTTPX 등)
+├── .env.example                # 선택적 외부 API 키 설정 템플릿
+├── .gitignore                  # Git 버전 관리 제외 설정 (.venv, .env, *.log 등)
+├── GuMap-실행.bat              # 윈도우 원클릭 서버 기동 스크립트 (포트 3000)
+├── GuMap_종료.bat              # 윈도우 서버 종료 스크립트
+├── GUMAP-프론트/               # 프론트엔드 정적 자산 (CSS, JS, 폰트, 마스터 데이터)
+│   ├── css/                    # 레이아웃, 컴포넌트, 다크모드, 바텀시트 스타일
+│   ├── js/
+│   │   ├── map/                # MapLibre WebGL 렌더러, 스타일 스펙, 버스 보드, 검색/클릭 제어
+│   │   ├── data/               # 339개 버스 노선 도로 밀착 좌표 및 정류장 마스터 DB
+│   │   ├── ui/                 # 이벤트 바인딩 및 장소 리뷰 모듈
+│   │   └── utils/              # API 클라이언트 및 에러 핸들러
+│   ├── fonts/                  # 웹폰트 자산
+│   └── images/                 # 버스/정류장 SVG 마커 아이콘
+├── GUMAP-데이터/               # 자체 지도 공간 벡터 데이터
+│   └── vector_layers/          # 건물, 실폭 도로면, 도로망, 철도(대경선/경부선), 수계, 공원 GeoJSON (.gz 포함)
+├── GUMAP-아이콘/               # 앱 아이콘 및 시설물 심볼 SVG
+├── GUMAP-AI(길찾기)/           # 경량 G-Route AI 라우팅 데이터 및 추론 모듈
+│   └── groute_ai/
+│       └── data/
+│           └── gumi_compact_routing.pkl  # 사전 직렬화된 5.15MB 초경량 도로망 그래프
+└── docs/                       # 프로젝트 아키텍처 및 인수인계 문서
 ```
 
-### 방법 2 — 수동 실행
+---
+
+## 빠른 시작 (Quick Start)
+
+### 1. 의존성 설치
 ```bash
-GUMAP-실행/1_실행_프록시서버.bat     # 본서버
-GUMAP-실행/2_실행_웹브라우저.bat     # 브라우저 열기
-GUMAP-실행/3_실행_온라인접속.bat     # 외부 공유 터널 (ngrok → 3000)
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-### 방법 3 — Python 직접 실행
+### 2. 서버 실행
 ```bash
-python server.py                          # 본서버 (3000) · API 전부 여기
-python GUMAP-실행/launch_gis_servers.py   # 타일 서버 (8765 정사영상 / 8766 3D / 8767 DEM)
+python server.py
 ```
+또는 Windows 환경에서 `GuMap-실행.bat` 파일을 더블클릭합니다.
 
-> 외부 공유 터널은 **반드시 3000번**을 가리켜야 한다. 타일 서버(8765~8767)는
-> 정적 파일만 내주는 `http.server` 라 POST 를 못 받고, 그쪽으로 터널을 열면
-> 길찾기·버스·AI 가 전부 `501 Unsupported method ('POST')` 로 죽는다.
-
----
-
-## ⚙️ 환경 설정
-
-`.env` 파일을 열어 API 키를 설정하세요:
-```
-VWORLD_API_KEY=...
-GUMI_BUS_API_KEY=...
-GEMINI_API_KEY=...
-```
-→ `.env.example` 파일을 참고해서 작성
-
----
-
-## 🏗️ 기술 스택
-
-| 항목 | 기술 |
-|------|------|
-| 프론트엔드 | HTML5 + Vanilla JS + CSS3 |
-| 백엔드 | Python (Flask/FastAPI) |
-| 지도 | VWorld API (국토부) |
-| AI 길찾기 | GNN + RL (PyTorch) |
-| 실내지도 | IMDF + Vinside SDK |
-| 실시간버스 | 구미시 버스 API |
-| 앱 패키징 | Capacitor (Android APK) |
-
----
-
-## 🗂️ 주요 기능
-
-- 🗺️ **외부 지도** — VWorld 기반 구미시 지도, 실시간 버스 위치
-- 🏫 **실내 지도** — 금오공대 테크노관 층별 실내지도 (B1~6층)
-- 🤖 **AI 길찾기** — GNN 기반 딥러닝 최적 경로 탐색 (G-Route AI)
-- 🚌 **버스 추적** — 실시간 구미시 버스 위치 & 도착 정보
-- 📍 **장소 검색** — 구미시 내 장소 검색 및 즐겨찾기
-- 📱 **Android 앱** — Capacitor 기반 네이티브 앱 변환
-
----
-
-## 📝 수정 시 참고
-
-| 수정 목적 | 파일 위치 |
-|-----------|-----------|
-| UI 스타일 변경 | `GUMAP-프론트/css/` |
-| 지도 기능 수정 | `GUMAP-프론트/js/map/` |
-| 버스 기능 수정 | `GUMAP-프론트/js/GUMAP-버스추적.js` |
-| AI 길찾기 수정 | `GUMAP-프론트/js/GUMAP-길찾기.js`, `GUMAP-AI(길찾기)/groute_ai/` |
-| 실내지도·실내 길찾기 | **`GUMAP-개발/floorplan/`** 에서 고치고 `04/05_build_*.py --write` |
-| API 키 수정 | `.env`, `GUMAP-프론트/js/GUMAP-설정.js` |
-| 서버 수정 | `server.py`, `GUMAP-실행/cors_server.py` |
-
-> ⚠ `GUMAP-프론트/js/map/map-techno-*.js` 는 **빌드 산출물**이다. 직접 고치면
-> 다음 빌드에 덮어써진다. 원본은 `GUMAP-개발/floorplan/` 에 있다.
+### 3. 브라우저 접속
+- 주소창에 `http://127.0.0.1:3000` 입력 후 접속합니다.

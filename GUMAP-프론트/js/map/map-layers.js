@@ -1,22 +1,3 @@
-/* hls.js 지연 로드. 한 번만 받고, 동시에 여러 번 불려도 같은 약속을 돌려준다. */
-window.loadHlsLibrary = window.loadHlsLibrary || (function () {
-    var pending = null;
-    return function () {
-        if (typeof Hls !== 'undefined') return Promise.resolve();
-        if (pending) return pending;
-        pending = new Promise(function (resolve, reject) {
-            var tag = document.createElement('script');
-            // @latest 는 배포마다 바뀌어 캐시도 안 되고 동작도 흔들린다. 버전을 고정한다.
-            tag.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js';
-            tag.crossOrigin = 'anonymous';
-            tag.onload = function () { resolve(); };
-            tag.onerror = function () { pending = null; reject(new Error('hls.js load failed')); };
-            document.head.appendChild(tag);
-        });
-        return pending;
-    };
-})();
-
 // ============================================================
 // 📁 파일명: js/map/map-layers.js
 // 📌 역할: 지도 위 실시간 데이터 오버레이 레이어 관리
@@ -336,16 +317,7 @@ window.fetchAndRenderCctv = function() {
                             var videoEl = document.getElementById(videoId);
                             if (videoEl) {
                                 var streamUrl = videoEl.getAttribute('data-src');
-                                var wantsHls = streamUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('cctv') !== -1;
-                                // hls.js 는 무거워서(620 KB) 페이지 로드 때 받지 않는다. 사파리처럼
-                                // HLS 를 직접 재생하는 브라우저는 아예 받을 필요가 없다.
-                                if (wantsHls && typeof Hls === 'undefined' && !videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-                                    window.loadHlsLibrary().then(function () {
-                                        if (marker.isPopupOpen()) marker.fire('popupopen');
-                                    }).catch(function () { videoEl.src = streamUrl; });
-                                    return;
-                                }
-                                if (typeof Hls !== 'undefined' && Hls.isSupported() && wantsHls) {
+                                if (typeof Hls !== 'undefined' && Hls.isSupported() && (streamUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('cctv') !== -1)) {
                                     var hls = new Hls();
                                     hls.loadSource(streamUrl);
                                     hls.attachMedia(videoEl);
@@ -465,18 +437,24 @@ window.toggleDarkMode = function() {
         document.body.classList.remove('dark-theme');
         localStorage.setItem('gumap_dark_theme', 'false');
         var toggle = document.getElementById('dark-mode-toggle');
-        if (toggle) { toggle.textContent = '🌙'; toggle.title = '다크모드 전환'; }
+        if (toggle) {
+            toggle.innerHTML = '<svg class="dock-icon-svg icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+            toggle.title = '다크모드 전환';
+        }
         if (window.map) {
             window.map.removeLayer(layers.darkLayer);
-            window.map.addLayer(window._lastActiveBaseLayer || layers.baseLayer);
+            window.map.addLayer(window._lastActiveBaseLayer || layers.vworldBaseLayer || layers.baseLayer);
         }
     } else {
         document.body.classList.add('dark-theme');
         localStorage.setItem('gumap_dark_theme', 'true');
         var toggle = document.getElementById('dark-mode-toggle');
-        if (toggle) { toggle.textContent = '☀️'; toggle.title = '라이트모드 전환'; }
+        if (toggle) {
+            toggle.innerHTML = '<svg class="dock-icon-svg icon-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+            toggle.title = '라이트모드 전환';
+        }
         if (window.map) {
-            var baseLayers = [layers.osmLayer, layers.baseLayer, layers.satelliteLayer, layers.esriSatelliteLayer, layers.lightGrayLayer];
+            var baseLayers = [layers.vworldBaseLayer, layers.osmLayer, layers.baseLayer, layers.satelliteLayer, layers.esriSatelliteLayer, layers.lightGrayLayer];
             baseLayers.forEach(function(l) {
                 if (l && window.map.hasLayer(l)) {
                     window.map.removeLayer(l);
@@ -487,17 +465,58 @@ window.toggleDarkMode = function() {
     }
 };
 
-// 실시간 교통 혼잡도 레이어 토글
+// 실시간 교통 혼잡도 레이어 토글 (Leaflet 및 MapLibre WebGL 동시 지원)
 window.toggleTrafficLayer = function(show) {
-    if (show) {
-        if (!window.trafficLayer) {
-            window.trafficLayer = L.tileLayer('https://its.go.kr:9443/geoserver/gwc/service/wmts/rest/ntic:N_LEVEL_11/ntic:REALTIME/EPSG:3857/EPSG:3857:{z}/{y}/{x}?format=image/png8', {
-                maxZoom: 19, minZoom: 6, opacity: 0.7, attribution: 'ITS 실시간 교통정보'
-            });
+    window.isTrafficLayerOn = show;
+
+    // 1. MapLibre WebGL 엔진 지원
+    if (window.gumapWebGLMap) {
+        try {
+            var src = window.gumapWebGLMap.getSource('its-traffic-source');
+            if (!src) {
+                window.gumapWebGLMap.addSource('its-traffic-source', {
+                    type: 'raster',
+                    tiles: [
+                        'https://its.go.kr:9443/geoserver/gwc/service/wmts/rest/ntic:N_LEVEL_11/ntic:REALTIME/EPSG:3857/EPSG:3857:{z}/{y}/{x}?format=image/png8'
+                    ],
+                    tileSize: 256
+                });
+                window.gumapWebGLMap.addLayer({
+                    id: 'its-traffic-layer',
+                    type: 'raster',
+                    source: 'its-traffic-source',
+                    paint: { 'raster-opacity': 0.85 }
+                }, 'roads-labels'); // 도로명 라벨 바로 아래에 깔아 가독성 보장
+            }
+            window.gumapWebGLMap.setLayoutProperty(
+                'its-traffic-layer',
+                'visibility',
+                show ? 'visible' : 'none'
+            );
+        } catch (e) {
+            console.warn('[GuMap] WebGL 실시간 교통 레이어 제어 예외:', e);
         }
-        window.trafficLayer.addTo(window.map);
-    } else {
-        if (window.trafficLayer) window.map.removeLayer(window.trafficLayer);
+    }
+
+    // 2. Leaflet 2D 엔진 지원 (기존 호환)
+    if (window.map) {
+        if (show) {
+            if (!window.trafficLayer) {
+                window.trafficLayer = L.tileLayer('https://its.go.kr:9443/geoserver/gwc/service/wmts/rest/ntic:N_LEVEL_11/ntic:REALTIME/EPSG:3857/EPSG:3857:{z}/{y}/{x}?format=image/png8', {
+                    maxZoom: 19, minZoom: 6, opacity: 0.7, attribution: 'ITS 실시간 교통정보'
+                });
+            }
+            window.trafficLayer.addTo(window.map);
+        } else {
+            if (window.trafficLayer && window.map.hasLayer(window.trafficLayer)) {
+                window.map.removeLayer(window.trafficLayer);
+            }
+        }
+    }
+
+    var trafficBtn = document.getElementById('toggle-traffic-btn');
+    if (trafficBtn) {
+        trafficBtn.classList.toggle('active', show);
     }
 };
 
@@ -537,9 +556,23 @@ window.toggleSharedPmLayer = function(show) {
                 if (infoBar) infoBar.innerHTML = '🛴 공유 모빌리티 ' + items.length + '대 발견!';
             } else {
                 var infoBar = document.getElementById('clicked-info');
-                // 데이터가 없으면 없다고만 알린다. 예전에는 지도 중심 주변에 가짜 킥보드·자전거
-                // 15대를 배터리 잔량까지 지어내 찍었다.
-                if (infoBar) infoBar.innerHTML = '🛴 지금 구미시 공유 킥보드·자전거 위치 데이터가 없습니다.';
+                if (infoBar) infoBar.innerHTML = '🛴 현재 구미시 공유 모빌리티 API 데이터가 0건입니다. (테스트용 가상 데이터 표시)';
+                var center = window.map.getCenter();
+                for (var i=0; i<15; i++) {
+                    var lat = center.lat + (Math.random() - 0.5) * 0.04;
+                    var lng = center.lng + (Math.random() - 0.5) * 0.04;
+                    var type = Math.random() > 0.5 ? '자전거' : '킥보드';
+                    var emoji = type === '자전거' ? '🚲' : '🛴';
+                    var company = type === '자전거' ? '지바이크' : '씽씽';
+                    var battery = Math.floor(Math.random() * 100) + '%';
+                    var icon = L.divIcon({
+                        html: '<div style="font-size:22px; text-shadow:0 0 4px white; cursor:pointer;" title="' + company + ' ' + type + '">' + emoji + '</div>',
+                        className: 'shared-pm-icon', iconSize: [24, 24], iconAnchor: [12, 12]
+                    });
+                    var marker = L.marker([lat, lng], { icon: icon }).addTo(window.sharedPmLayerGroup);
+                    marker.bindPopup('<div style="font-family:Noto Sans KR,sans-serif; min-width:120px;"><b>' + emoji + ' ' + type + ' (가상)</b><br><span style="font-size:11px; color:#64748b;">' + company + '</span><br>🔋 배터리: <b>' + battery + '</b><div style="display:flex; justify-content:flex-end; gap:6px; margin-top:5px;"><a href="javascript:void(0)" onclick="window.addFavorite(\'' + company.replace(/'/g, "\\'") + ' ' + type + '\', ' + lat + ', ' + lng + ', \'\')" style="font-size:11px; color:#92400e; text-decoration:underline; font-weight:600; cursor:pointer;">⭐ 즐겨찾기</a></div></div>');
+                    window.sharedPmMarkers.push(marker);
+                }
             }
         })
         .catch(function(err) {
@@ -631,12 +664,24 @@ window.searchOpinetGasStations = function(center, options = {}) {
                     badgeHtml = `<span style="background:#ef4444; color:white; font-size:9px; border-radius:4px; padding:1px 3px; margin-left:3px; font-weight:900; vertical-align:middle;">+${group.children.length}</span>`;
                 }
 
-                var iconHtml = `<div class="glass-capsule-marker" style="--marker-border-color:${brandColor}; --marker-glow-color:${stGlowColor}; opacity:${opacity};" title="${st.OS_NM}">⛽ <span style="color:${brandColor}; font-weight:800;">${brandName}</span> <span style="margin:0 2px; opacity:0.3;">|</span> <span style="color:#ef4444; font-weight:800;">${displayPrice}</span>${badgeHtml}</div>`;
+                var iconHtml = `
+                <div class="poi-vertical-pin" style="opacity:${opacity}; pointer-events:auto;" title="${st.OS_NM}">
+                    <div class="poi-top-badge" style="border:2.5px solid ${brandColor}; box-shadow:0 4px 12px rgba(0,0,0,0.18), 0 0 10px ${stGlowColor};">
+                        <img src="GUMAP-아이콘/gas_station.svg" alt="주유소" style="width:25px; height:25px; object-fit:contain; display:block;">
+                    </div>
+                    <div class="poi-arrow-pointer" style="border-top:6px solid ${brandColor};"></div>
+                    <div class="poi-bottom-tag" style="border:1.5px solid ${brandColor};">
+                        <span style="color:${brandColor}; font-weight:800;">${brandName}</span>
+                        <span style="color:#ef4444; font-weight:900; margin-left:3px;">${displayPrice}</span>
+                        ${badgeHtml}
+                    </div>
+                </div>`;
+
                 var icon = L.divIcon({
                     html: iconHtml,
-                    className: 'category-marker-icon', 
-                    iconSize: [0, 0], 
-                    iconAnchor: [0, 0]
+                    className: 'poi-vertical-icon', 
+                    iconSize: [140, 70], 
+                    iconAnchor: [70, 70]
                 });
                 
                 var marker = L.marker([lat, lng], { icon: icon, opacity: opacity });
@@ -706,9 +751,32 @@ window.searchOpinetGasStations = function(center, options = {}) {
                 });
                 
                 window.categoryClusterGroup.addLayer(marker);
+
+                // 🌐 [신규] MapLibre WebGL 자체지도용 주유소 마커 생성 및 등록
+                if (window.gumapWebGLMap && typeof maplibregl !== 'undefined') {
+                    var webglEl = document.createElement('div');
+                    webglEl.className = 'poi-webgl-item';
+                    webglEl.innerHTML = iconHtml;
+                    webglEl.style.cursor = 'pointer';
+
+                    var webglPopup = new maplibregl.Popup({ offset: [0, -70], closeButton: true, closeOnClick: true })
+                        .setDOMContent(popupContent.cloneNode(true));
+
+                    var webglMarker = new maplibregl.Marker({ element: webglEl, anchor: 'bottom' })
+                        .setLngLat([lng, lat])
+                        .setPopup(webglPopup)
+                        .addTo(window.gumapWebGLMap);
+
+                    if (window.webglCategoryMarkers) {
+                        window.webglCategoryMarkers.push(webglMarker);
+                    }
+                }
+
                 createdGasMarkers.push({ group: group, marker: marker });
             });
-            window.map.addLayer(window.categoryClusterGroup);
+            if (window.map && window.categoryClusterGroup) {
+                window.map.addLayer(window.categoryClusterGroup);
+            }
             
             if (options.priceCompare && cheapestGroup && createdGasMarkers.length > 0) {
                 var cheapestItem = createdGasMarkers.find(m => m.group === cheapestGroup);

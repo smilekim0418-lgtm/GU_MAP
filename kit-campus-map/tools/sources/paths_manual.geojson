@@ -1,5 +1,0 @@
-{
- "type": "FeatureCollection",
- "_readme": "OSM 에 없는 보행로를 LineString 으로 그려 넣는다. properties.note 에 이유를 적는다. steps=true 면 계단.",
- "features": []
-}

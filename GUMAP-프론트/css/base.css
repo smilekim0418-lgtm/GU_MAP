@@ -17,8 +17,13 @@
  * ============================================================ */
 
 :root {
-    --primary-color: #6366f1;
-    --primary-grad: linear-gradient(135deg, #6366f1, #8b5cf6);
+    --gumap-amber: #EEB500;
+    --gumap-green: #47D45A;
+    --gumap-blue: #1DB3EF;
+    --gumap-pink: #FF75DB;
+    --primary-color: #1DB3EF;
+    --primary-grad: linear-gradient(135deg, #1DB3EF 0%, #47D45A 100%);
+    --accent-grad: linear-gradient(135deg, #EEB500 0%, #FF75DB 100%);
     --danger-grad: linear-gradient(135deg, #ef4444, #dc2626);
     --sidebar-width: 310px;
     --bg-panel: rgba(255, 255, 255, 0.65);
@@ -29,7 +34,6 @@
     --border-focus: rgba(99, 102, 241, 0.5);
     --bg-input: rgba(255, 255, 255, 0.7);
     --border-input: rgba(226, 232, 240, 0.8);
-    --bg-card: #ffffff;              /* 길찾기 결과 카드 */
 }
 
 body.dark-theme {
@@ -41,7 +45,6 @@ body.dark-theme {
     --border-focus: rgba(139, 92, 246, 0.6);
     --bg-input: rgba(15, 23, 42, 0.5);
     --border-input: rgba(255, 255, 255, 0.08);
-    --bg-card: #1e293b;
 }
 
 html, body {
@@ -75,3 +78,138 @@ html, body {
 *::-webkit-scrollbar-thumb:hover {
     background: rgba(99, 102, 241, 0.5);
 }
+
+/* ── 학교안심_반달_L 웹폰트 등록 ── */
+@font-face {
+    font-family: 'Hakgyoansim_BandalL';
+    src: url('../fonts/Hakgyoansim_BandalL.woff2') format('woff2'),
+         url('../fonts/Hakgyoansim_BandalL.woff') format('woff'),
+         url('../fonts/Hakgyoansim_BandalL.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* 지도 위 도로명칭 라벨 (학교안심 반달체 적용) */
+.gumi-road-label-icon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.gumi-road-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Segoe UI", Roboto, sans-serif !important;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+    user-select: none;
+}
+
+/* 고속도로: #fcda2f */
+.gumi-road-badge.highway {
+    background: #fcda2f;
+    color: #78350f;
+    border: 1.5px solid #d97706;
+}
+
+/* 국도: #f6e27e */
+.gumi-road-badge.national {
+    background: #f6e27e;
+    color: #713f12;
+    border: 1.5px solid #ca8a04;
+}
+
+/* 지방도 및 도심 주요로: #f9f0c2 */
+.gumi-road-badge.provincial {
+    background: #f9f0c2;
+    color: #451a03;
+    border: 1px solid #d97706;
+}
+
+/* ── 구미시 건물 명칭 라벨 (배경 없음, 표준 기본 폰트, 정확한 중심 맵핑) ── */
+.gumi-building-label-wrap {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+.gumi-building-text {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -50%);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Segoe UI", Roboto, sans-serif !important;
+    font-weight: 700;
+    color: #1e293b;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: auto;
+    cursor: pointer;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    /* 은은한 흰색 halo로 도로색 및 배경 위에서도 글자만 또렷하게 */
+    text-shadow: 
+        -1.5px -1.5px 0 #ffffff,
+         1.5px -1.5px 0 #ffffff,
+        -1.5px  1.5px 0 #ffffff,
+         1.5px  1.5px 0 #ffffff,
+         0px 0px 4px #ffffff,
+         0px 0px 6px #ffffff;
+    transition: transform 0.15s ease, color 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    line-height: 1;
+}
+
+.gumi-building-text:hover {
+    transform: translate(-50%, -50%) scale(1.12);
+    color: #2563eb;
+    z-index: 9999;
+}
+
+/* 랜드마크 역사 (구미역, 사곡역 등) */
+.gumi-building-text.station {
+    font-size: 13px;
+    font-weight: 800;
+    color: #0369a1;
+}
+
+/* 대학 / 본관 */
+.gumi-building-text.university {
+    font-size: 13px;
+    font-weight: 800;
+    color: #4338ca;
+}
+
+/* 시청 / 공공기관 */
+.gumi-building-text.public {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* 일반 건물 / 상업 / 문화 */
+.gumi-building-text.general {
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+}
+
+/* 세부 건물 / 학내 각 관 */
+.gumi-building-text.detail {
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+}
+
+
